@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
+
+import { readStoreFile, writeStoreFile } from "./storeFile";
 import {
   drawingSets as seedDrawingSets,
   inspections as seedInspections,
@@ -74,13 +75,8 @@ const counters = new Map<string, number>();
 initializeCounters();
 
 function loadStore(): Store {
-  if (!existsSync(storePath)) return normalizeStore(seedStore);
-
-  try {
-    return normalizeStore(JSON.parse(readFileSync(storePath, "utf8")) as Store);
-  } catch {
-    return normalizeStore(seedStore);
-  }
+  const storedStore = readStoreFile(storePath) as Store | undefined;
+  return normalizeStore(storedStore ?? seedStore);
 }
 
 function normalizeStore(nextStore: Store): Store {
@@ -337,8 +333,7 @@ function normalizeScoreWeights(weights: ScoreWeights | undefined): ScoreWeights 
 }
 
 export function saveStore() {
-  mkdirSync(dirname(storePath), { recursive: true });
-  writeFileSync(storePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  writeStoreFile(storePath, store);
 }
 
 function initializeCounters() {

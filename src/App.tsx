@@ -39,6 +39,7 @@ import {
   quotes as seedQuotes,
   suppliers as seedSuppliers,
 } from "./data";
+import { parseLeadTimeDays } from "./leadTime";
 import {
   createInspection,
   createIncomingDefect,
@@ -6384,12 +6385,6 @@ function quoteExtraCostLabel(quote: Quote) {
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function parseLeadTimeDays(value: unknown) {
-  const text = String(value ?? "");
-  const match = text.match(/\d+(\.\d+)?/);
-  return match ? Number(match[0]) : undefined;
 }
 
 function purchasePriceLabel(id?: string) {

@@ -1,4 +1,5 @@
 import type { IncomingDefectRecord, PurchasePriceRecord, Quote, QuoteCaseLink, SampleInspection, SourcingProject } from "../src/types";
+import { parseLeadTimeDays } from "../src/leadTime";
 import {
   assertReferences,
   findDrawingItem,
@@ -615,12 +616,6 @@ function buildSupplierScorecard(supplierId: string) {
     failCount: fail,
     documentsComplete: supplier.hasW9 && supplier.hasPaymentInfo,
   };
-}
-
-function parseLeadTimeDays(value: unknown) {
-  const text = String(value ?? "");
-  const match = text.match(/\d+(\.\d+)?/);
-  return match ? Number(match[0]) : undefined;
 }
 
 export function buildScorecard() {
