@@ -51,7 +51,7 @@ Set `API_PORT` to run the API on a different port. The Vite proxy target in `vit
 
 ## Data
 
-`data/` and `uploads/` are runtime data and are not committed. On first start the API loads built-in seed data, and it writes `data/store.json` as soon as any data changes. Delete `data/store.json` to reset to the seed data.
+`data/` and `uploads/` are runtime data and are not committed. The seed arrays in `src/data.ts` are empty, so a fresh clone starts with no records; the API writes `data/store.json` as soon as any data changes. Delete `data/store.json` (and `uploads/`) to start over from an empty system.
 
 ## Project Layout
 
@@ -60,7 +60,7 @@ src/
   App.tsx       UI and page logic
   api.ts        API client
   types.ts      Shared record types
-  data.ts       Seed data used as a frontend fallback
+  data.ts       Seed arrays (currently empty)
 server/
   index.ts      Express routes
   schemas.ts    Zod request schemas

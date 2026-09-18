@@ -9,7 +9,7 @@ Stack:
 - Express
 - Zod for request validation
 
-Storage is a JSON file prototype. Records are loaded from `data/store.json` on startup, falling back to the seed data in `server/store.ts` when the file is missing, and the whole store is written back after every change. Uploaded files are saved to `uploads/`. The store is shaped like the future database tables, so `server/store.ts` can later be replaced with PostgreSQL + Prisma without changing the frontend API contract much.
+Storage is a JSON file prototype. Records are loaded from `data/store.json` on startup, starting empty when the file is missing (the seed arrays in `src/data.ts` are empty), and the whole store is written back after every change. Uploaded files are saved to `uploads/`. The store is shaped like the future database tables, so `server/store.ts` can later be replaced with PostgreSQL + Prisma without changing the frontend API contract much.
 
 ## Main Chain
 
