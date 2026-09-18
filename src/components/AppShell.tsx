@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Menu } from "lucide-react";
+import { Menu, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { navItems } from "../navigation";
 import type { Section } from "../uiTypes";
 import segLogo from "../assets/seg-logo-white.svg";
@@ -20,14 +20,28 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
     <div className={sidebarCollapsed ? "appShell sidebarCollapsed" : "appShell"}>
       <aside className="sidebar">
         <div className="brandBlock">
-          <img className="brandLogo" src={segLogo} alt="SEG Solar" />
+          <div className="brandHeader">
+            <img className="brandLogo" src={segLogo} alt="SEG Solar" />
+            <button
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!sidebarCollapsed}
+              aria-controls="main-navigation"
+              className="sidebarToggle"
+              onClick={() => setSidebarCollapsed((current) => !current)}
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              type="button"
+            >
+              {sidebarCollapsed ? <PanelLeftOpen className="desktopToggleIcon" size={18} /> : <PanelLeftClose className="desktopToggleIcon" size={18} />}
+              {sidebarCollapsed ? <Menu className="mobileToggleIcon" size={20} /> : <X className="mobileToggleIcon" size={20} />}
+            </button>
+          </div>
           <div className="brandCaption">
             <strong>Global Sourcing</strong>
             <span>Packaging Supply Chain</span>
           </div>
         </div>
 
-        <nav className="navList" aria-label="Main navigation">
+        <nav id="main-navigation" className="navList" aria-label="Main navigation">
           {navItems.map(({ section: item, icon: Icon }) => (
             <button
               className={section === item ? "navButton active" : "navButton"}
@@ -51,15 +65,7 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
             <p className="eyebrow">{sectionLabels[section]}</p>
             <h1>{section}</h1>
           </div>
-          <button
-            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="sidebarToggle"
-            onClick={() => setSidebarCollapsed((current) => !current)}
-            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            type="button"
-          >
-            <Menu size={20} />
-          </button>
+
         </header>
 
         {children}

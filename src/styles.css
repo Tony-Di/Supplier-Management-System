@@ -65,7 +65,7 @@ display: flex; flex-direction: column; align-items: flex-start; gap: 20px; paddi
 align-items: center; padding: 0 8px 22px;
 }
 
-.sidebarCollapsed .brandBlock > div:not(.brandMark) {
+.sidebarCollapsed .brandCaption {
   display: none;
 }
 
@@ -132,23 +132,34 @@ display: flex; flex-direction: column; gap: 20px; min-width: 0; padding: 26px 34
   gap: 18px;
 }
 
-.sidebarToggle {
+.brandHeader {
+  display: flex;
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #cfd4dc;
-  border-radius: var(--radius);
-  color: var(--ink);
-  display: inline-flex;
-  height: 40px;
-  justify-content: center;
-  width: 40px;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
 
-.sidebarToggle:hover {
-  background: var(--seg-red-soft);
-  border-color: var(--seg-red-border);
-  color: var(--seg-red);
+.brandHeader .brandLogo { max-width: calc(100% - 44px); }
+.sidebarCollapsed .brandHeader { flex-direction: column; gap: 16px; }
+.sidebarCollapsed .brandHeader .brandLogo { max-width: 100%; }
+
+.sidebarToggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  color: #A8A8A8;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
 }
+
+.sidebarToggle:hover { background: #2A2A2A; color: #FFFFFF; }
+.sidebarToggle:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+.mobileToggleIcon { display: none; }
 
 .eyebrow {
 color: var(--seg-red); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; margin: 0 0 6px; text-transform: uppercase;
@@ -2104,7 +2115,7 @@ background: #F2F3F5; border: 1px dashed #B8B8B8; color: #666666;
     grid-template-columns: 76px minmax(0, 1fr);
   }
 
-  .sidebarCollapsed .brandBlock div:not(.brandMark),
+  .sidebarCollapsed .brandCaption,
   .sidebarCollapsed .navButton span {
     display: none;
   }
@@ -2161,7 +2172,7 @@ background: #F2F3F5; border: 1px dashed #B8B8B8; color: #666666;
   }
 
   .navButton span,
-  .brandBlock div:not(.brandMark) {
+  .brandCaption {
     display: block;
   }
 
@@ -2298,6 +2309,11 @@ td { font-variant-numeric: tabular-nums; }
   .navButton span { display: block; }
   .sidebarCollapsed .navList { display: none; }
   .sidebarCollapsed .brandLogo { width: 126px; }
+  .sidebarCollapsed .brandBlock { padding: 0 18px 16px; }
+  .sidebarCollapsed .brandHeader { flex-direction: row; gap: 8px; }
+  .sidebarToggle { width: 44px; height: 44px; }
+  .desktopToggleIcon { display: none; }
+  .mobileToggleIcon { display: block; }
   .mainArea { padding: 20px 16px; gap: 16px; }
   .topbar { flex-direction: row; align-items: center; }
   h1 { font-size: 24px; }
