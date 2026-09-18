@@ -1,11 +1,13 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { AppDataProvider } from "./AppDataContext";
+import { SessionProvider } from "./SessionContext";
 import { App } from "./App";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AppDataProvider><App /></AppDataProvider>
+    <SessionProvider>
+      <App />
+    </SessionProvider>
   </React.StrictMode>,
 );

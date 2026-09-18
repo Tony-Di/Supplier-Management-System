@@ -3,6 +3,7 @@ import { Menu, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { navItems } from "../navigation";
 import type { Section } from "../uiTypes";
 import segLogo from "../assets/seg-logo-white.svg";
+import { useSession } from "../SessionContext";
 
 const sectionLabels: Record<Section, string> = {
   Dashboard: "Overview",
@@ -16,6 +17,7 @@ const sectionLabels: Record<Section, string> = {
 
 export function AppShell({ section, onSectionChange, children }: { section: Section; onSectionChange: (section: Section) => void; children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { user, signOut } = useSession();
   return (
     <div className={sidebarCollapsed ? "appShell sidebarCollapsed" : "appShell"}>
       <aside className="sidebar">
@@ -56,7 +58,17 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
             </button>
           ))}
         </nav>
-        <div className="sidebarFooter"><strong>Supplier Management</strong><span>Purchasing &amp; Quality</span></div>
+        {user && (
+          <div className="sidebarIdentity">
+            <div className="sidebarUser">
+              <span className="sidebarUserName">{user.name}</span>
+              <span className="sidebarUserEmail">{user.email}</span>
+            </div>
+            <button className="sidebarSignOut" onClick={() => void signOut()} type="button">
+              Sign out
+            </button>
+          </div>
+        )}
       </aside>
 
       <main className="mainArea">

@@ -5,7 +5,9 @@ import { ErrorNotice } from "./components/ErrorNotice";
 import { VoidedRecords } from "./components/VoidedRecords";
 import { useState, useEffect, useMemo } from "react";
 import { type Section, type ProductsTab, type SourcingTab, type PricingTab, type QCTab, type ReportsTab, type EditTarget, type VoidTarget, type ViewTarget } from "./uiTypes";
-import { useAppData } from "./AppDataContext";
+import { useSession } from "./SessionContext";
+import { SignIn } from "./SignIn";
+import { AppDataProvider, useAppData } from "./AppDataContext";
 import { fallbackData } from "./appDefaults";
 import { type DeleteEndpoint, deleteRecord, voidRecord, updateRecord, upsertSourceAssignment } from "./api";
 import { markRecordVoid } from "./lib/recordLifecycle";
@@ -36,6 +38,18 @@ import { HistoryModal } from "./modals/record/HistoryModal";
 import { RecordDetailModal } from "./modals/record/RecordDetailModal";
 
 export function App() {
+  const { user, loading: sessionLoading } = useSession();
+  const deactivated = new URLSearchParams(window.location.search).get("error") === "deactivated";
+  if (sessionLoading) return <div className="signInLoading">Loading…</div>;
+  if (!user) return <SignIn deactivated={deactivated} />;
+  return (
+    <AppDataProvider>
+      <Workbench />
+    </AppDataProvider>
+  );
+}
+
+function Workbench() {
   const [section, setSection] = useState<Section>("Dashboard");
   const [productsTab, setProductsTab] = useState<ProductsTab>("Models & Items");
   const [sourcingTab, setSourcingTab] = useState<SourcingTab>("Development Cases");

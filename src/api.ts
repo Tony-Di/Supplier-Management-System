@@ -74,14 +74,32 @@ export interface ScorecardResponse {
   rows: ScorecardRow[];
 }
 
+let csrfToken = "";
+
+export function setCsrfToken(token: string) {
+  csrfToken = token;
+}
+
+export function csrfHeaders(method: string, token: string): Record<string, string> {
+  if (!token || ["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) return {};
+  return { "X-CSRF-Token": token };
+}
+
+export class UnauthenticatedError extends Error {}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const method = options?.method ?? "GET";
   const response = await fetch(url, {
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
+      ...csrfHeaders(method, csrfToken),
       ...options?.headers,
     },
     ...options,
   });
+
+  if (response.status === 401) throw new UnauthenticatedError("Sign in to continue.");
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({ message: "Request failed" }));
@@ -89,6 +107,21 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+export interface SessionUser {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+}
+
+export function fetchSession() {
+  return request<SessionUser & { csrfToken: string }>("/api/auth/me");
+}
+
+export function signOut() {
+  return request<{ ok: true }>("/api/auth/logout", { method: "POST" });
 }
 
 export function fetchBootstrap() {
