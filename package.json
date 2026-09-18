@@ -11,7 +11,7 @@
     "admin": "tsx --env-file-if-exists=.env scripts/admin.ts",
     "typecheck:api": "tsc -p tsconfig.server.json --noEmit",
     "test": "tsx --test src/*.test.ts src/lib/*.test.ts server/*.test.ts",
-    "test:db": "tsx --env-file-if-exists=.env --test server/db/*.test.ts",
+    "test:db": "tsx --env-file-if-exists=.env --test --test-concurrency=1 server/db/*.test.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
