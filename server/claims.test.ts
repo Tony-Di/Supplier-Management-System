@@ -22,6 +22,11 @@ test("rejects a token from another tenant", () => {
   assert.throws(() => validateClaims({ ...valid, tid: "someone-else" }, "seg-tenant"), /tenant/i);
 });
 
+test("rejects a token with no tid claim at all", () => {
+  const { tid: _tid, ...withoutTid } = valid;
+  assert.throws(() => validateClaims(withoutTid, "seg-tenant"), /tenant/i);
+});
+
 test("rejects a token with no object id", () => {
   assert.throws(() => validateClaims({ ...valid, oid: undefined }, "seg-tenant"), /oid/);
 });

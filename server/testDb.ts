@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { after } from "node:test";
 import { Pool, type PoolClient } from "pg";
 import type { Express } from "express";
 
@@ -54,21 +55,33 @@ interface TestAppContext {
   pool: Pool;
 }
 
+// server/db.ts's pool is a module-level singleton, and dynamic import()
+// caches modules per process — every withTestApp call in the same test file
+// gets back the same Pool instance. It can only be ended once, so rather
+// than ending it inside withTestApp itself (which would break any later
+// withTestApp call in the same file — node:test's `after` runs after the
+// *current* test when registered from inside a test body, not after the
+// whole file), this hook is registered unconditionally at module load time,
+// which is when node:test attaches it to the file's root suite. It reads
+// `appPool` when it eventually runs, once every test in the file is done.
+let appPool: Pool | undefined;
+
+after(async () => {
+  if (appPool) await appPool.end();
+});
+
 /**
  * Runs `fn` against the real Express app (server/app.ts), wired to the
  * sourcing_test database's public schema instead of the development
- * database. Later integration tests (Task 6, 9, 10) exercise the app over
- * HTTP, and the app's module-level pool (server/db.ts) is built from
- * DATABASE_URL at import time — so DATABASE_URL is redirected to
- * DATABASE_URL_TEST here, before server/db.ts or server/app.ts are ever
- * imported (dynamically, and only here — never statically), so the app
- * never talks to the development database.
+ * database. Integration tests (Task 6, 9, 10) exercise the app over HTTP,
+ * and the app's module-level pool (server/db.ts) is built from DATABASE_URL
+ * at import time — so DATABASE_URL is redirected to DATABASE_URL_TEST here,
+ * before server/db.ts or server/app.ts are ever imported (dynamically, and
+ * only here — never statically), so the app never talks to the development
+ * database.
  *
  * Migrations are applied (idempotently) and every application table is
  * truncated before each call, so every test starts from an empty database.
- *
- * server/app.ts does not exist until Task 6. Until then this throws a clear
- * error explaining that instead of a confusing module-not-found stack trace.
  */
 export async function withTestApp(fn: (context: TestAppContext) => Promise<void>): Promise<void> {
   if (!connectionString) throw new Error("DATABASE_URL_TEST is not set. Run npm test for the offline suite.");
@@ -76,6 +89,7 @@ export async function withTestApp(fn: (context: TestAppContext) => Promise<void>
   process.env.DATABASE_URL = connectionString;
 
   const { pool } = await import("./db");
+  appPool = pool;
   const client = await pool.connect();
   try {
     await runMigrations(client);
@@ -84,22 +98,7 @@ export async function withTestApp(fn: (context: TestAppContext) => Promise<void>
     client.release();
   }
 
-  // Imported through a computed specifier, not a string literal, so
-  // TypeScript treats this as `Promise<any>` and does not try to resolve
-  // module types for a file that does not exist yet (Task 6 adds it).
-  const appModulePath = "./app";
-  let appModule: { createApp: () => Express };
-  try {
-    appModule = await import(appModulePath);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (/cannot find module|err_module_not_found/i.test(message)) {
-      throw new Error(
-        "server/app.ts does not exist yet (added in Task 6). withTestApp cannot run integration tests until then.",
-      );
-    }
-    throw error;
-  }
+  const { createApp } = await import("./app");
 
-  await fn({ createApp: appModule.createApp, pool });
+  await fn({ createApp, pool });
 }
