@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../components/ErrorNotice";
 import { type AppData, createQuote } from "../api";
 import { useAppData } from "../AppDataContext";
 import { useState, useEffect, FormEvent } from "react";
@@ -102,7 +103,7 @@ export function QuoteModal({
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
-        {formError && <div className="formError">{formError}</div>}
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <div className="formGrid">
           <label>
             Quote Mode

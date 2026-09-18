@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../components/ErrorNotice";
 import { type AppData, createInspection } from "../api";
 import { useAppData } from "../AppDataContext";
 import { useState, useEffect, FormEvent } from "react";
@@ -11,30 +12,34 @@ export function InspectionModal({
   data,
   projectId,
   quoteId,
+  caseContextId,
   onClose,
   onCreated,
 }: {
   data: AppData;
   projectId?: string;
   quoteId?: string;
+  caseContextId?: string;
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
   const { data: appData } = useAppData();
   const sourceQuote = data.quotes.find((quote) => quote.id === quoteId);
-  const project = data.projects.find((candidate) => candidate.id === (sourceQuote?.projectId ?? projectId));
+  const caseContext = data.projects.find((candidate) => candidate.id === caseContextId);
+  const contextDrawingSet = data.drawingSets.find((set) => set.id === caseContext?.drawingSetId);
+  const project = caseContext ?? data.projects.find((candidate) => candidate.id === (sourceQuote?.projectId ?? projectId));
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [inspectionMode, setInspectionMode] = useState<"Standalone" | "Case-linked">(sourceQuote?.projectId || project ? "Case-linked" : "Standalone");
-  const [modelId, setModelId] = useState(sourceQuote?.modelId ?? project?.modelIds[0] ?? data.models[0]?.id ?? "");
-  const inspectionDrawingSetOptions = activeDrawingSetsForModel(data.drawingSets, modelId, sourceQuote?.drawingSetId ?? project?.drawingSetId);
-  const [drawingSetId, setDrawingSetId] = useState(sourceQuote?.drawingSetId ?? project?.drawingSetId ?? inspectionDrawingSetOptions[0]?.id ?? "");
+  const [modelId, setModelId] = useState(contextDrawingSet?.modelId ?? sourceQuote?.modelId ?? project?.modelIds[0] ?? data.models[0]?.id ?? "");
+  const inspectionDrawingSetOptions = activeDrawingSetsForModel(data.drawingSets, modelId, contextDrawingSet?.id ?? sourceQuote?.drawingSetId ?? project?.drawingSetId);
+  const [drawingSetId, setDrawingSetId] = useState(contextDrawingSet?.id ?? sourceQuote?.drawingSetId ?? project?.drawingSetId ?? inspectionDrawingSetOptions[0]?.id ?? "");
   const drawingSet = data.drawingSets.find((candidate) => candidate.id === drawingSetId);
   const supplierOptions = inspectionMode === "Case-linked" && project ? data.suppliers.filter((supplier) => caseSupplierIds(appData, project).includes(supplier.id)) : data.suppliers;
   const itemOptions = inspectionMode === "Case-linked" && project ? data.items.filter((item) => project.itemIds.includes(item.id)) : data.items.filter((item) => item.usedForModels.includes(modelId));
   const [supplierId, setSupplierId] = useState(sourceQuote?.supplierId ?? supplierOptions[0]?.id ?? "");
   const [itemId, setItemId] = useState(sourceQuote?.itemId ?? itemOptions[0]?.id ?? "");
-  const drawingItemId = sourceQuote?.drawingItemId ?? drawingSet?.drawingItems.find((drawingItem) => drawingItem.itemId === itemId)?.id ?? "";
+  const drawingItemId = (caseContext ? undefined : sourceQuote?.drawingItemId) ?? drawingSet?.drawingItems.find((drawingItem) => drawingItem.itemId === itemId)?.id ?? "";
   const selectedDrawingItem = drawingSet?.drawingItems.find((drawingItem) => drawingItem.id === drawingItemId);
   const lockedToQuote = Boolean(sourceQuote);
   const nextRound = sourceQuote ? nextInspectionRoundForQuote(appData, sourceQuote.id) : 1;
@@ -64,7 +69,7 @@ export function InspectionModal({
       await createInspection({
         recordState: "Active",
         supplierId,
-        projectId: sourceQuote?.projectId ?? (inspectionMode === "Case-linked" ? project?.id : undefined),
+        projectId: caseContext?.id ?? sourceQuote?.projectId ?? (inspectionMode === "Case-linked" ? project?.id : undefined),
         relatedQuoteId: sourceQuote?.id ?? (String(form.get("relatedQuoteId") ?? "") || undefined),
         modelId,
         drawingSetId: drawingSet.id,
@@ -99,7 +104,7 @@ export function InspectionModal({
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
-        {formError && <div className="formError">{formError}</div>}
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <div className="formGrid">
           <label>
             QC Mode

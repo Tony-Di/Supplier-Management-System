@@ -1,3 +1,4 @@
+import { isUsableRecord } from "../lib/recordOptions";
 import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHandler } from "../uiTypes";
 import { type SampleInspection, type IncomingDefectRecord } from "../types";
 import { useAppData } from "../AppDataContext";
@@ -59,7 +60,7 @@ export function SampleInspections({
         title="QC sample inspection"
       />
       <Panel title="QC sample queue">
-        <table>
+        <div className="tableViewport"><table>
           <thead>
             <tr>
               <th>Supplier</th>
@@ -99,7 +100,7 @@ export function SampleInspections({
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
       <Panel title="Inspection records">
         <div className="quoteFilters compactRecordFilters">
@@ -115,14 +116,14 @@ export function SampleInspections({
             Comparison Supplier
             <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
               <option value="All">All suppliers</option>
-              {appData.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              {appData.suppliers.filter(isUsableRecord).map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
             </select>
           </label>
           <label>
             Item
             <select value={itemFilter} onChange={(event) => setItemFilter(event.target.value)}>
               <option value="All">All items</option>
-              {appData.items.map((item) => <option key={item.id} value={item.id}>{item.itemCode}</option>)}
+              {appData.items.filter(isUsableRecord).map((item) => <option key={item.id} value={item.id}>{item.itemCode}</option>)}
             </select>
           </label>
           <label>
@@ -136,7 +137,7 @@ export function SampleInspections({
             </select>
           </label>
         </div>
-        <table>
+        <div className="tableViewport"><table>
           <thead>
             <tr>
               <th>Source</th>
@@ -185,7 +186,7 @@ export function SampleInspections({
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
     </section>
   );
@@ -235,7 +236,7 @@ export function IncomingDefects({
         title="Incoming defects and returns"
       />
       <Panel title="Pending receive queue">
-        <table className="compactComparison">
+        <div className="tableViewport"><table className="compactComparison">
           <thead>
             <tr>
               <th>PO Number</th>
@@ -284,7 +285,7 @@ export function IncomingDefects({
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
       <Panel title="Incoming defect records">
         <div className="quoteFilters compactRecordFilters">
@@ -292,14 +293,14 @@ export function IncomingDefects({
             Supplier
             <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
               <option value="All">All suppliers</option>
-              {appData.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              {appData.suppliers.filter(isUsableRecord).map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
             </select>
           </label>
           <label>
             Item
             <select value={itemFilter} onChange={(event) => setItemFilter(event.target.value)}>
               <option value="All">All items</option>
-              {appData.items.map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
+              {appData.items.filter(isUsableRecord).map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
             </select>
           </label>
           <label>
@@ -323,7 +324,7 @@ export function IncomingDefects({
             </select>
           </label>
         </div>
-        <table className="compactComparison">
+        <div className="tableViewport"><table className="compactComparison">
           <thead>
             <tr>
               <th>PO Number</th>
@@ -363,7 +364,7 @@ export function IncomingDefects({
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
     </section>
   );

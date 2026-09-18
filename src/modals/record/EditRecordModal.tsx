@@ -1,8 +1,10 @@
+import { ErrorNotice } from "../../components/ErrorNotice";
 import { type EditTarget } from "../../uiTypes";
 import { useAppData } from "../../AppDataContext";
 import { useState, FormEvent } from "react";
 import { buildEditPatch, editTitle } from "./editHelpers";
 import { EditFields } from "./EditFields";
+import { voidedReferenceMessage } from "../../lib/recordOptions";
 
 export function EditRecordModal({
   onClose,
@@ -16,9 +18,11 @@ export function EditRecordModal({
   const { data: appData } = useAppData();
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const unavailableReason = target.record.recordState === "Void" ? "Voided records are read-only." : voidedReferenceMessage(appData, target);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (unavailableReason) return;
     try {
       const form = new FormData(event.currentTarget);
       const patch = buildEditPatch(target, form);
@@ -42,13 +46,14 @@ export function EditRecordModal({
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
-        <div className="formGrid">
+        {unavailableReason && <ErrorNotice message={unavailableReason} title="Record is read-only" />}
+        <fieldset className="formGrid editFieldset" disabled={Boolean(unavailableReason)}>
           <EditFields target={target} />
-        </div>
-        {formError && <div className="formError">{formError}</div>}
+        </fieldset>
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <div className="modalActions">
           <button className="ghostButton" onClick={onClose} type="button">Cancel</button>
-          <button className="primaryButton" disabled={saving} type="submit">{saving ? "Saving..." : "Save changes"}</button>
+          <button className="primaryButton" disabled={saving || Boolean(unavailableReason)} type="submit">{saving ? "Saving..." : "Save changes"}</button>
         </div>
       </form>
     </div>

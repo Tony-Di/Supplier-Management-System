@@ -1,3 +1,4 @@
+import { isUsableRecord } from "../lib/recordOptions";
 import { useAppData } from "../AppDataContext";
 import { useState, useEffect, useMemo, CSSProperties } from "react";
 import { type ScorecardRow, fetchScorecard, updateScoreWeights } from "../api";
@@ -39,7 +40,7 @@ export function Scorecard() {
   }, [appData.suppliers.length, appData.quotes.length, appData.inspections.length, appData.incomingDefects.length]);
 
   const fallbackRows: ScorecardRow[] = useMemo(() => appData.suppliers.map((supplier) => buildSupplierScorecard(appData, supplier)), [appData.suppliers.length, appData.quotes.length, appData.inspections.length, appData.incomingDefects.length]);
-  const allRows = serverRows ?? fallbackRows;
+  const allRows = useMemo(() => (serverRows ?? fallbackRows).filter((row) => isUsableRecord(row.supplier)), [serverRows, fallbackRows]);
   useEffect(() => {
     const availableIds = allRows.map((row) => row.supplier.id);
     if (!featuredSupplierId && availableIds[0]) setFeaturedSupplierId(availableIds[0]);
@@ -125,7 +126,7 @@ export function Scorecard() {
             Product / Item
             <select value={itemFilter} onChange={(event) => setItemFilter(event.target.value)}>
               <option value="All">All items</option>
-              {appData.items.map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
+              {appData.items.filter(isUsableRecord).map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
             </select>
           </label>
           <FilterGroup

@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../components/ErrorNotice";
 import { useState, FormEvent } from "react";
 import { type ScoreWeights } from "../types";
 import { updateScoreWeights } from "../api";
@@ -59,7 +60,7 @@ export function ScoreSettingsModal({
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
-        {formError && <div className="formError">{formError}</div>}
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <div className="formGrid">
           <label>
             Sample Quality

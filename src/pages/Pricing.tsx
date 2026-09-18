@@ -105,7 +105,7 @@ export function PriceAnalytics() {
         </div>
       </Panel>
       <Panel title="Price detail records">
-        <table>
+        <div className="tableViewport"><table>
           <thead>
             <tr>
               <th>Date</th>
@@ -134,7 +134,7 @@ export function PriceAnalytics() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
     </section>
   );
@@ -156,7 +156,7 @@ export function PriceChanges({
   return (
     <section className="pageStack">
       <Panel title="Price change events">
-        <table>
+        <div className="tableViewport"><table>
           <thead>
             <tr>
               <th>Supplier</th>
@@ -211,7 +211,7 @@ export function PriceChanges({
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
     </section>
   );
@@ -247,7 +247,7 @@ export function QuoteTrend() {
   return (
     <section className="pageStack">
       <Panel title="Supplier + item quote trend">
-        <table>
+        <div className="tableViewport"><table>
           <thead>
             <tr>
               <th>Supplier</th>
@@ -274,10 +274,10 @@ export function QuoteTrend() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
       <Panel title="Quote history">
-        <table>
+        <div className="tableViewport"><table>
           <thead>
             <tr>
               <th>Date</th>
@@ -306,7 +306,7 @@ export function QuoteTrend() {
                 </tr>
               ))}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
     </section>
   );

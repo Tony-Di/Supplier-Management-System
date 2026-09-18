@@ -33,6 +33,7 @@ Set `API_PORT` to run the API on a different port. The Vite proxy target in `vit
 
 | Script | Description |
 | --- | --- |
+| `npm test` | Run frontend helper and server regression tests |
 | `npm run dev` | Start the Vite dev server (same as `dev:frontend`) |
 | `npm run dev:api` | Start the Express API |
 | `npm run typecheck:api` | Type-check the server code |
@@ -57,10 +58,16 @@ Set `API_PORT` to run the API on a different port. The Vite proxy target in `vit
 
 ```text
 src/
-  App.tsx       UI and page logic
-  api.ts        API client
-  types.ts      Shared record types
-  data.ts       Seed arrays (currently empty)
+  App.tsx               Section state and modal routing
+  AppDataContext.tsx    Data ownership and refresh state
+  components/           Shared UI and application shell
+  pages/                Seven business sections
+  modals/               Create, edit, history and lifecycle dialogs
+  lib/                  Explicit-data helpers and regression tests
+  assets/               SEG brand assets
+  api.ts                API client
+  types.ts              Shared record types
+  data.ts               Seed arrays (currently empty)
 server/
   index.ts      Express routes
   schemas.ts    Zod request schemas
@@ -69,3 +76,5 @@ server/
 ```
 
 See [server/README.md](server/README.md) for the API reference.
+
+See [docs/frontend-implementation.md](docs/frontend-implementation.md) for the frontend refactor, validation and remaining business-rule differences.

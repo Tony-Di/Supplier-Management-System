@@ -1,3 +1,5 @@
+import { availableRecordOptions } from "../../lib/recordOptions";
+import { useMemo } from "react";
 import { type EditTarget } from "../../uiTypes";
 import { useAppData } from "../../AppDataContext";
 import { useState, useEffect } from "react";
@@ -10,7 +12,8 @@ import { InspectionEditFields } from "./InspectionEditFields";
 import { IncomingDefectEditFields } from "./IncomingDefectEditFields";
 
 export function EditFields({ target }: { target: EditTarget }) {
-  const { data: appData } = useAppData();
+  const { data } = useAppData();
+  const appData = useMemo(() => availableRecordOptions(data), [data]);
   if (target.endpoint === "suppliers") {
     const record = target.record;
     const [capableItems, setCapableItems] = useState<PackagingItemType[]>(record.capableItems);

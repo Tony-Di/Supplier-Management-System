@@ -1,3 +1,4 @@
+import { isUsableRecord } from "../lib/recordOptions";
 import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHandler } from "../uiTypes";
 import { useAppData } from "../AppDataContext";
 import { useState } from "react";
@@ -71,7 +72,7 @@ export function ModelsAndItems({
         </div>
         <div className="tableScroll">
           {masterView === "Items" ? (
-            <table>
+            <div className="tableViewport"><table>
               <thead>
                 <tr>
                   <th>Item Code</th>
@@ -111,9 +112,9 @@ export function ModelsAndItems({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           ) : (
-            <table>
+            <div className="tableViewport"><table>
               <thead>
                 <tr>
                   <th>Model</th>
@@ -146,7 +147,7 @@ export function ModelsAndItems({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       </Panel>
@@ -187,7 +188,7 @@ export function DrawingSets({
           Model
           <select value={modelFilter} onChange={(event) => setModelFilter(event.target.value)}>
             <option value="All">All models</option>
-            {appData.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+            {appData.models.filter(isUsableRecord).map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
           </select>
         </label>
         <label>
@@ -220,7 +221,7 @@ export function DrawingSets({
               />
             </div>
           </div>
-          <table>
+          <div className="tableViewport"><table>
             <thead>
               <tr>
                 <th>Item Code</th>
@@ -242,7 +243,7 @@ export function DrawingSets({
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         </Panel>
       ))}
     </section>

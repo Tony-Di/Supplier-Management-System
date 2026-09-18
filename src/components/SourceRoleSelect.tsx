@@ -1,28 +1,40 @@
 import { type SourceAssignment } from "../types";
-import { useState } from "react";
+import { useId, useState } from "react";
+import { useAppData } from "../AppDataContext";
+import { useWorkflowActions } from "../WorkflowActionsContext";
+import { sourceRoleEligibility } from "../lib/sourceRoleEligibility";
 
 export function SourceRoleSelect({
   disabledReason,
   onAssign,
   value,
+  quoteId,
+  projectId,
 }: {
   disabledReason?: string;
   onAssign: (role: SourceAssignment["role"]) => Promise<void>;
   value?: SourceAssignment["role"];
+  quoteId?: string;
+  projectId?: string;
 }) {
+  const { data } = useAppData();
+  const { openQc } = useWorkflowActions();
+  const explanationId = useId();
+  const eligibility = sourceRoleEligibility(data, data.quotes.find((quote) => quote.id === quoteId), projectId);
+  const blockedReason = quoteId ? eligibility.reason : disabledReason;
   const [saving, setSaving] = useState(false);
   async function assign(role: SourceAssignment["role"]) {
-    if (disabledReason) return;
+    if (blockedReason || !role) return;
     setSaving(true);
-    await onAssign(role);
-    setSaving(false);
+    try { await onAssign(role); } finally { setSaving(false); }
   }
 
   return (
-    <label className={disabledReason ? "sourceRoleSelect disabled" : "sourceRoleSelect"} title={disabledReason ?? "Assign source role"}>
+    <div className={blockedReason ? "sourceRoleSelect disabled" : "sourceRoleSelect"}>
       <select
         aria-label="Source role"
-        disabled={saving || Boolean(disabledReason)}
+        aria-describedby={blockedReason ? explanationId : undefined}
+        disabled={saving || Boolean(blockedReason)}
         onChange={(event) => void assign(event.target.value as SourceAssignment["role"])}
         value={value ?? ""}
       >
@@ -31,6 +43,11 @@ export function SourceRoleSelect({
           <option key={role} value={role}>{role}</option>
         ))}
       </select>
-    </label>
+      {blockedReason && <div className="blockedAction" id={explanationId}>
+        <span>{blockedReason}</span>
+        {eligibility.inspection && <span>Round {eligibility.inspection.sampleRound}: {eligibility.inspection.result}</span>}
+        {quoteId && <button className="textButton" type="button" onClick={() => openQc(quoteId, projectId)}>{eligibility.inspection ? "Open QC record" : "Record sample inspection"}</button>}
+      </div>}
+    </div>
   );
 }

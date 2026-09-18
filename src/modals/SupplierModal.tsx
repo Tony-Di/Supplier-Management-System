@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../components/ErrorNotice";
 import { useAppData } from "../AppDataContext";
 import { useState, FormEvent } from "react";
 import { type PackagingItemType, type Supplier } from "../types";
@@ -59,7 +60,7 @@ export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onC
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
 
-        {formError && <div className="formError">{formError}</div>}
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         {appData.models.length === 0 && <div className="formError">Create a model before adding items.</div>}
 
         <div className="formGrid">

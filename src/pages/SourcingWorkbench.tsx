@@ -1,3 +1,4 @@
+import { isUsableRecord } from "../lib/recordOptions";
 import { type SourceAssignment, type Quote, type SampleInspection } from "../types";
 import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHandler } from "../uiTypes";
 import { useAppData } from "../AppDataContext";
@@ -261,7 +262,7 @@ export function Quotes({
             <select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}>
               <option value="All">All cases</option>
               <option value="Standalone">Standalone only</option>
-              {appData.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+              {appData.projects.filter(isUsableRecord).map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
             </select>
           </label>
           <label>
@@ -271,21 +272,21 @@ export function Quotes({
               setItemFilter("All");
             }}>
               <option value="All">All models</option>
-              {appData.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+              {appData.models.filter(isUsableRecord).map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
             </select>
           </label>
           <label>
             Item
             <select value={itemFilter} onChange={(event) => setItemFilter(event.target.value)}>
               <option value="All">All items</option>
-              {itemOptions.map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
+              {itemOptions.filter(isUsableRecord).map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
             </select>
           </label>
           <label>
             Supplier
             <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
               <option value="All">All suppliers</option>
-              {appData.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              {appData.suppliers.filter(isUsableRecord).map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
             </select>
           </label>
           <label>
@@ -433,7 +434,7 @@ export function Comparison({ projectId }: { projectId: string }) {
   });
   const matrix = serverRows ?? fallbackRows;
   const comparableItemIds = matrix
-    .filter((row) => row.suppliers.some((supplier) => (supplier.quotes?.length ?? 0) > 0 || supplier.quote))
+    .filter((row) => isUsableRecord(row.item) && row.suppliers.some((supplier) => (supplier.quotes?.length ?? 0) > 0 || supplier.quote))
     .map((row) => row.item?.id)
     .filter((itemId): itemId is string => Boolean(itemId));
   const effectiveSelectedItemId = comparableItemIds.includes(selectedItemId) ? selectedItemId : comparableItemIds[0] ?? "";
@@ -457,7 +458,7 @@ export function Comparison({ projectId }: { projectId: string }) {
         {!selectedRow ? (
           <EmptyState text="No quoted item is available for this case yet." />
         ) : (
-          <table className="comparisonTable compactComparison">
+          <div className="tableViewport"><table className="comparisonTable compactComparison">
           <thead>
             <tr>
               <th>Supplier</th>
@@ -492,7 +493,7 @@ export function Comparison({ projectId }: { projectId: string }) {
               );
             })}
           </tbody>
-        </table>
+        </table></div>
         )}
       </Panel>
     </section>
@@ -522,7 +523,7 @@ export function CaseQuoteWorkbench({
             <span>Item</span>
             <select value={selectedItemId} onChange={(event) => setSelectedItemId(event.target.value)}>
               <option value="All">All items</option>
-              {project.itemIds.map((itemId) => {
+              {project.itemIds.filter((id) => isUsableRecord(appData.items.find((item) => item.id === id))).map((itemId) => {
                 const item = itemById(appData, itemId);
                 return <option key={itemId} value={itemId}>{item ? `${item.itemCode} - ${item.type}` : itemCode(appData, itemId)}</option>;
               })}
@@ -530,7 +531,7 @@ export function CaseQuoteWorkbench({
           </label>
         </div>
       </div>
-      <table className="comparisonTable compactComparison">
+      <div className="tableViewport"><table className="comparisonTable compactComparison">
         <thead>
           <tr>
             {selectedItemId === "All" && <th>Item</th>}
@@ -577,6 +578,8 @@ export function CaseQuoteWorkbench({
                 <td><StatusPill label={row.qcLabel} /></td>
                 <td>
                   <SourceRoleSelect
+                    quoteId={row.quote?.id}
+                    projectId={project.id}
                     disabledReason={row.canAssign ? undefined : row.assignDisabledReason}
                     onAssign={(role) => onSourceRoleChange({
                       projectId: project.id,
@@ -596,7 +599,7 @@ export function CaseQuoteWorkbench({
           );
         })}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

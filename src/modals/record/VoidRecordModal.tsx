@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../components/ErrorNotice";
 import { type VoidTarget } from "../../uiTypes";
 import { useState, FormEvent } from "react";
 
@@ -11,13 +12,16 @@ export function VoidRecordModal({
   target: VoidTarget;
 }) {
   const [reason, setReason] = useState("Entered in error");
+  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    await onVoid(reason.trim() || "Entered in error");
-    setSaving(false);
+    setFormError("");
+    try { await onVoid(reason.trim() || "Entered in error"); }
+    catch (error) { setFormError(error instanceof Error ? error.message : "Unable to void record."); }
+    finally { setSaving(false); }
   }
 
   return (
@@ -34,6 +38,7 @@ export function VoidRecordModal({
           Void reason
           <textarea onChange={(event) => setReason(event.target.value)} rows={3} value={reason} />
         </label>
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <div className="modalActions">
           <button className="ghostButton" onClick={onClose} type="button">Cancel</button>
           <button className="dangerButton" disabled={saving} type="submit">

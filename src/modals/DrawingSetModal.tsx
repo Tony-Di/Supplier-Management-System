@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../components/ErrorNotice";
 import { type AppData, createDrawingSet } from "../api";
 import { useAppData } from "../AppDataContext";
 import { useState, FormEvent } from "react";
@@ -77,7 +78,7 @@ export function DrawingSetModal({
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
-        {formError && <div className="formError">{formError}</div>}
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         {data.models.length === 0 && <div className="formError">Create a model before importing a packaging set.</div>}
         {data.models.length > 0 && modelItems.length === 0 && (
           <div className="formError">Create at least one item for this model before importing a packaging set.</div>

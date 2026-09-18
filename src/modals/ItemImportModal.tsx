@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../components/ErrorNotice";
 import { type AppData, importItems } from "../api";
 import { useState, useEffect, FormEvent } from "react";
 import { parseItemImportRows } from "../lib/import";
@@ -62,7 +63,7 @@ export function ItemImportModal({
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
-        {formError && <div className="formError">{formError}</div>}
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <label className="fullWidthLabel">
           Excel rows
           <textarea onChange={(event) => updatePreview(event.target.value)} rows={8} value={rawText} />

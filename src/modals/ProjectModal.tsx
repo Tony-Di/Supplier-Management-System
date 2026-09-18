@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../components/ErrorNotice";
 import { type AppData, createProject } from "../api";
 import { useState, useEffect, FormEvent } from "react";
 import { activeDrawingSetsForModel } from "../lib/lookups";
@@ -82,7 +83,7 @@ export function ProjectModal({
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
-        {formError && <div className="formError">{formError}</div>}
+        <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <div className="formGrid">
           <label>
             Case Name

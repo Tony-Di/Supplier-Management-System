@@ -2316,3 +2316,42 @@ td { font-variant-numeric: tabular-nums; }
   .modalHeader, .formGrid, .modalActions { padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* Workflow feedback and historical record states. */
+.errorBanner { display: flex; align-items: flex-start; gap: 11px; }
+.errorBanner > svg { flex: 0 0 auto; margin-top: 2px; }
+.errorBanner > div { min-width: 0; flex: 1; }
+.errorBanner strong { display: block; font-size: 13px; color: var(--seg-red-dark); }
+.errorBanner p { margin: 4px 0 0; font-size: 12px; overflow-wrap: anywhere; }
+.dismissNotice { background: transparent; border: 0; padding: 2px; color: var(--seg-red-dark); flex: 0 0 auto; }
+.modalPanel > .errorBanner { margin: 18px 24px 0; }
+.fieldError { font-size: 12px; font-weight: 400; line-height: 1.5; color: var(--seg-red-dark); }
+input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--seg-red) !important; }
+.editFieldset { border: 0; margin: 0; min-width: 0; }
+.editFieldset:disabled { opacity: 0.65; }
+.blockedAction { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; border-left: 2px solid var(--line); padding-left: 8px; }
+.sourceRoleSelect { min-width: 160px; max-width: 200px; }
+.sourceRoleSelect .blockedAction span { font-size: 11px; line-height: 1.45; }
+.textButton { background: transparent; border: 0; padding: 0; color: var(--seg-red); text-decoration: underline; text-underline-offset: 3px; font-size: 12px; text-align: left; }
+.voidedArchive { background: #FAFBFC; border: 1px solid var(--line); padding: 16px 20px; }
+.voidedArchive summary { cursor: pointer; font: 500 12px var(--heading-font); letter-spacing: 0.06em; text-transform: uppercase; }
+.voidedArchive summary span { margin-left: 8px; color: var(--muted); }
+.voidedArchive > p { color: var(--muted); font-size: 12px; margin: 12px 0 16px; }
+.voidedRecord { background: #F2F3F5; color: #666; border-style: dashed; }
+.voidedRecord h3 { color: #666; text-decoration: line-through; }
+.voidReason { font-size: 12px; line-height: 1.5; }
+
+.tableViewport { width: 100%; min-width: 0; overflow-x: auto; }
+.tableViewport table { min-width: 720px; }
+.tableViewport .comparisonTable { min-width: 1080px; }
+.comparisonTable td:first-child strong { white-space: nowrap; }
+.tableViewport th { white-space: nowrap; }
+
+.modalPanel > .multiSelectField { margin: 0 24px 24px; }
+@media (max-width: 760px) { .modalPanel > .multiSelectField { margin: 0 16px 16px; } }
+
+/* Keep intrinsic select widths and wide tables inside the page at every viewport. */
+.quoteFilters > *, .analyticsFilters > *, .comparisonFilters > *, .caseProgressFilters > * { min-width: 0; }
+.quoteFilters select, .analyticsFilters select, .comparisonFilters select, .caseProgressFilters select { width: 100%; min-width: 0; max-width: 100%; }
+.panel > .tableViewport { margin: 0; }
+.tableViewport table, .tableScroll table, .scoreBreakdownTable { display: table; }

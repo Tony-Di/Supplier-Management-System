@@ -1,4 +1,9 @@
-import { useState, useEffect } from "react";
+import { availableRecordOptions } from "./lib/recordOptions";
+import { sourceRoleEligibility } from "./lib/sourceRoleEligibility";
+import { WorkflowActionsProvider } from "./WorkflowActionsContext";
+import { ErrorNotice } from "./components/ErrorNotice";
+import { VoidedRecords } from "./components/VoidedRecords";
+import { useState, useEffect, useMemo } from "react";
 import { type Section, type ProductsTab, type SourcingTab, type PricingTab, type QCTab, type ReportsTab, type EditTarget, type VoidTarget, type ViewTarget } from "./uiTypes";
 import { useAppData } from "./AppDataContext";
 import { fallbackData } from "./appDefaults";
@@ -38,12 +43,14 @@ export function App() {
   const [qcTab, setQcTab] = useState<QCTab>("Sample Inspections");
   const [reportsTab, setReportsTab] = useState<ReportsTab>("Scorecard");
   const { data, setData, refresh: refreshData, loading, error } = useAppData();
+  const recordOptions = useMemo(() => availableRecordOptions(data), [data]);
   const [actionError, setActionError] = useState("");
   const [modal, setModal] = useState<"supplier" | "model" | "item" | "itemImport" | "drawingSet" | "project" | "quote" | "inspection" | "incomingDefect" | "priceChange" | "scoreSettings" | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [voidTarget, setVoidTarget] = useState<VoidTarget | null>(null);
   const [viewTarget, setViewTarget] = useState<ViewTarget | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState(fallbackData.projects[0]?.id ?? "");
+  const [inspectionCaseContextId, setInspectionCaseContextId] = useState<string | undefined>();
   const [inspectionQuoteId, setInspectionQuoteId] = useState<string | undefined>();
   const [historyTarget, setHistoryTarget] = useState<{ entityType: string; entityId: string; label: string } | null>(null);
 
@@ -79,6 +86,7 @@ export function App() {
       await refreshData();
     } catch (requestError) {
       setActionError(requestError instanceof Error ? requestError.message : "Unable to void record.");
+      throw requestError;
     }
   }
 
@@ -90,6 +98,7 @@ export function App() {
       await refreshData();
     } catch (requestError) {
       setActionError(requestError instanceof Error ? requestError.message : "Unable to edit record.");
+      throw requestError;
     }
   }
 
@@ -117,9 +126,21 @@ export function App() {
     setHistoryTarget({ entityType, entityId, label });
   }
 
+  function openQc(quoteId: string, projectId?: string) {
+    const quote = data.quotes.find((record) => record.id === quoteId);
+    const { inspection } = sourceRoleEligibility(data, quote, projectId);
+    if (inspection) { setViewTarget({ type: "inspection", record: inspection }); return; }
+    setSection("QC Inspections");
+    setQcTab("Sample Inspections");
+    setInspectionQuoteId(quoteId);
+    setInspectionCaseContextId(projectId);
+    setModal("inspection");
+  }
+
   return (
+    <WorkflowActionsProvider openQc={openQc}>
     <AppShell section={section} onSectionChange={setSection}>
-        {actionError && <div className="notice errorNotice">{actionError}</div>}
+        <ErrorNotice message={actionError} onDismiss={() => setActionError("")} />
         {section === "Products & Drawings" && (
           <SubTabs
             tabs={["Models & Items", "Packaging Sets"]}
@@ -145,7 +166,7 @@ export function App() {
         )}
 
         {loading && <div className="notice">Loading backend data...</div>}
-        {error && <div className="notice errorNotice">Backend data issue: {error}. Showing fallback prototype data.</div>}
+        <ErrorNotice message={error} title="Unable to refresh records" />
 
         {section === "Dashboard" && <Dashboard />}
         {section === "Suppliers" && <Suppliers onAdd={() => setModal("supplier")} onDelete={handleDelete} onEdit={setEditTarget} onHistory={openHistory} onVoid={handleVoid} />}
@@ -219,6 +240,7 @@ export function App() {
         {section === "Reports" && reportsTab === "Scorecard" && <Scorecard />}
         {section === "Reports" && reportsTab === "Score Settings" && <ScoreSettings onSaved={refreshData} />}
 
+        <VoidedRecords section={section} onHistory={openHistory} />
         {modal === "supplier" && (
           <SupplierModal
             onClose={() => setModal(null)}
@@ -230,7 +252,7 @@ export function App() {
         )}
         {modal === "item" && (
           <ItemModal
-            models={data.models}
+            models={recordOptions.models}
             onClose={() => setModal(null)}
             onCreated={async () => {
               setModal(null);
@@ -249,7 +271,7 @@ export function App() {
         )}
         {modal === "itemImport" && (
           <ItemImportModal
-            models={data.models}
+            models={recordOptions.models}
             onClose={() => setModal(null)}
             onImported={async () => {
               setModal(null);
@@ -259,7 +281,7 @@ export function App() {
         )}
         {modal === "project" && (
           <ProjectModal
-            data={data}
+            data={recordOptions}
             onClose={() => setModal(null)}
             onCreated={async () => {
               setModal(null);
@@ -269,7 +291,7 @@ export function App() {
         )}
         {modal === "drawingSet" && (
           <DrawingSetModal
-            data={data}
+            data={recordOptions}
             onClose={() => setModal(null)}
             onCreated={async () => {
               setModal(null);
@@ -279,7 +301,7 @@ export function App() {
         )}
         {modal === "quote" && (
           <QuoteModal
-            data={data}
+            data={recordOptions}
             projectId={selectedProject?.id}
             onClose={() => setModal(null)}
             onCreated={async () => {
@@ -290,20 +312,22 @@ export function App() {
         )}
         {modal === "inspection" && (
           <InspectionModal
-            data={data}
+            data={recordOptions}
             projectId={selectedProject?.id}
             quoteId={inspectionQuoteId}
-            onClose={() => setModal(null)}
+            caseContextId={inspectionCaseContextId}
+            onClose={() => { setModal(null); setInspectionCaseContextId(undefined); }}
             onCreated={async () => {
               setModal(null);
               setInspectionQuoteId(undefined);
+              setInspectionCaseContextId(undefined);
               await refreshData();
             }}
           />
         )}
         {modal === "incomingDefect" && (
           <IncomingDefectModal
-            data={data}
+            data={recordOptions}
             onClose={() => setModal(null)}
             onCreated={async () => {
               setModal(null);
@@ -313,7 +337,7 @@ export function App() {
         )}
         {modal === "priceChange" && (
           <PriceChangeModal
-            data={data}
+            data={recordOptions}
             onClose={() => setModal(null)}
             onCreated={async () => {
               setModal(null);
@@ -354,5 +378,6 @@ export function App() {
         )}
         {viewTarget && <RecordDetailModal onClose={() => setViewTarget(null)} target={viewTarget} />}
     </AppShell>
+    </WorkflowActionsProvider>
   );
 }
