@@ -2,6 +2,8 @@
 
 Date: 2026-09-18
 Status: approved for implementation planning
+Supersedes: the password-login draft of the same date (replaced by Entra ID SSO
+after confirming the system is internal-only)
 
 ## Problem
 
@@ -11,45 +13,52 @@ uploaded file is served to anyone who knows its name. The audit log records what
 changed but not who changed it — all 61 existing entries read `actor: "System"`,
 because the server has nobody to name.
 
-This design adds accounts, sessions and an accountable audit trail. It is
-project A of two; migrating the 14 business record types out of
-`data/store.json` into Postgres is project B and is out of scope here.
+This design adds sign-in through the company's Microsoft Entra ID tenant,
+server-side sessions, and an accountable audit trail. It is project A of two;
+migrating the 14 business record types out of `data/store.json` into Postgres is
+project B and is out of scope here.
 
 ## Goals
 
 1. Nobody reaches business data or uploaded files without signing in.
-2. Employees self-register with a `@segsolar.com` address and verify it by email.
-3. A forgotten password can be reset without an administrator.
-4. Every change records the user who made it.
-5. An administrator can see all users, change a role, and deactivate or remove an account.
+2. Employees sign in with the SEG account they already have — no new password.
+3. Every change records the user who made it.
+4. An administrator can see all users, change a role, and deactivate or remove an account.
 
 ## Non-goals
 
-- Per-role restrictions on business screens. Any signed-in user keeps full access
-  to the workbench for now; only the admin console is gated by role.
+- Per-role restrictions on business screens. Any signed-in employee keeps full
+  access to the workbench; only the admin console is gated by role.
+- Restricting access to a department or Entra group. The tenant is the boundary:
+  any SEG employee may sign in and the account is created on first arrival.
 - Migrating business records to Postgres (project B).
 - Deleting or archiving old audit entries. See "Deferred decisions".
-- SSO. Worth asking IT whether Entra ID is available — it would remove
-  registration, verification and password reset entirely — but the decision was
-  to build password login now.
+- Accounts for anyone outside the tenant. External users (a supplier portal, for
+  instance) would need a second sign-in path and are not planned.
 
 ## Approach
 
-Cookie sessions with a server-side session store, following the pattern already
-proven in the employee-portal project: `express-session` with
-`connect-pg-simple`, scrypt password hashing from `node:crypto`, CSRF tokens,
-and a `session_epoch` column that invalidates a user's existing sessions the
-moment their password changes or an admin acts on the account.
+OpenID Connect against Microsoft Entra ID, authorization code flow with PKCE,
+run server-side as a confidential client using `openid-client`. The identity
+provider holds the credentials; this application never sees a password and
+stores none.
 
-Rejected: JWT in browser storage. A token readable by JavaScript is stealable by
-any XSS, and revoking one needs a server-side denylist — which is the session
-table again, with extra steps.
+After a successful callback the server creates its own session — `express-session`
+with `connect-pg-simple`, the pattern already proven in the employee-portal
+project — so authorisation decisions, the local `active` flag and `session_epoch`
+revocation stay under this application's control rather than depending on token
+lifetimes.
+
+Rejected: local passwords with self-registration and emailed verification. It
+was the original plan, and it is strictly more work (registration, verification
+tokens, password reset, a mail module, password hashing) for a weaker result:
+offboarding would depend on someone remembering to deactivate the account here,
+instead of following from the Entra account being disabled.
 
 ## Stack
 
-New dependencies, versions aligned with employee-portal where they overlap:
-`pg`, `express-session`, `connect-pg-simple`, `express-rate-limit`, `nodemailer`.
-Password hashing uses `node:crypto` scrypt — no bcrypt dependency.
+New dependencies: `pg`, `express-session`, `connect-pg-simple`,
+`express-rate-limit`, `openid-client`. No mail library, no password hashing.
 
 Postgres runs locally through a `compose.dev.yml` copied from employee-portal.
 Migrations are plain SQL files under `migrations/` applied by a small
@@ -63,32 +72,21 @@ business records, and that choice should not be pre-empted here.
 | Column | Notes |
 | --- | --- |
 | `id` | serial primary key |
-| `name` | 1–100 characters |
-| `email` | unique, stored lowercase, must end in the configured domain |
-| `password_hash` | `scrypt:<salt>:<key>` |
+| `entra_oid` | unique; the `oid` claim, stable across email and name changes |
+| `email` | from the token, stored lowercase |
+| `name` | display name from the token, refreshed on each sign-in |
 | `role` | `admin` or `user`, default `user` |
-| `email_verified_at` | null until the address is confirmed |
-| `active` | false disables sign-in without deleting history |
+| `active` | false blocks sign-in without deleting history |
 | `session_epoch` | integer, incremented to invalidate existing sessions |
 | `created_at`, `last_login_at` | timestamps |
+
+`entra_oid` is the identity, not the email address: people change surnames and
+email aliases, and matching on email would silently create a second account.
 
 ### `session`
 
 The standard `connect-pg-simple` table. Sessions live server-side; the browser
 holds only an httpOnly, SameSite=Lax cookie.
-
-### `email_verification_tokens` and `password_reset_tokens`
-
-| Column | Notes |
-| --- | --- |
-| `user_id` | references `users` |
-| `token_hash` | SHA-256 of the token; the raw value exists only in the email |
-| `expires_at` | 60 minutes for verification, 30 minutes for reset |
-| `used_at` | null until redeemed; a token works once |
-
-Storing only the hash means a database read cannot be replayed to take over an
-account. (The IT HelpDesk project stores raw verification tokens; this design
-deliberately differs.)
 
 ### `audit_logs`
 
@@ -115,55 +113,52 @@ admitting the gap.
 
 ## Flows
 
-### Registration
-
-`POST /api/auth/register` validates the email domain and a password of 6–128
-characters, creates an unverified `user`, and emails a verification link.
-
-The response is the same whether or not the address already has an account —
-otherwise the endpoint becomes a way to enumerate who works here. An address that
-already exists receives a "someone tried to register with your address" email
-instead of a verification link.
-
-### Verification
-
-The emailed link opens `/verify?token=…` in the app, which calls
-`POST /api/auth/verify`. The server hashes the token, checks it is unexpired and
-unused, sets `email_verified_at`, marks the token used, and sends the user to
-sign in. Verification does not create a session: a token that lives in a URL —
-and therefore in browser history and proxy logs — should not be exchangeable for
-one.
-
 ### Sign-in
 
-`POST /api/auth/login` requires a correct password, a verified address and an
-active account. An unknown address is still compared against a dummy hash so
-that response time does not reveal whether an account exists. On success the
-session id is regenerated (defeating session fixation) and the session records
-`userId` and the current `session_epoch`.
+1. The frontend finds no session (`GET /api/auth/me` returns 401) and shows the
+   sign-in screen: one button.
+2. `GET /api/auth/login` generates PKCE verifier, state and nonce, stores them in
+   the session, and redirects to the Entra authorize endpoint.
+3. Entra authenticates the employee and redirects to
+   `GET /api/auth/callback`.
+4. The server exchanges the code, validates the ID token — signature, issuer,
+   audience, nonce, expiry — and **checks the `tid` claim equals the configured
+   tenant**. A token from any other tenant is rejected outright.
+5. The user row is found by `entra_oid` or created with role `user`; `email`,
+   `name` and `last_login_at` are refreshed from the token.
+6. A locally deactivated account (`active = false`) is refused here, with a
+   message naming who to contact.
+7. The session id is regenerated, the session records `userId` and the current
+   `session_epoch`, and the browser is redirected to the workbench.
 
-`POST /api/auth/logout` destroys the session. `GET /api/auth/me` returns the
-current user or 401 — the frontend uses it to decide what to render.
+`POST /api/auth/logout` destroys the local session. Signing out of Microsoft
+itself is not triggered — on a shared machine that would be surprising — so the
+screen says the SEG account is still signed in on this device.
 
-### Password reset
+`GET /api/auth/me` returns the current user or 401; the frontend uses it to
+decide what to render.
 
-`POST /api/auth/forgot-password` always reports success and only sends mail when
-the account exists and is active. `POST /api/auth/reset-password` verifies the
-token, stores the new hash, increments `session_epoch` (signing the user out
-everywhere), marks the token used, and sends a "your password was changed"
-notice — the last line of defence if the reset was not the account holder.
+### Development without a tenant
+
+`AUTH_MODE=dev` signs in a fixed local account so the app runs offline, with no
+Entra registration and no client secret. The server **refuses to start** when
+`AUTH_MODE=dev` and `NODE_ENV=production` are both set — a refusal, not a
+warning, because a development bypass reaching production would undo the whole
+project.
 
 ### Rate limits
 
-Per IP, via `express-rate-limit`: login and forgot-password 5/minute,
-verification 6/minute, registration 3/hour.
+`express-rate-limit` on the callback endpoint (20/minute per IP). The login
+endpoint itself is a redirect and Entra carries the brute-force burden.
 
 ## Protecting what exists
 
 A `requireAuth` middleware mounted on `/api` covers all 62 existing routes at
-once; the auth routes above are the only exemptions. Unauthenticated API calls
-return 401 JSON rather than a redirect, because the frontend is a single-page app
-that handles navigation itself.
+once; the auth routes above are the only exemptions. It re-reads the user on each
+request and rejects a session whose `session_epoch` no longer matches, so a
+deactivation takes effect immediately. Unauthenticated API calls return 401 JSON
+rather than a redirect, because the frontend is a single-page app that handles
+navigation itself.
 
 `/uploads` gets the same middleware before `express.static`. This is the single
 largest security gain in the project: drawings, QC photos and — once uploaded —
@@ -180,7 +175,7 @@ inspection promoting a quote, the bootstrap sync — stay `System`.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/admin/users` | name, email, role, verified, active, created, last sign-in |
+| `GET /api/admin/users` | name, email, role, active, created, last sign-in |
 | `PATCH /api/admin/users/:id/role` | switch between `user` and `admin` |
 | `PATCH /api/admin/users/:id/active` | deactivate or restore |
 | `DELETE /api/admin/users/:id` | permanent removal, behind a confirmation |
@@ -190,30 +185,30 @@ one active admin must remain, and any role or status change increments the
 target's `session_epoch` so it takes effect immediately rather than whenever
 their session happens to expire.
 
-Deactivation is the recommended action and the default in the UI; deletion stays
-available but leaves the user's audit entries pointing at a gone account, which
-is why `actor_label` is denormalised.
+Deactivation is the recommended action and the default in the UI. Deleting a user
+who signs in again simply creates a fresh account with the default role, so
+deletion is only meaningful for someone who has left; deactivation is what stops
+a current employee.
 
-The first admin cannot be created through the UI — there is no admin to grant it.
-A `npm run admin` script creates or promotes one, reading the password from a
-prompt or an environment variable. No password is ever written to a file in the
-repository.
+The first admin cannot be granted through the UI — there is no admin to grant it.
+An `npm run admin -- <email>` script promotes an existing user row, run once
+after that person has signed in for the first time.
 
 ## Frontend
 
-Five new screens: sign-in, register, verification result, forgot password, reset
-password. They follow direction B1 from the design canvas (`design/`): a charcoal
-block carrying the logo, the product name and one line of description, with the
-form on white beside it; square corners, Kanit headings, SEG red as the accent.
-The white logo variant is used unaltered — it is built for dark backgrounds.
+One new screen: sign-in. It follows direction B1 from the design canvas
+(`design/LoginBlockCharcoal.dc.html`): a charcoal block carrying the logo, the
+product name and one line of description, with a single "Sign in with your SEG
+account" button beside it. Square corners, Kanit headings, SEG red as the accent,
+the white logo variant used unaltered.
 
-No router is added. The five screens are selected by the `?token=` parameter and
-local state, matching how the workbench already switches sections.
+Two secondary states on the same screen: a deactivated account ("your access has
+been turned off — contact …") and a failed sign-in.
 
-`App.tsx` calls `GET /api/auth/me` on load: no session renders the sign-in
-screen, a session renders the workbench as it does today. The sidebar gains the
-current user and a sign-out control; admins additionally see a user management
-entry.
+No router is added. `App.tsx` calls `GET /api/auth/me` on load: no session renders
+the sign-in screen, a session renders the workbench as it does today. The sidebar
+gains the current user and a sign-out control; admins additionally see a user
+management entry.
 
 Audit visibility is restricted to admins in this project — the before/after
 values expose other people's activity, and the implementation guide leans the
@@ -226,55 +221,62 @@ view (filter by user, date and record type) is added to the admin console.
 | --- | --- |
 | `DATABASE_URL` | Postgres connection |
 | `SESSION_SECRET` | at least 32 characters; startup fails without it |
-| `APP_ORIGIN` | used in emailed links; must be HTTPS in production |
-| `ALLOWED_EMAIL_DOMAIN` | `segsolar.com` |
-| `MAIL_TRANSPORT` | `log` (writes to the console and `data/mail/`) or `smtp` |
-| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM` | Office 365: `smtp.office365.com:587` |
+| `APP_ORIGIN` | must match the redirect URI registered in Entra; HTTPS in production |
+| `ENTRA_TENANT_ID` | the SEG tenant; also checked against the token's `tid` |
+| `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET` | the app registration |
+| `AUTH_MODE` | `entra` (default) or `dev`; `dev` is refused in production |
 
-Development needs no SMTP account: `MAIL_TRANSPORT=log` exercises the whole flow
-with the link printed to the server console.
+The Entra app registration needs one redirect URI, `<APP_ORIGIN>/api/auth/callback`,
+and the delegated `openid`, `profile`, `email` scopes — no directory permissions,
+no admin consent for anything beyond sign-in.
 
 ## Testing
 
-Unit tests, following the existing `node:test` suite: password hashing and
-verification, token generation and hash comparison, email domain validation,
-expiry, and the admin guards (cannot remove yourself, one admin must remain).
+Unit tests, following the existing `node:test` suite: tenant claim validation,
+mapping a token's claims onto a user row, first-sign-in creation versus returning
+user, the `session_epoch` comparison, and the admin guards (cannot remove
+yourself, one admin must remain).
 
 Integration tests against a test database, covering the failure paths, which are
 the part that matters and the part nobody exercises by hand:
 
 - unauthenticated API call → 401; `/uploads` request without a session → 401
+- a token from another tenant → rejected
+- a deactivated user's existing session → rejected on the next request
 - non-admin calling an admin endpoint → 403
-- exceeding a rate limit → 429
-- expired token, already-used token, token for the wrong purpose → rejected
-- password change → the previous session no longer works
 - an audit row is written with the acting user for a create, an edit and a delete
+
+The OIDC exchange itself is covered with a stubbed issuer rather than a live
+tenant, so the suite runs offline.
 
 ## Delivery
 
-Five steps, each shippable and independently verifiable:
+Three steps, each shippable and independently verifiable:
 
-1. **Postgres foundation** — connection, migrations, `users` table, admin CLI.
-   Changes no existing behaviour.
-2. **Sign-in** — login, logout, session, `requireAuth` on `/api` and `/uploads`,
-   the sign-in screen. **The system is closed after this step**; everything
-   after it is convenience.
-3. **Registration and verification** — including the mail module in log mode.
-4. **Password reset** — including the password-changed notice.
-5. **Audit and admin** — audit table migration, real actor, admin console,
-   global audit view.
+1. **Postgres foundation** — connection, migrations, `users` and `session`
+   tables, the admin promotion script. Changes no existing behaviour.
+2. **Sign-in** — the OIDC flow, `requireAuth` on `/api` and `/uploads`, the
+   sign-in screen, sign-out, the dev bypass. **The system is closed after this
+   step.**
+3. **Audit and admin** — audit table and migration of the existing entries, the
+   real actor on every write, the admin console and the global audit view.
 
 ## Risks and accepted limitations
 
+- **Any employee who signs in has full access**, including deleting supplier and
+  quote records: per-role restrictions are deferred and access was deliberately
+  set at the tenant boundary. The mitigations are that every change is now
+  attributable to a named person, and an admin can deactivate an account
+  immediately. Revisit if the audit trail starts showing edits from people with
+  no business in the data.
 - **Historical audit entries stay anonymous.** The existing 61 rows never had an
   author; only new activity is attributable.
 - **Session cookies require same origin.** The Vite proxy gives this in
-  development; in production the frontend and API must be served from one
-  domain, or the cookie will not be sent. This belongs in the deployment notes.
-- **Password minimum is 6 characters**, set by the product owner. Login rate
-  limiting is therefore the main defence against guessing.
-- **SMTP credentials depend on IT.** Steps 1–4 can be built and tested without
-  them.
+  development; in production the frontend and API must be served from one domain,
+  or the cookie will not be sent. This belongs in the deployment notes.
+- **An Entra outage blocks all access.** Acceptable for an internal tool — the
+  same outage blocks Outlook and Teams — but there is no local fallback account
+  by design.
 - **Business data stays in `store.json`** until project B. Two stores coexist in
   the meantime.
 
@@ -287,5 +289,5 @@ Five steps, each shippable and independently verifiable:
   real numbers, and the mechanism, when it is wanted, should be monthly
   partitioning rather than row deletion or export to files. Ask finance or legal
   for the required period; purchasing records are commonly kept 3–7 years.
-- **SSO.** If IT can provide Entra ID, registration, verification and password
-  reset all disappear. Worth one email before step 3.
+- **Department or group restrictions.** Entra groups are the natural place to add
+  them later, and the `tid`-validated token already carries the claims needed.
