@@ -29,7 +29,9 @@ adminRouter.patch("/users/:id/role", async (request, response, next) => {
 
 adminRouter.patch("/users/:id/active", async (request, response, next) => {
   try {
-    response.json(await setUserActive(pool, Number(request.params.id), Boolean(request.body?.active), request.user!.id));
+    const active = request.body?.active;
+    if (typeof active !== "boolean") throw new UserRuleError("Active must be a boolean.");
+    response.json(await setUserActive(pool, Number(request.params.id), active, request.user!.id));
   } catch (error) {
     next(error);
   }

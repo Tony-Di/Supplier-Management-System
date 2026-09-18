@@ -88,3 +88,45 @@ test("an arbitrary role string is rejected, not written", async () => {
     assert.equal(rows[0].role, "admin");
   });
 });
+
+test("an empty body on /active is rejected and leaves the target unchanged", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const { cookie, me } = await signedInFetch(app);
+    await pool.query("UPDATE users SET role = 'admin' WHERE id = $1", [me.id]);
+    const { rows: inserted } = await pool.query(
+      "INSERT INTO users(entra_oid, email, name) VALUES ('oid-target', 'target@segsolar.com', 'Target User') RETURNING id",
+    );
+    const targetId = inserted[0].id as number;
+    const response = await call(app, `/api/admin/users/${targetId}/active`, {
+      method: "PATCH",
+      cookie,
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": me.csrfToken },
+      body: JSON.stringify({}),
+    });
+    assert.equal(response.status, 400);
+    const { rows } = await pool.query("SELECT active FROM users WHERE id = $1", [targetId]);
+    assert.equal(rows[0].active, true);
+  });
+});
+
+test("a real active:false request still deactivates the target", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const { cookie, me } = await signedInFetch(app);
+    await pool.query("UPDATE users SET role = 'admin' WHERE id = $1", [me.id]);
+    const { rows: inserted } = await pool.query(
+      "INSERT INTO users(entra_oid, email, name) VALUES ('oid-target', 'target@segsolar.com', 'Target User') RETURNING id",
+    );
+    const targetId = inserted[0].id as number;
+    const response = await call(app, `/api/admin/users/${targetId}/active`, {
+      method: "PATCH",
+      cookie,
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": me.csrfToken },
+      body: JSON.stringify({ active: false }),
+    });
+    assert.equal(response.status, 200);
+    const { rows } = await pool.query("SELECT active FROM users WHERE id = $1", [targetId]);
+    assert.equal(rows[0].active, false);
+  });
+});
