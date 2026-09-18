@@ -1,18 +1,129 @@
 {
   "pages": [
-    { "id": "page-1", "name": "Screens" },
-    { "id": "page-2", "name": "States" }
+    {
+      "id": "page-1",
+      "name": "Screens"
+    },
+    {
+      "id": "page-2",
+      "name": "States"
+    },
+    {
+      "id": "page-3",
+      "name": "Login directions"
+    }
   ],
   "artboards": [
-    { "file": "Main.dc.html", "title": "Dashboard", "page": "page-1", "x": 0, "y": 0, "w": 1440, "h": 1180 },
-    { "file": "Suppliers.dc.html", "title": "Suppliers", "page": "page-1", "x": 1560, "y": 0, "w": 1440, "h": 780 },
-    { "file": "Sourcing.dc.html", "title": "Sourcing Workbench — Comparison", "page": "page-1", "x": 0, "y": 1320, "w": 1440, "h": 1020 },
-    { "file": "Scorecard.dc.html", "title": "Supplier Scorecard", "page": "page-1", "x": 1560, "y": 1320, "w": 1440, "h": 1020 },
-    { "file": "States.dc.html", "title": "Component states", "page": "page-2", "x": 0, "y": 0, "w": 1440, "h": 1060 }
+    {
+      "file": "Main.dc.html",
+      "title": "Dashboard",
+      "page": "page-1",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1180
+    },
+    {
+      "file": "Suppliers.dc.html",
+      "title": "Suppliers",
+      "page": "page-1",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 780
+    },
+    {
+      "file": "Sourcing.dc.html",
+      "title": "Sourcing Workbench — Comparison",
+      "page": "page-1",
+      "x": 0,
+      "y": 1320,
+      "w": 1440,
+      "h": 1020
+    },
+    {
+      "file": "Scorecard.dc.html",
+      "title": "Supplier Scorecard",
+      "page": "page-1",
+      "x": 1560,
+      "y": 1320,
+      "w": 1440,
+      "h": 1020
+    },
+    {
+      "file": "States.dc.html",
+      "title": "Component states",
+      "page": "page-2",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1060
+    },
+    {
+      "file": "LoginDarkTerminal.dc.html",
+      "title": "A · Dark terminal",
+      "page": "page-3",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 840
+    },
+    {
+      "file": "LoginUtility.dc.html",
+      "title": "C · Utility panel",
+      "page": "page-3",
+      "x": 2800,
+      "y": 0,
+      "w": 1280,
+      "h": 840
+    },
+    {
+      "file": "LoginBlockCharcoal.dc.html",
+      "title": "B1 · Charcoal block, logo untouched",
+      "page": "page-3",
+      "x": 1400,
+      "y": 0,
+      "w": 1280,
+      "h": 840
+    },
+    {
+      "file": "LoginBlockKnockout.dc.html",
+      "title": "B2 · Red block, knockout logo",
+      "page": "page-3",
+      "x": 1400,
+      "y": 960,
+      "w": 1280,
+      "h": 840
+    }
   ],
   "annotations": [
-    { "id": "brand-note", "page": "page-1", "x": 0, "y": -150, "w": 700, "text": "Brand values lifted from segsolar.com stylesheets: red #E00700, dark red #B51B16, blue #1C5CB0, Kanit headings, square corners (the site uses 0 radius outside circular elements).\nData shown is live data from the prototype's store: 2 suppliers, real item codes and quotes, backend-calculated scores 79 and 94." },
-    { "id": "states-note", "page": "page-2", "x": 0, "y": -150, "w": 700, "text": "These three states are needed before the remaining backend rules land: blocking source roles until QC passes, and keeping voided records out of circulation.\nMessage text is copied from the API's own error strings." }
+    {
+      "id": "brand-note",
+      "page": "page-1",
+      "x": 0,
+      "y": -150,
+      "w": 700,
+      "text": "Brand values lifted from segsolar.com stylesheets: red #E00700, dark red #B51B16, blue #1C5CB0, Kanit headings, square corners (the site uses 0 radius outside circular elements).\nData shown is live data from the prototype's store: 2 suppliers, real item codes and quotes, backend-calculated scores 79 and 94."
+    },
+    {
+      "id": "states-note",
+      "page": "page-2",
+      "x": 0,
+      "y": -150,
+      "w": 700,
+      "text": "These three states are needed before the remaining backend rules land: blocking source roles until QC passes, and keeping voided records out of circulation.\nMessage text is copied from the API's own error strings."
+    },
+    {
+      "id": "login-note",
+      "page": "page-3",
+      "x": 0,
+      "y": -150,
+      "w": 900,
+      "text": "Three directions for the sign-in page, deliberately unlike the IT HelpDesk login (no image-left / form-right split, no rounded cards, no gray palette).\nB1 and B2 are the same layout solving the logo problem two ways: the white logo variant is built for dark backgrounds, so either the block goes dark (B1, mark untouched) or the mark is knocked out to pure white (B2, a derived asset marketing should approve)."
+    }
   ],
-  "launch": { "view": "canvas", "page": "page-2" }
+  "launch": {
+    "view": "canvas",
+    "page": "page-3"
+  }
 }

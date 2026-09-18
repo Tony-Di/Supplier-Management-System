@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #FFFFFF; color: #1E1E1E; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.45; }
+    a { color: #E00700; text-decoration: none; }
+    a:hover { color: #B51B16; }
+    .kan { font-family: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  </style>
+</helmet>
+
+<div style="min-height: 840px; display: grid; grid-template-columns: 1.15fr 1fr;">
+
+  <!-- solid brand block -->
+  <div style="background: #E00700; color: #FFFFFF; padding: 60px 64px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+    <svg width="520" height="520" viewBox="0 0 520 520" style="position: absolute; right: -150px; bottom: -130px; opacity: 0.16;">
+      <g fill="none" stroke="#FFFFFF" stroke-width="2">
+        <rect x="60" y="120" width="400" height="280"></rect>
+        <path d="M60 190h400M60 260h400M60 330h400"></path>
+        <path d="M160 120v280M260 120v280M360 120v280"></path>
+      </g>
+    </svg>
+
+    <img src="seg-logo-knockout.svg" alt="SEG Solar" style="display: block; width: 190px; height: 32px; position: relative;">
+
+    <div style="position: relative;">
+      <h1 class="kan" style="margin: 0; font-size: 54px; font-weight: 600; line-height: 1.02; letter-spacing: 0.01em; text-transform: uppercase;">Global<br>Sourcing</h1>
+      <div style="width: 72px; height: 4px; background: #FFFFFF; margin: 26px 0 22px;"></div>
+      <p style="margin: 0; font-size: 15px; max-width: 360px; color: rgba(255,255,255,0.88);">Packaging supplier development, quoting, sample QC and pricing for solar module production.</p>
+    </div>
+
+    <div class="kan" style="position: relative; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.7);">Internal system · Authorized users only</div>
+  </div>
+
+  <!-- form side -->
+  <div style="display: flex; align-items: center; justify-content: center; padding: 60px;">
+    <div style="width: 340px;">
+      <h2 class="kan" style="margin: 0 0 6px; font-size: 26px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;">Sign in</h2>
+      <p style="margin: 0 0 30px; color: #666666; font-size: 13px;">Use your @segsolar.com account.</p>
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <label style="display: block;">
+          <span style="display: block; color: #666666; font-size: 12px; margin-bottom: 6px;">Work email</span>
+          <div style="height: 44px; border: 1px solid #D4D4D4; display: flex; align-items: center; padding: 0 13px; font-size: 14px;">di.zhou@segsolar.com</div>
+        </label>
+        <label style="display: block;">
+          <span style="display: block; color: #666666; font-size: 12px; margin-bottom: 6px;">Password</span>
+          <div style="height: 44px; border: 1px solid #1E1E1E; display: flex; align-items: center; justify-content: space-between; padding: 0 13px; letter-spacing: 0.3em;">••••••••
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999999" stroke-width="1.6"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="2.6"></circle></svg>
+          </div>
+        </label>
+
+        <div class="kan" style="height: 46px; background: #E00700; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 8px;">Sign in</div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 2px; font-size: 12px; color: #666666;">
+          <span>Forgot password</span>
+          <span>Create account</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #EFF2F7; color: #1E1E1E; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.45; }
+    a { color: #E00700; text-decoration: none; }
+    a:hover { color: #B51B16; }
+    .kan { font-family: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  </style>
+</helmet>
+
+<div style="min-height: 840px; background: #EFF2F7; display: flex; flex-direction: column;">
+
+  <!-- slim dark bar, same vocabulary as the app sidebar -->
+  <div style="background: #141414; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between;">
+    <img src="seg-logo-white.svg" alt="SEG Solar" style="display: block; width: 132px; height: 22px;">
+    <span class="kan" style="color: #8A8A8A; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;">Global Sourcing</span>
+  </div>
+
+  <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px;">
+    <div style="width: 400px;">
+
+      <div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-top: 3px solid #E00700;">
+        <div style="padding: 24px 28px 20px; border-bottom: 1px solid #E6E8EB;">
+          <h1 class="kan" style="margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;">Sign in</h1>
+          <p style="margin: 6px 0 0; color: #666666; font-size: 13px;">@segsolar.com accounts only</p>
+        </div>
+
+        <div style="padding: 24px 28px 26px; display: flex; flex-direction: column; gap: 16px;">
+          <label style="display: block;">
+            <span style="display: block; color: #999999; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px;">Work email</span>
+            <div style="height: 40px; border: 1px solid #D4D4D4; display: flex; align-items: center; padding: 0 12px; font-size: 13px;">di.zhou@segsolar.com</div>
+          </label>
+          <label style="display: block;">
+            <span style="display: block; color: #999999; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px;">Password</span>
+            <div style="height: 40px; border: 1px solid #1E1E1E; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; letter-spacing: 0.3em; font-size: 13px;">••••••
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#999999" stroke-width="1.6"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="2.6"></circle></svg>
+            </div>
+          </label>
+
+          <div class="kan" style="height: 42px; background: #E00700; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px;">Sign in</div>
+        </div>
+
+        <div style="padding: 13px 28px; border-top: 1px solid #E6E8EB; background: #FAFBFC; display: flex; justify-content: space-between; font-size: 12px; color: #666666;">
+          <span>Forgot password</span>
+          <span>Create account</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; color: #999999; font-size: 12px; text-align: center;">Trouble signing in? Contact IT HelpDesk.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
