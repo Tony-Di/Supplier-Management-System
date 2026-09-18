@@ -2386,7 +2386,7 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 
 .signInBrand {
   background: #141414;
-  color: #FFFFFF;
+  color: var(--panel);
   padding: 60px 64px;
   display: flex;
   flex-direction: column;
@@ -2440,8 +2440,6 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 
 .signInSub { margin: 0 0 30px; color: #666666; font-size: 13px; }
 
-.signInForm .notice { margin-bottom: 20px; }
-
 .signInButton {
   display: flex;
   align-items: center;
@@ -2463,6 +2461,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 
 .signInButton:hover { background: var(--ink); color: var(--panel); }
 
+.signInMsMark { flex: 0 0 auto; }
+
 .signInNote {
   margin: 26px 0 0;
   padding-top: 20px;
@@ -2470,6 +2470,18 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
   color: #666666;
   font-size: 12px;
 }
+
+.signInDeactivated {
+  margin-top: 18px;
+  border: 1px solid #E8B4B1;
+  border-left: 3px solid var(--seg-red);
+  background: #FDF3F2;
+  padding: 12px 14px;
+}
+
+.signInDeactivatedTitle { font-size: 12px; font-weight: 700; color: #B51B16; }
+
+.signInDeactivatedBody { color: #7A3230; font-size: 12px; margin-top: 3px; }
 
 @media (max-width: 760px) {
   .signInLayout { grid-template-columns: 1fr; }

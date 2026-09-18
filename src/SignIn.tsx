@@ -1,5 +1,16 @@
 import logo from "./assets/seg-logo-white.svg";
 
+function MicrosoftMark() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 23 23" aria-hidden="true" className="signInMsMark">
+      <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+      <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
+      <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
+      <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+    </svg>
+  );
+}
+
 export function SignIn({ deactivated }: { deactivated: boolean }) {
   return (
     <div className="signInLayout">
@@ -16,15 +27,19 @@ export function SignIn({ deactivated }: { deactivated: boolean }) {
         <div className="signInForm">
           <h2 className="signInHeading">Sign in</h2>
           <p className="signInSub">Use the SEG account you sign in to Outlook with.</p>
-          {deactivated && (
-            <div className="notice errorNotice">
-              <strong>Access turned off.</strong> This account has been deactivated. Contact the sourcing system administrator.
-            </div>
-          )}
-          <a className="signInButton" href="/api/auth/login">Sign in with your SEG account</a>
+          <a className="signInButton" href="/api/auth/login">
+            <MicrosoftMark />
+            <span>Sign in with your SEG account</span>
+          </a>
           <p className="signInNote">
             No separate password for this system. Access follows your Microsoft account — if it is disabled, so is this.
           </p>
+          {deactivated && (
+            <div className="signInDeactivated">
+              <div className="signInDeactivatedTitle">Access turned off</div>
+              <div className="signInDeactivatedBody">This account has been deactivated. Contact the sourcing system administrator.</div>
+            </div>
+          )}
         </div>
       </main>
     </div>
