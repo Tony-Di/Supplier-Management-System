@@ -1,5 +1,5 @@
 import cors from "cors";
-import express, { type Express, type NextFunction, type Request, type Response } from "express";
+import express, { type Express } from "express";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import {
@@ -40,6 +40,7 @@ import {
 } from "./schemas";
 import { latestInspection, qcAllowsSourceRole } from "./rules";
 import { nextId, saveStore, store, ValidationError } from "./store";
+import { errorHandler } from "./errorHandler";
 import { authRouter } from "./routes/auth";
 import { requireAuth, sessionMiddleware, verifyCsrf } from "./session";
 
@@ -51,9 +52,11 @@ export function createApp(): Express {
   app.set("trust proxy", 1);
   app.use(sessionMiddleware);
   app.use("/api/auth", authRouter);
-  app.use("/api", requireAuth, verifyCsrf);
-  app.use("/uploads", requireAuth, express.static(join(process.cwd(), "uploads")));
 
+  // Mounted before the /api guard on purpose: infrastructure and load
+  // balancers that cannot authenticate must still be able to probe
+  // liveness, and the payload here is just an ok flag plus two descriptive
+  // strings — nothing worth protecting.
   app.get("/api/health", (_request, response) => {
     response.json({
       ok: true,
@@ -62,6 +65,9 @@ export function createApp(): Express {
       storage: "json-file prototype",
     });
   });
+
+  app.use("/api", requireAuth, verifyCsrf);
+  app.use("/uploads", requireAuth, express.static(join(process.cwd(), "uploads")));
 
   app.get("/api/bootstrap", (_request, response) => {
     if (syncActivePackagingSetItems(store.models.map((model) => model.id), "Bootstrap")) saveStore();
@@ -1230,20 +1236,7 @@ export function createApp(): Express {
     ]);
   }
 
-  app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
-    if (error instanceof ValidationError) {
-      response.status(error.status).json({ message: error.message });
-      return;
-    }
-
-    if (error && typeof error === "object" && "issues" in error) {
-      response.status(400).json({ message: "Invalid request body", issues: (error as { issues: unknown }).issues });
-      return;
-    }
-
-    console.error(error);
-    response.status(500).json({ message: "Internal server error" });
-  });
+  app.use(errorHandler);
 
   return app;
 }

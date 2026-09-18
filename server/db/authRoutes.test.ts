@@ -53,6 +53,23 @@ test("the dev bypass signs in and /api/auth/me returns the user", async () => {
   });
 });
 
+test("GET /api/health is reachable without a session while /api/bootstrap is not", async () => {
+  await withTestApp(async ({ createApp }) => {
+    const app = createApp();
+    const health = await call(app, "/api/health");
+    assert.equal(health.status, 200);
+    assert.deepEqual(await health.json(), {
+      ok: true,
+      service: "global-sourcing-api",
+      language: "TypeScript",
+      storage: "json-file prototype",
+    });
+
+    const bootstrap = await call(app, "/api/bootstrap");
+    assert.equal(bootstrap.status, 401);
+  });
+});
+
 test("a deactivated user cannot use an existing session", async () => {
   await withTestApp(async ({ createApp, pool }) => {
     const app = createApp();
