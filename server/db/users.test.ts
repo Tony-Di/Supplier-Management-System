@@ -69,3 +69,33 @@ test("an admin cannot delete their own account", async () => {
     await assert.rejects(() => deleteUser(db, admin.id, admin.id), /your own account/);
   });
 });
+
+test("the last active admin cannot be deactivated", async () => {
+  await withTestDatabase(async (db) => {
+    const admin = await upsertUserFromClaims(db, alice);
+    await setUserRole(db, admin.id, "admin", admin.id);
+    const other = await upsertUserFromClaims(db, bob);
+    await assert.rejects(() => setUserActive(db, admin.id, false, other.id), /one active admin/);
+  });
+});
+
+test("the last active admin cannot be deleted", async () => {
+  await withTestDatabase(async (db) => {
+    const admin = await upsertUserFromClaims(db, alice);
+    await setUserRole(db, admin.id, "admin", admin.id);
+    const other = await upsertUserFromClaims(db, bob);
+    await assert.rejects(() => deleteUser(db, admin.id, other.id), /one active admin/);
+  });
+});
+
+test("an admin can delete an ordinary user while being the only admin", async () => {
+  await withTestDatabase(async (db) => {
+    const admin = await upsertUserFromClaims(db, alice);
+    await setUserRole(db, admin.id, "admin", admin.id);
+    const user = await upsertUserFromClaims(db, bob);
+    await deleteUser(db, user.id, admin.id);
+    const remaining = await listUsers(db);
+    assert.equal(remaining.length, 1);
+    assert.equal(remaining[0].id, admin.id);
+  });
+});
