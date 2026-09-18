@@ -38,6 +38,7 @@ import {
   sourceAssignmentSchema,
   supplierSchema,
 } from "./schemas";
+import { latestInspection, qcAllowsSourceRole } from "./rules";
 import { nextId, saveStore, store, ValidationError } from "./store";
 
 const app = express();
@@ -1061,19 +1062,17 @@ function ensureSourceAssignmentLinks(record: {
     ) {
       throw new ValidationError("Source quote must be linked to the assignment case.");
     }
-    const project = record.projectId ? store.projects.find((candidate) => candidate.id === record.projectId) : undefined;
-    const latestInspection = [...store.inspections]
-      .filter((inspection) =>
-        inspection.recordState !== "Void" &&
-        (inspection.relatedQuoteId === record.sourceQuoteId ||
-          (inspection.supplierId === record.supplierId &&
-            inspection.itemId === record.itemId &&
-            (!project || inspection.drawingSetId === project.drawingSetId))))
-      .sort((a, b) => a.sampleRound - b.sampleRound || a.sampleReceivedDate.localeCompare(b.sampleReceivedDate))
-      .slice(-1)[0];
-    if (!latestInspection || (latestInspection.result !== "Pass" && latestInspection.result !== "Conditional")) {
-      throw new ValidationError("QC must pass or be conditional before assigning source role.");
-    }
+  }
+
+  const project = record.projectId ? store.projects.find((candidate) => candidate.id === record.projectId) : undefined;
+  const inspection = latestInspection(store.inspections, {
+    supplierId: record.supplierId,
+    itemId: record.itemId,
+    drawingSetId: project?.drawingSetId,
+    sourceQuoteId: record.sourceQuoteId,
+  });
+  if (!qcAllowsSourceRole(inspection)) {
+    throw new ValidationError("QC must pass or be conditional before assigning source role.");
   }
 }
 

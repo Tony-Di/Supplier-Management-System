@@ -1,5 +1,6 @@
 import type { IncomingDefectRecord, PurchasePriceRecord, Quote, QuoteCaseLink, SampleInspection, SourcingProject } from "../src/types";
 import { parseLeadTimeDays } from "../src/leadTime";
+import { isUsableRecord } from "./rules";
 import {
   assertReferences,
   findDrawingItem,
@@ -22,6 +23,9 @@ export function validateProjectLinks(project: {
   assertReferences(project.modelIds, findModel, "Model");
   assertReferences(project.supplierIds, findSupplier, "Supplier");
   assertReferences(project.itemIds, findItem, "Item");
+  project.modelIds.forEach((modelId) => assertNotVoided(findModel(modelId), "Model"));
+  project.supplierIds.forEach((supplierId) => assertNotVoided(findSupplier(supplierId), "Supplier"));
+  project.itemIds.forEach((itemId) => assertNotVoided(findItem(itemId), "Item"));
 
   const drawingSet = findDrawingSet(project.drawingSetId);
   if (!drawingSet) throw new ValidationError(`Drawing set not found: ${project.drawingSetId}`);
@@ -50,10 +54,13 @@ export function validateDrawingSetLinks(drawingSet: { modelId: string; drawingIt
 export function validateQuoteLinks(quote: Omit<Quote, "id">) {
   const supplier = findSupplier(quote.supplierId);
   if (!supplier) throw new ValidationError(`Supplier not found: ${quote.supplierId}`);
+  assertNotVoided(supplier, "Supplier");
   const model = findModel(quote.modelId);
   if (!model) throw new ValidationError(`Model not found: ${quote.modelId}`);
+  assertNotVoided(model, "Model");
   const item = findItem(quote.itemId);
   if (!item) throw new ValidationError(`Item not found: ${quote.itemId}`);
+  assertNotVoided(item, "Item");
   if (!supplier.capableItems.includes(item.type)) throw new ValidationError("Supplier is not capable for the selected item type.");
   const drawingSet = findDrawingSet(quote.drawingSetId);
   if (!drawingSet) throw new ValidationError(`Drawing set not found: ${quote.drawingSetId}`);
@@ -171,6 +178,12 @@ function sampleRequirementForQuoteInProject(quote: Quote, project: SourcingProje
   return quote.status === "Selected" ? "Required" : "Not Reviewed";
 }
 
+function assertNotVoided(record: { recordState?: "Draft" | "Active" | "Void" } | undefined, label: string) {
+  if (!isUsableRecord(record)) {
+    throw new ValidationError(`${label} is voided and cannot be used on new records.`);
+  }
+}
+
 function ensureActiveDrawingSet(drawingSet: { status?: string; recordState?: string }) {
   if (drawingSet.recordState === "Void" || drawingSet.status !== "Active") {
     throw new ValidationError("Use the current active packaging set for new case, quote, and QC workflow.");
@@ -185,6 +198,8 @@ export function validateIncomingDefectLinks(record: { supplierId: string; modelI
   if (!findSupplier(record.supplierId)) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
   if (!findItem(record.itemId)) throw new ValidationError(`Item not found: ${record.itemId}`);
   if (record.modelId && !findModel(record.modelId)) throw new ValidationError(`Model not found: ${record.modelId}`);
+  assertNotVoided(findSupplier(record.supplierId), "Supplier");
+  assertNotVoided(findItem(record.itemId), "Item");
 }
 
 export function normalizeIncomingDefectCompletion(defect: Omit<IncomingDefectRecord, "id"> | IncomingDefectRecord) {
@@ -214,11 +229,15 @@ function validateQuoteLikeLinks(record: {
   drawingSetId: string;
   drawingItemId: string;
 }) {
-  if (!findSupplier(record.supplierId)) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
+  const supplier = findSupplier(record.supplierId);
+  if (!supplier) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
+  assertNotVoided(supplier, "Supplier");
   const model = findModel(record.modelId);
   if (!model) throw new ValidationError(`Model not found: ${record.modelId}`);
+  assertNotVoided(model, "Model");
   const item = findItem(record.itemId);
   if (!item) throw new ValidationError(`Item not found: ${record.itemId}`);
+  assertNotVoided(item, "Item");
   const drawingSet = findDrawingSet(record.drawingSetId);
   if (!drawingSet) throw new ValidationError(`Drawing set not found: ${record.drawingSetId}`);
   ensureActiveDrawingSet(drawingSet);
