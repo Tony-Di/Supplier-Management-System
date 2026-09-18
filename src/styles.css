@@ -1963,6 +1963,11 @@ background: #F2F3F5; border: 1px dashed #B8B8B8; color: #666666;
   margin: 0 18px 18px;
 }
 
+/* Grid fields already receive spacing from the form container. */
+.formGrid > .fullWidthLabel {
+  margin: 0;
+}
+
 .quoteFilters .multiSelectField,
 .filterBar .multiSelectField,
 .caseProgressFilters .multiSelectField,
