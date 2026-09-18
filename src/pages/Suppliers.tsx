@@ -8,6 +8,10 @@ import { Field } from "../components/Field";
 import { supplierLocation } from "../lib/lookups";
 import { TagRow } from "../components/TagRow";
 import { DocumentCheck } from "../components/DocumentCheck";
+import { useEffect, useState } from "react";
+import { fetchScorecard, type ScorecardRow } from "../api";
+import { packagingItemOptions } from "../constants";
+import { EmptyState } from "../components/EmptyState";
 
 export function Suppliers({
   onAdd,
@@ -23,7 +27,22 @@ export function Suppliers({
   onVoid: VoidHandler;
 }) {
   const { data: appData } = useAppData();
+  const [search, setSearch] = useState("");
+  const [capability, setCapability] = useState("All");
+  const [documents, setDocuments] = useState("All");
+  const [scores, setScores] = useState<ScorecardRow[]>([]);
+  useEffect(() => {
+    let current = true;
+    fetchScorecard().then((response) => { if (current) setScores(response.rows); }).catch(() => { if (current) setScores([]); });
+    return () => { current = false; };
+  }, [appData]);
   const approvedSuppliers = appData.suppliers.filter((supplier) => supplier.recordState !== "Void");
+  const visibleSuppliers = approvedSuppliers.filter((supplier) => {
+    const matchesSearch = `${supplier.name} ${supplier.erpVendorId ?? ""}`.toLowerCase().includes(search.trim().toLowerCase());
+    const complete = supplier.hasW9 && supplier.hasPaymentInfo;
+    return matchesSearch && (capability === "All" || supplier.capableItems.some((item) => item === capability)) &&
+      (documents === "All" || (documents === "Complete" ? complete : !complete));
+  });
   return (
     <section className="pageStack">
       <TableToolbar
@@ -32,8 +51,15 @@ export function Suppliers({
         onAction={onAdd}
         title="Supplier master"
       />
+      <div className="supplierFilters">
+        <label className="supplierSearch">Search suppliers<input placeholder="Name or ERP vendor ID" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+        <label>Capability<select value={capability} onChange={(event) => setCapability(event.target.value)}><option value="All">All item types</option>{packagingItemOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label>Documents<select value={documents} onChange={(event) => setDocuments(event.target.value)}><option value="All">Any status</option><option>Complete</option><option>Missing documents</option></select></label>
+        <span className="recordCount">{visibleSuppliers.length} of {approvedSuppliers.length} suppliers</span>
+      </div>
+      {visibleSuppliers.length === 0 && <EmptyState text="No suppliers match these filters." />}
       <div className="dataGrid supplierGrid">
-        {approvedSuppliers.map((supplier) => (
+        {visibleSuppliers.map((supplier) => (
           <article className="recordCard" key={supplier.id}>
             <div className="recordHeader">
               <div>
@@ -53,13 +79,14 @@ export function Suppliers({
               </div>
             </div>
             <div className="fieldGrid">
+              <Field label="Supplier score" value={scores.find((row) => row.supplier.id === supplier.id)?.score.toString() ?? "Unavailable"} />
               <Field label="Location" value={supplierLocation(supplier)} />
               <Field label="Contact" value={supplier.primaryContact} />
               <Field label="Email" value={supplier.email} />
               <Field label="Phone" value={supplier.phone} />
               <Field label="Payment Terms" value={supplier.paymentTerms || "Not set"} />
             </div>
-            <TagRow tags={supplier.capableItems} />
+            <div className="capabilityBlock"><span>Capable item types</span><TagRow tags={supplier.capableItems} /></div>
             <div className="documentChecks">
               <DocumentCheck ok={supplier.hasW9} label="W-9" fileId={supplier.w9FileId} />
               <DocumentCheck ok={supplier.hasPaymentInfo} label="Payment info" fileId={supplier.paymentInfoFileId} />

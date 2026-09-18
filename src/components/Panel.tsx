@@ -7,7 +7,7 @@ export function Panel({ actions, title, children, help }: { actions?: React.Reac
         <div className="toolbarTitle">
           <h2>{title}</h2>
           {help && (
-            <span className="helpIcon" data-help={help}>
+            <span className="helpIcon" data-help={help} tabIndex={0} aria-label={help}>
               <CircleHelp size={16} />
             </span>
           )}

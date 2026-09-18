@@ -25,6 +25,6 @@ export function priceAnalyticsDomain(visibleQuotes: Quote[]): [number, number] |
 }
 
 export function chartColor(index: number) {
-  const palette = ["#d71920", "#25282d", "#8f2b31", "#6b7280", "#c84d52", "#3f4652", "#a84348", "#9ca3af"];
+  const palette = ["#E00700", "#1C5CB0", "#B8860B", "#00876C", "#6A4C93"];
   return palette[index % palette.length];
 }

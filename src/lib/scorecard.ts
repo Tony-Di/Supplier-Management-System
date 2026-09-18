@@ -97,11 +97,11 @@ export function sortedScoreCategories(row: ScorecardRow) {
 
 export function scoreCategoryColor(key: ScorecardRow["categories"][number]["key"]) {
   const colors: Record<ScorecardRow["categories"][number]["key"], string> = {
-    quality: "#d71920",
-    pricing: "#25282d",
-    responsiveness: "#c84d52",
-    scope: "#6b7280",
-    setup: "#8f2b31",
+    quality: "#E00700",
+    pricing: "#1C5CB0",
+    responsiveness: "#B8860B",
+    scope: "#00876C",
+    setup: "#6A4C93",
   };
   return colors[key];
 }

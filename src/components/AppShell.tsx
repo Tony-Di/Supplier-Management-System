@@ -2,6 +2,17 @@ import { useState, type ReactNode } from "react";
 import { Menu } from "lucide-react";
 import { navItems } from "../navigation";
 import type { Section } from "../uiTypes";
+import segLogo from "../assets/seg-logo-white.svg";
+
+const sectionLabels: Record<Section, string> = {
+  Dashboard: "Overview",
+  Suppliers: "Master data",
+  "Products & Drawings": "Product library",
+  "Sourcing Workbench": "Supplier development",
+  Pricing: "Commercial insights",
+  "QC Inspections": "Quality assurance",
+  Reports: "Supplier performance",
+};
 
 export function AppShell({ section, onSectionChange, children }: { section: Section; onSectionChange: (section: Section) => void; children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -9,10 +20,10 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
     <div className={sidebarCollapsed ? "appShell sidebarCollapsed" : "appShell"}>
       <aside className="sidebar">
         <div className="brandBlock">
-          <div className="brandMark">SEG</div>
-          <div>
-            <strong>Supplier Management</strong>
-            <span>Supplier workbench</span>
+          <img className="brandLogo" src={segLogo} alt="SEG Solar" />
+          <div className="brandCaption">
+            <strong>Global Sourcing</strong>
+            <span>Packaging Supply Chain</span>
           </div>
         </div>
 
@@ -20,6 +31,7 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
           {navItems.map(({ section: item, icon: Icon }) => (
             <button
               className={section === item ? "navButton active" : "navButton"}
+              aria-current={section === item ? "page" : undefined}
               key={item}
               onClick={() => onSectionChange(item)}
               type="button"
@@ -30,11 +42,13 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
             </button>
           ))}
         </nav>
+        <div className="sidebarFooter"><strong>Supplier Management</strong><span>Purchasing &amp; Quality</span></div>
       </aside>
 
       <main className="mainArea">
         <header className="topbar">
           <div>
+            <p className="eyebrow">{sectionLabels[section]}</p>
             <h1>{section}</h1>
           </div>
           <button
