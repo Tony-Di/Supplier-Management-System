@@ -42,6 +42,7 @@ import { latestInspection, qcAllowsSourceRole } from "./rules";
 import { nextId, saveStore, store, ValidationError } from "./store";
 import { errorHandler } from "./errorHandler";
 import { authRouter } from "./routes/auth";
+import { adminRouter } from "./routes/admin";
 import { requireAdmin, requireAuth, sessionMiddleware, verifyCsrf } from "./session";
 import { appendAuditEntry, listAuditEntries } from "./auditLog";
 import { pool } from "./db";
@@ -70,6 +71,7 @@ export function createApp(): Express {
 
   app.use("/api", requireAuth, verifyCsrf);
   app.use("/uploads", requireAuth, express.static(join(process.cwd(), "uploads")));
+  app.use("/api/admin", adminRouter);
 
   app.get("/api/bootstrap", (request, response) => {
     if (syncActivePackagingSetItems(request, store.models.map((model) => model.id), "Bootstrap")) saveStore();
