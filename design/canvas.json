@@ -1,0 +1,12 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Dashboard", "x": 0, "y": 0, "w": 1440, "h": 1180 },
+    { "file": "Suppliers.dc.html", "title": "Suppliers", "x": 1560, "y": 0, "w": 1440, "h": 780 },
+    { "file": "Sourcing.dc.html", "title": "Sourcing Workbench — Comparison", "x": 0, "y": 1320, "w": 1440, "h": 1020 },
+    { "file": "Scorecard.dc.html", "title": "Supplier Scorecard", "x": 1560, "y": 1320, "w": 1440, "h": 1020 }
+  ],
+  "annotations": [
+    { "id": "brand-note", "x": 0, "y": -150, "w": 700, "text": "Brand values lifted from segsolar.com stylesheets: red #E00700, dark red #B51B16, blue #1C5CB0, Kanit headings, square corners (the site uses 0 radius outside circular elements).\nData shown is live data from the prototype's store: 2 suppliers, real item codes and quotes, backend-calculated scores 85 and 94." }
+  ],
+  "launch": { "view": "canvas" }
+}

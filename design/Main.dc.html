@@ -1,0 +1,263 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      margin: 0;
+      background: #EFF2F7;
+      color: #1E1E1E;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #E00700; text-decoration: none; }
+    a:hover { color: #B51B16; }
+    .kan { font-family: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  </style>
+</helmet>
+
+<div style="display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 1180px; background: #EFF2F7;">
+
+  <!-- SIDEBAR -->
+  <aside style="background: #141414; display: flex; flex-direction: column; gap: 28px; padding: 22px 0 28px;">
+    <div style="padding: 0 20px 20px; border-bottom: 1px solid #2A2A2A;">
+      <img src="seg-logo-white.svg" alt="SEG Solar" style="display: block; width: 158px; height: 26px;">
+      <div style="display: flex; align-items: center; gap: 11px; margin-top: 16px;">
+        <span style="display: block; width: 3px; height: 30px; background: #E00700;"></span>
+        <div>
+          <div class="kan" style="color: #FFFFFF; font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Global Sourcing</div>
+          <div style="color: #8A8A8A; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 3px;">Packaging Supply Chain</div>
+        </div>
+      </div>
+    </div>
+
+    <nav style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 20px 12px 17px; border-left: 3px solid #E00700; background: #1F1F1F; color: #FFFFFF;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E00700" stroke-width="1.6"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+        <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;">Dashboard</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 20px 12px 17px; border-left: 3px solid transparent; color: #A8A8A8;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A8A8A8" stroke-width="1.6"><circle cx="12" cy="8" r="3.4"></circle><path d="M4.5 20c0-3.6 3.4-5.6 7.5-5.6s7.5 2 7.5 5.6"></path></svg>
+        <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;">Suppliers</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 20px 12px 17px; border-left: 3px solid transparent; color: #A8A8A8;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A8A8A8" stroke-width="1.6"><path d="M4 7.5 12 3.5l8 4v9L12 20.5 4 16.5z"></path><path d="M4 7.5 12 11.5l8-4"></path><path d="M12 11.5v9"></path></svg>
+        <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;">Products &amp; Drawings</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 20px 12px 17px; border-left: 3px solid transparent; color: #A8A8A8;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A8A8A8" stroke-width="1.6"><path d="M3 7h6l1.6 2.4H21V19H3z"></path><path d="M3 7V5h5.2L9.6 7"></path></svg>
+        <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;">Sourcing Workbench</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 20px 12px 17px; border-left: 3px solid transparent; color: #A8A8A8;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A8A8A8" stroke-width="1.6"><path d="M4 18V9"></path><path d="M10 18V5"></path><path d="M16 18v-6"></path><path d="M3 21h18"></path></svg>
+        <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;">Pricing</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 20px 12px 17px; border-left: 3px solid transparent; color: #A8A8A8;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A8A8A8" stroke-width="1.6"><path d="M8 4h8v3H8z"></path><path d="M6 7h12v13H6z"></path><path d="M9.5 13.5l2 2 4-4"></path></svg>
+        <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;">QC Inspections</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 20px 12px 17px; border-left: 3px solid transparent; color: #A8A8A8;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A8A8A8" stroke-width="1.6"><path d="M4 14a8 8 0 0 1 16 0"></path><path d="M12 14l4.5-3.5"></path></svg>
+        <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;">Reports</span>
+      </div>
+    </nav>
+
+    <div style="margin-top: auto; padding: 16px 20px 0; border-top: 1px solid #2A2A2A;">
+      <div style="color: #6E6E6E; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;">Data source</div>
+      <div style="color: #C9C9C9; font-size: 12px; margin-top: 4px;">JSON prototype · pre-ERP</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main style="display: flex; flex-direction: column; gap: 20px; padding: 26px 34px 34px; min-width: 0;">
+
+    <!-- TOPBAR -->
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+      <div>
+        <div style="color: #E00700; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;">Overview</div>
+        <h1 class="kan" style="margin: 6px 0 0; font-size: 30px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;">Dashboard</h1>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; background: #FFFFFF; border: 1px solid #D4D4D4; min-width: 240px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999999" stroke-width="1.8"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg>
+          <span style="color: #999999; font-size: 13px;">Search item code, supplier, PO</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; background: #E00700; color: #FFFFFF;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;">New Case</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px 0 0; border-left: 1px solid #D4D4D4; padding-left: 14px;">
+          <div class="kan" style="width: 32px; height: 32px; background: #1E1E1E; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">DZ</div>
+          <div>
+            <div style="font-size: 12px; font-weight: 700;">Purchasing</div>
+            <div style="color: #999999; font-size: 11px;">Houston, TX</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS -->
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+      <div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-top: 3px solid #1E1E1E; padding: 18px 20px;">
+        <div style="color: #666666; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;">Total Suppliers</div>
+        <div class="kan" style="font-size: 42px; font-weight: 600; line-height: 1.05; margin-top: 10px;">2</div>
+        <div style="color: #999999; font-size: 12px; margin-top: 6px;">All non-deleted supplier records</div>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-top: 3px solid #E00700; padding: 18px 20px;">
+        <div style="color: #666666; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;">Active Suppliers</div>
+        <div class="kan" style="font-size: 42px; font-weight: 600; line-height: 1.05; margin-top: 10px;">2</div>
+        <div style="color: #999999; font-size: 12px; margin-top: 6px;">Assigned as primary, secondary or tertiary</div>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-top: 3px solid #1E1E1E; padding: 18px 20px;">
+        <div style="color: #666666; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;">Avg Lead Time</div>
+        <div class="kan" style="font-size: 42px; font-weight: 600; line-height: 1.05; margin-top: 10px;">21<span style="font-size: 18px; font-weight: 500; color: #666666; margin-left: 6px;">days</span></div>
+        <div style="color: #999999; font-size: 12px; margin-top: 6px;">Quoted lead time, active source suppliers</div>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-top: 3px solid #1E1E1E; padding: 18px 20px;">
+        <div style="color: #666666; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;">Average Score</div>
+        <div class="kan" style="font-size: 42px; font-weight: 600; line-height: 1.05; margin-top: 10px;">90<span style="font-size: 18px; font-weight: 500; color: #666666; margin-left: 6px;">/ 100</span></div>
+        <div style="color: #999999; font-size: 12px; margin-top: 6px;">Active suppliers only</div>
+      </div>
+    </div>
+
+    <!-- PRICE + COVERAGE -->
+    <section style="background: #FFFFFF; border: 1px solid #D9DEE5;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 20px; border-bottom: 1px solid #E6E8EB;">
+        <h2 class="kan" style="margin: 0; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;">Selected item price and coverage</h2>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border: 1px solid #D4D4D4; background: #FFFFFF;">
+            <span style="color: #999999; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;">Item</span>
+            <span style="font-size: 13px; font-weight: 700;">27.002.011.052</span>
+            <span style="color: #666666; font-size: 13px;">Pallet · Douglas Fir · 2412×1120×146</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#666666" stroke-width="2"><path d="M6 9l6 6 6-6"></path></svg>
+          </div>
+          <span style="font-size: 12px; color: #666666;"><strong style="color: #1E1E1E;">2</strong> capable suppliers</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1.55fr 1fr; gap: 0;">
+        <!-- CHART -->
+        <div style="padding: 20px; border-right: 1px solid #E6E8EB;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;">
+            <h3 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #666666;">Selected quote price trend</h3>
+            <div style="display: flex; gap: 16px; align-items: center;">
+              <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #666666;"><i style="display: inline-block; width: 12px; height: 3px; background: #E00700;"></i>Legacy Paper</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #666666;"><i style="display: inline-block; width: 12px; height: 3px; background: #1C5CB0;"></i>UFP New Waverly</span>
+            </div>
+          </div>
+
+          <svg viewBox="0 0 720 260" width="100%" height="248" style="display: block; margin-top: 14px; overflow: visible;">
+            <g stroke="#E6E8EB" stroke-width="1">
+              <line x1="52" y1="45.7" x2="700" y2="45.7"></line>
+              <line x1="52" y1="97.1" x2="700" y2="97.1"></line>
+              <line x1="52" y1="148.6" x2="700" y2="148.6"></line>
+              <line x1="52" y1="200" x2="700" y2="200"></line>
+            </g>
+            <g fill="#999999" font-size="11" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" text-anchor="end">
+              <text x="42" y="49.7">$38</text>
+              <text x="42" y="101.1">$37</text>
+              <text x="42" y="152.6">$36</text>
+              <text x="42" y="204">$35</text>
+            </g>
+            <line x1="52" y1="200" x2="700" y2="200" stroke="#C1C1C1" stroke-width="1"></line>
+            <g fill="#999999" font-size="11" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" text-anchor="middle">
+              <text x="86" y="222">Aug 25</text>
+              <text x="322" y="222">Sep 1</text>
+              <text x="558" y="222">Sep 8</text>
+            </g>
+
+            <!-- Legacy Paper: 36.20 on Aug 25 -> 38.00 on Sep 10 -->
+            <polyline points="86,138.3 625,45.7" fill="none" stroke="#E00700" stroke-width="2"></polyline>
+            <circle cx="86" cy="138.3" r="5" fill="#E00700" stroke="#FFFFFF" stroke-width="2"></circle>
+            <circle cx="625" cy="45.7" r="5" fill="#E00700" stroke="#FFFFFF" stroke-width="2"></circle>
+            <text x="625" y="30" fill="#1E1E1E" font-size="12" font-weight="700" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" text-anchor="middle">$38.00</text>
+
+            <!-- UFP: single quote 35.50 on Aug 27 -->
+            <circle cx="153" cy="174.3" r="5" fill="#1C5CB0" stroke="#FFFFFF" stroke-width="2"></circle>
+            <text x="153" y="194" fill="#1E1E1E" font-size="12" font-weight="700" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" text-anchor="middle">$35.50</text>
+          </svg>
+
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px; padding-top: 12px; border-top: 1px solid #E6E8EB;">
+            <span style="display: inline-block; width: 8px; height: 8px; background: #E00700;"></span>
+            <span style="font-size: 12px; color: #666666;">Legacy Paper requote raised the pallet price <strong style="color: #1E1E1E;">+$1.80 (+5.0%)</strong> effective Sep 10 — price change PC-1001 pending review.</span>
+          </div>
+        </div>
+
+        <!-- COVERAGE -->
+        <div style="padding: 20px;">
+          <h3 style="margin: 0 0 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #666666;">Supplier coverage</h3>
+          <div style="display: flex; flex-direction: column;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E6E8EB;">
+              <div>
+                <div style="font-size: 13px; font-weight: 700;">Legacy Paper &amp; Packaging</div>
+                <div style="color: #999999; font-size: 12px; margin-top: 2px;">Effective 2026-08-25</div>
+              </div>
+              <span class="kan" style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #FFFFFF; background: #E00700; padding: 5px 9px;">Primary</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E6E8EB;">
+              <div>
+                <div style="font-size: 13px; font-weight: 700;">UFP New Waverly</div>
+                <div style="color: #999999; font-size: 12px; margin-top: 2px;">Effective 2026-08-27</div>
+              </div>
+              <span class="kan" style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #1E1E1E; background: #FFFFFF; border: 1px solid #C1C1C1; padding: 4px 8px;">Secondary</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0;">
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: #666666;">No backup source</div>
+                <div style="color: #999999; font-size: 12px; margin-top: 2px;">Tertiary and Backup roles unassigned</div>
+              </div>
+              <span class="kan" style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #B51B16; border: 1px solid #E8B4B1; background: #FDF3F2; padding: 4px 8px;">Gap</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RISK WATCH -->
+    <section style="background: #FFFFFF; border: 1px solid #D9DEE5;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 20px; border-bottom: 1px solid #E6E8EB;">
+        <h2 class="kan" style="margin: 0; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;">Risk watch</h2>
+        <span style="color: #999999; font-size: 12px;">Rolling 90 days</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0;">
+        <div style="padding: 18px 20px; border-right: 1px solid #E6E8EB;">
+          <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #666666;">Score risk</div>
+          <div class="kan" style="font-size: 30px; font-weight: 600; margin-top: 10px;">0</div>
+          <div style="color: #999999; font-size: 12px; margin-top: 4px;">No supplier below 55</div>
+        </div>
+        <div style="padding: 18px 20px; border-right: 1px solid #E6E8EB;">
+          <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #666666;">Quality risk</div>
+          <div class="kan" style="font-size: 30px; font-weight: 600; margin-top: 10px;">0</div>
+          <div style="color: #999999; font-size: 12px; margin-top: 4px;">1 damaged pallet logged for UFP, below the 5-unit threshold</div>
+        </div>
+        <div style="padding: 18px 20px; border-right: 1px solid #E6E8EB;">
+          <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #666666;">Coverage risk</div>
+          <div class="kan" style="font-size: 30px; font-weight: 600; margin-top: 10px; color: #B51B16;">2</div>
+          <div style="color: #999999; font-size: 12px; margin-top: 4px;">Sourced items without a backup supplier</div>
+          <div style="display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
+            <span style="font-size: 11px; border: 1px solid #D4D4D4; padding: 3px 7px; color: #666666;">27.002.011.052</span>
+            <span style="font-size: 11px; border: 1px solid #D4D4D4; padding: 3px 7px; color: #666666;">27.004.008.009</span>
+          </div>
+        </div>
+        <div style="padding: 18px 20px;">
+          <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #666666;">Price risk</div>
+          <div class="kan" style="font-size: 30px; font-weight: 600; margin-top: 10px;">1</div>
+          <div style="color: #999999; font-size: 12px; margin-top: 4px;">Legacy Paper pallet, new quote effective 2026-09-10</div>
+          <div style="font-size: 12px; margin-top: 10px;"><span style="color: #666666;">$36.20</span> <span style="color: #999999;">→</span> <strong>$38.00</strong></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+</x-dc>
+</body>
+</html>
