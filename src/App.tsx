@@ -1,7 +1,8 @@
+import { useAppData } from "./AppDataContext";
 import { LayoutDashboard, UserRound, PackageSearch, FolderKanban, LineChart, ClipboardCheck, Gauge, Menu, FileStack, Plus, ChevronDown, ChevronUp, Search, CircleHelp, MoreHorizontal } from "lucide-react";
-import { type AppData, type DeleteEndpoint, fetchBootstrap, deleteRecord, voidRecord, updateRecord, upsertSourceAssignment, type ComparisonRow, fetchComparison, type ScorecardRow, fetchScorecard, updateScoreWeights, uploadFile, createSupplier, createModel, createItem, importItems, createDrawingSet, createProject, createQuote, createInspection, createIncomingDefect, createPriceChange } from "./api";
-import { suppliers as seedSuppliers, models as seedModels, items as seedItems, drawingSets as seedDrawingSets, projects as seedProjects, quotes as seedQuotes, inspections as seedInspections, priceChanges as seedPriceChanges, purchasePrices as seedPurchasePrices } from "./data";
 import { type PackagingItemType, type Quote, type IncomingDefectRecord, type SampleInspection, type Supplier, type Model, type PackagingItem, type DrawingSet, type PriceChange, type SourceAssignment, type ScoreWeights, type AuditLogRecord, type UploadedFileRecord } from "./types";
+import { type DeleteEndpoint, type AppData, fetchBootstrap, deleteRecord, voidRecord, updateRecord, upsertSourceAssignment, type ComparisonRow, fetchComparison, type ScorecardRow, fetchScorecard, updateScoreWeights, uploadFile, createSupplier, createModel, createItem, importItems, createDrawingSet, createProject, createQuote, createInspection, createIncomingDefect, createPriceChange } from "./api";
+import { fallbackData } from "./appDefaults";
 import { useState, useEffect, useMemo, CSSProperties, FormEvent, Dispatch, SetStateAction, useRef } from "react";
 import { ResponsiveContainer, LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line, Legend } from "recharts";
 import { formatMonthTick, formatMoney, formatAuditDate, formatAuditValue, todayDateString, formatFileSize, clamp, csvCell, formatDecimalPrice } from "./lib/format";
@@ -39,23 +40,6 @@ export const navItems: { section: Section; icon: typeof LayoutDashboard }[] = [
   { section: "QC Inspections", icon: ClipboardCheck },
   { section: "Reports", icon: Gauge },
 ];
-
-export const fallbackData: AppData = {
-  suppliers: seedSuppliers,
-  models: seedModels,
-  items: seedItems,
-  drawingSets: seedDrawingSets,
-  projects: seedProjects,
-  quotes: seedQuotes,
-  quoteCaseLinks: [],
-  sourceAssignments: [],
-  inspections: seedInspections,
-  incomingDefects: [],
-  priceChanges: seedPriceChanges,
-  purchasePrices: seedPurchasePrices,
-  files: [],
-  auditLogs: [],
-};
 
 export const packagingItemOptions: PackagingItemType[] = [
   "Paper Corner Protector",
@@ -100,33 +84,33 @@ export type EditTarget =
   | { endpoint: "price-changes"; record: PriceChange }
   | { endpoint: "purchase-prices"; record: AppData["purchasePrices"][number] };
 
-export let suppliers: Supplier[] = fallbackData.suppliers;
 
-export let models = fallbackData.models;
 
-export let items = fallbackData.items;
 
-export let drawingSets = fallbackData.drawingSets;
 
-export let projects = fallbackData.projects;
 
-export let quotes = fallbackData.quotes;
 
-export let quoteCaseLinks = fallbackData.quoteCaseLinks;
 
-export let sourceAssignments = fallbackData.sourceAssignments;
 
-export let inspections = fallbackData.inspections;
 
-export let incomingDefects = fallbackData.incomingDefects;
 
-export let priceChanges = fallbackData.priceChanges;
 
-export let purchasePrices = fallbackData.purchasePrices;
 
-export let files = fallbackData.files;
 
-export let auditLogs = fallbackData.auditLogs;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export function App() {
   const [section, setSection] = useState<Section>("Dashboard");
@@ -135,9 +119,7 @@ export function App() {
   const [pricingTab, setPricingTab] = useState<PricingTab>("Price Analytics");
   const [qcTab, setQcTab] = useState<QCTab>("Sample Inspections");
   const [reportsTab, setReportsTab] = useState<ReportsTab>("Scorecard");
-  const [data, setData] = useState<AppData>(fallbackData);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data, setData, refresh: refreshData, loading, error } = useAppData();
   const [actionError, setActionError] = useState("");
   const [modal, setModal] = useState<"supplier" | "model" | "item" | "itemImport" | "drawingSet" | "project" | "quote" | "inspection" | "incomingDefect" | "priceChange" | "scoreSettings" | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
@@ -149,21 +131,8 @@ export function App() {
   const [historyTarget, setHistoryTarget] = useState<{ entityType: string; entityId: string; label: string } | null>(null);
 
   useEffect(() => {
-    void refreshData();
-  }, []);
-
-  async function refreshData() {
-    try {
-      setError("");
-      const nextData = await fetchBootstrap();
-      setData(nextData);
-      setSelectedProjectId((current) => current || nextData.projects[0]?.id || "");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load backend data.");
-    } finally {
-      setLoading(false);
-    }
-  }
+    setSelectedProjectId((current) => current || data.projects[0]?.id || "");
+  }, [data.projects]);
 
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId) ?? data.projects[0];
 
@@ -230,21 +199,6 @@ export function App() {
   function openHistory(entityType: string, entityId: string, label: string) {
     setHistoryTarget({ entityType, entityId, label });
   }
-
-  suppliers = data.suppliers;
-  models = data.models;
-  items = data.items;
-  drawingSets = data.drawingSets;
-  projects = data.projects;
-  quotes = data.quotes;
-  quoteCaseLinks = data.quoteCaseLinks ?? [];
-  sourceAssignments = data.sourceAssignments;
-  inspections = data.inspections;
-  incomingDefects = data.incomingDefects;
-  priceChanges = data.priceChanges;
-  purchasePrices = data.purchasePrices;
-  files = data.files;
-  auditLogs = data.auditLogs;
 
   return (
     <div className={sidebarCollapsed ? "appShell sidebarCollapsed" : "appShell"}>
@@ -529,23 +483,24 @@ export function App() {
 }
 
 export function Dashboard() {
-  const activeItems = items.filter((item) => item.recordState !== "Void");
-  const activeSuppliers = suppliers.filter((supplier) => supplier.recordState !== "Void");
+  const { data: appData } = useAppData();
+  const activeItems = appData.items.filter((item) => item.recordState !== "Void");
+  const activeSuppliers = appData.suppliers.filter((supplier) => supplier.recordState !== "Void");
   const [selectedItemId, setSelectedItemId] = useState(activeItems[0]?.id ?? "");
   useEffect(() => {
     if (!selectedItemId && activeItems[0]) setSelectedItemId(activeItems[0].id);
     if (selectedItemId && !activeItems.some((item) => item.id === selectedItemId)) setSelectedItemId(activeItems[0]?.id ?? "");
   }, [activeItems, selectedItemId]);
   const selectedItem = activeItems.find((item) => item.id === selectedItemId);
-  const activeSourceAssignments = sourceAssignments.filter((assignment) => assignment.recordState !== "Void");
+  const activeSourceAssignments = appData.sourceAssignments.filter((assignment) => assignment.recordState !== "Void");
   const activeSourceSupplierIds = new Set(activeSourceAssignments.filter((assignment) => isActiveSourceRole(assignment.role)).map((assignment) => assignment.supplierId));
   const activeSupplierCount = activeSourceSupplierIds.size;
-  const activeSupplierLeadTimeDays = averageLeadTimeForActiveSourceSuppliers(activeSourceAssignments);
-  const selectedQuotes = quotes.filter((quote) => quote.recordState !== "Void" && isSelectedQuote(quote));
+  const activeSupplierLeadTimeDays = averageLeadTimeForActiveSourceSuppliers(appData, activeSourceAssignments);
+  const selectedQuotes = appData.quotes.filter((quote) => quote.recordState !== "Void" && isSelectedQuote(quote));
   const selectedItemQuotes = selectedItem ? selectedQuotes.filter((quote) => quote.itemId === selectedItem.id) : [];
-  const priceTrendRows = buildDashboardPriceTrendRows(selectedItemQuotes);
-  const selectedSeries = Array.from(new Set(selectedItemQuotes.map((quote) => supplierName(quote.supplierId))));
-  const latestChanges = [...priceChanges]
+  const priceTrendRows = buildDashboardPriceTrendRows(appData, selectedItemQuotes);
+  const selectedSeries = Array.from(new Set(selectedItemQuotes.map((quote) => supplierName(appData, quote.supplierId))));
+  const latestChanges = [...appData.priceChanges]
     .filter((change) => change.recordState !== "Void")
     .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))
     .slice(0, 4);
@@ -559,16 +514,16 @@ export function Dashboard() {
   const selectedItemAssignments = selectedItem
     ? activeSourceAssignments
         .filter((assignment) => assignment.itemId === selectedItem.id)
-        .sort((a, b) => sourceRoleRank(a.role) - sourceRoleRank(b.role) || supplierName(a.supplierId).localeCompare(supplierName(b.supplierId)))
+        .sort((a, b) => sourceRoleRank(a.role) - sourceRoleRank(b.role) || supplierName(appData, a.supplierId).localeCompare(supplierName(appData, b.supplierId)))
     : [];
   const unassignedCapableSuppliers = selectedItem
     ? itemSupplierOptions.filter((supplier) => !selectedItemAssignments.some((assignment) => assignment.supplierId === supplier.id))
     : [];
-  const supplierScoreRows = activeSuppliers.map((supplier) => buildSupplierScorecard(supplier));
+  const supplierScoreRows = activeSuppliers.map((supplier) => buildSupplierScorecard(appData, supplier));
   const activeSupplierScoreRows = supplierScoreRows.filter((row) => activeSourceSupplierIds.has(row.supplier.id));
   const activeAverageSupplierScore = averageScore(activeSupplierScoreRows);
   const lowScoreSuppliers = supplierScoreRows.filter((row) => row.score < 55).sort((a, b) => a.score - b.score).slice(0, 4);
-  const recentDefectQtyBySupplier = aggregateRecentDefectsBySupplier(90);
+  const recentDefectQtyBySupplier = aggregateRecentDefectsBySupplier(appData, 90);
   const defectRiskRows = Array.from(recentDefectQtyBySupplier.entries())
     .filter(([, qty]) => qty >= 5)
     .sort((a, b) => b[1] - a[1])
@@ -634,7 +589,7 @@ export function Dashboard() {
                   {selectedItemAssignments.map((assignment) => (
                     <AlertRow
                       key={assignment.id}
-                      title={`${sourceRoleLabel(assignment.role)} - ${supplierName(assignment.supplierId)}`}
+                      title={`${sourceRoleLabel(assignment.role)} - ${supplierName(appData, assignment.supplierId)}`}
                       text={`Effective ${assignment.effectiveFrom}`}
                     />
                   ))}
@@ -661,7 +616,7 @@ export function Dashboard() {
               <EmptyState text="No supplier score below 55." />
             ) : (
               lowScoreSuppliers.map((row) => (
-                <AlertRow key={`score-${row.supplier.id}`} title={row.supplier.name} text={`Low supplier score: ${row.score} / ${scoreIssueSummary(row)}`} />
+                <AlertRow key={`score-${row.supplier.id}`} title={row.supplier.name} text={`Low supplier score: ${row.score} / ${scoreIssueSummary(appData, row)}`} />
               ))
             )}
           </RiskGroup>
@@ -670,7 +625,7 @@ export function Dashboard() {
               <EmptyState text="No supplier above the recent defect threshold." />
             ) : (
               defectRiskRows.map(([supplierId, qty]) => (
-                <AlertRow key={`defect-${supplierId}`} title={supplierName(supplierId)} text={`${qty} incoming defect qty in last 90 days`} />
+                <AlertRow key={`defect-${supplierId}`} title={supplierName(appData, supplierId)} text={`${qty} incoming defect qty in last 90 days`} />
               ))
             )}
           </RiskGroup>
@@ -695,8 +650,8 @@ export function Dashboard() {
               latestChanges.map((change) => (
                 <AlertRow
                   key={change.id}
-                  title={`${itemCode(change.itemId)} ${change.sourceType.toLowerCase()}`}
-                  text={`${supplierName(change.supplierId)} effective ${change.effectiveDate}`}
+                  title={`${itemCode(appData, change.itemId)} ${change.sourceType.toLowerCase()}`}
+                  text={`${supplierName(appData, change.supplierId)} effective ${change.effectiveDate}`}
                 />
               ))
             )}
@@ -754,7 +709,8 @@ export function Suppliers({
   onHistory: HistoryHandler;
   onVoid: VoidHandler;
 }) {
-  const approvedSuppliers = suppliers.filter((supplier) => supplier.recordState !== "Void");
+  const { data: appData } = useAppData();
+  const approvedSuppliers = appData.suppliers.filter((supplier) => supplier.recordState !== "Void");
   return (
     <section className="pageStack">
       <TableToolbar
@@ -774,7 +730,7 @@ export function Suppliers({
               <div className="recordActions">
                 <LifecyclePill record={supplier} />
                 <RecordMenu
-                  canDelete={canDeleteRecord("suppliers", supplier.id)}
+                  canDelete={canDeleteRecord(appData, "suppliers", supplier.id)}
                   label={supplier.name}
                   onDelete={() => onDelete("suppliers", supplier.id, supplier.name)}
                   onEdit={() => onEdit({ endpoint: "suppliers", record: supplier })}
@@ -819,10 +775,11 @@ export function ModelsAndItems({
   onImportItems: () => void;
   onVoid: VoidHandler;
 }) {
-  const approvedModels = models.filter((model) => model.recordState !== "Void");
+  const { data: appData } = useAppData();
+  const approvedModels = appData.models.filter((model) => model.recordState !== "Void");
   const [masterView, setMasterView] = useState<"Items" | "Models">("Items");
-  const approvedItems = items.filter((item) => item.recordState !== "Void");
-  const duplicateItemCodes = findDuplicateItemCodes(items.filter((item) => item.recordState !== "Void"));
+  const approvedItems = appData.items.filter((item) => item.recordState !== "Void");
+  const duplicateItemCodes = findDuplicateItemCodes(appData.items.filter((item) => item.recordState !== "Void"));
   return (
     <section className="pageStack">
       <Panel title="Product master list">
@@ -880,13 +837,13 @@ export function ModelsAndItems({
                     </td>
                     <td>{item.itemName}</td>
                     <td>{item.type}</td>
-                    <td>{item.usedForModels.map(modelName).join(", ")}</td>
+                    <td>{item.usedForModels.map((value) => modelName(appData, value)).join(", ")}</td>
                     <td>{item.uom}</td>
                     <td>
                       <div className="tableActions">
                         <LifecyclePill record={item} />
                         <RecordMenu
-                          canDelete={canDeleteRecord("items", item.id)}
+                          canDelete={canDeleteRecord(appData, "items", item.id)}
                           label={item.itemCode}
                           onDelete={() => onDelete("items", item.id, item.itemCode)}
                           onEdit={() => onEdit({ endpoint: "items", record: item })}
@@ -921,7 +878,7 @@ export function ModelsAndItems({
                       <div className="tableActions">
                         <LifecyclePill record={model} />
                         <RecordMenu
-                          canDelete={canDeleteRecord("models", model.id)}
+                          canDelete={canDeleteRecord(appData, "models", model.id)}
                           label={model.name}
                           onDelete={() => onDelete("models", model.id, model.name)}
                           onEdit={() => onEdit({ endpoint: "models", record: model })}
@@ -954,9 +911,10 @@ export function DrawingSets({
   onHistory: HistoryHandler;
   onVoid: VoidHandler;
 }) {
+  const { data: appData } = useAppData();
   const [modelFilter, setModelFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<"All" | DrawingSet["status"]>("Active");
-  const approvedDrawingSets = drawingSets
+  const approvedDrawingSets = appData.drawingSets
     .filter((drawingSet) => drawingSet.recordState !== "Void")
     .filter((drawingSet) => modelFilter === "All" || drawingSet.modelId === modelFilter)
     .filter((drawingSet) => statusFilter === "All" || drawingSet.status === statusFilter);
@@ -973,7 +931,7 @@ export function DrawingSets({
           Model
           <select value={modelFilter} onChange={(event) => setModelFilter(event.target.value)}>
             <option value="All">All models</option>
-            {models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+            {appData.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
           </select>
         </label>
         <label>
@@ -988,7 +946,7 @@ export function DrawingSets({
         <Panel key={set.id} title={<PackagingSetTitle set={set} />}>
           <div className="packagingSetHeader">
             <div className="packagingSetSummary">
-              <Field label="Model" value={modelName(set.modelId)} />
+              <Field label="Model" value={modelName(appData, set.modelId)} />
               <Field label="Effective date" value={set.effectiveDate} />
               <Field label="Maintained by" value={set.maintainedBy} />
               <Field label="Covered items" value={`${set.drawingItems.length} included`} />
@@ -997,7 +955,7 @@ export function DrawingSets({
               {set.status !== "Active" && <StatusPill label={set.status} />}
               <LifecyclePill record={set} />
               <RecordMenu
-                canDelete={canDeleteRecord("drawing-sets", set.id)}
+                canDelete={canDeleteRecord(appData, "drawing-sets", set.id)}
                 label={set.name}
                 onDelete={() => onDelete("drawing-sets", set.id, set.name)}
                 onEdit={() => onEdit({ endpoint: "drawing-sets", record: set })}
@@ -1017,13 +975,13 @@ export function DrawingSets({
             </thead>
             <tbody>
               {set.drawingItems.map((drawingItem) => {
-                const item = itemById(drawingItem.itemId);
+                const item = itemById(appData, drawingItem.itemId);
                 return (
                   <tr key={drawingItem.id}>
                     <td>{item?.itemCode}</td>
                     <td>{item?.itemName}</td>
                     <td>{item?.type}</td>
-                    <td>{item?.usedForModels.map(modelName).join(", ")}</td>
+                    <td>{item?.usedForModels.map((value) => modelName(appData, value)).join(", ")}</td>
                   </tr>
                 );
               })}
@@ -1036,8 +994,9 @@ export function DrawingSets({
 }
 
 export function PackagingSetTitle({ set }: { set: DrawingSet }) {
+  const { data: appData } = useAppData();
   const title = `${set.name} ${set.revision}`;
-  const file = fileRecord(set.packageFileId);
+  const file = fileRecord(appData, set.packageFileId);
   if (file) {
     return (
       <a className="packagingSetTitleLink" href={fileUrl(file)} rel="noreferrer" target="_blank" title={`Open ${file.fileName}`}>
@@ -1067,12 +1026,13 @@ export function SourcingProjects({
   selectedProjectId: string;
   setSelectedProjectId: (id: string) => void;
 }) {
+  const { data: appData } = useAppData();
   const [caseSearch, setCaseSearch] = useState("");
   const [showCaseResults, setShowCaseResults] = useState(false);
   const [collapsedCaseIds, setCollapsedCaseIds] = useState<string[]>([]);
-  const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0];
+  const selectedProject = appData.projects.find((project) => project.id === selectedProjectId) ?? appData.projects[0];
   const selectedProjectCollapsed = selectedProject ? collapsedCaseIds.includes(selectedProject.id) : false;
-  const filteredProjects = projects
+  const filteredProjects = appData.projects
     .filter((project) => project.recordState !== "Void")
     .filter((project) => {
       const query = caseSearch.trim().toLowerCase();
@@ -1082,9 +1042,9 @@ export function SourcingProjects({
         project.caseReason,
         project.type,
         project.openDate,
-        ...project.modelIds.map(modelName),
-        ...project.supplierIds.map(supplierName),
-        ...project.itemIds.map(itemCode),
+        ...project.modelIds.map((value) => modelName(appData, value)),
+        ...project.supplierIds.map((value) => supplierName(appData, value)),
+        ...project.itemIds.map((value) => itemCode(appData, value)),
       ].join(" ").toLowerCase().includes(query);
     });
 
@@ -1126,7 +1086,7 @@ export function SourcingProjects({
                 </button>
               )}
               <RecordMenu
-                canDelete={canDeleteRecord("projects", selectedProject.id)}
+                canDelete={canDeleteRecord(appData, "projects", selectedProject.id)}
                 label={selectedProject.name}
                 onDelete={() => onDelete("projects", selectedProject.id, selectedProject.name)}
                 onEdit={() => onEdit({ endpoint: "projects", record: selectedProject })}
@@ -1141,11 +1101,11 @@ export function SourcingProjects({
           {!selectedProjectCollapsed && (
             <>
               <div className="caseSummaryGrid">
-                <Field label="Model" value={selectedProject.modelIds.map(modelName).join(", ")} />
+                <Field label="Model" value={selectedProject.modelIds.map((value) => modelName(appData, value)).join(", ")} />
                 <Field label="Reason" value={selectedProject.caseReason} />
-                <Field label="Packaging set" value={drawingSetName(selectedProject.drawingSetId)} />
+                <Field label="Packaging set" value={drawingSetName(appData, selectedProject.drawingSetId)} />
                 <Field label="Open date" value={selectedProject.openDate} />
-                <Field label="Suppliers" value={`${caseSupplierIds(selectedProject).length} linked`} />
+                <Field label="Suppliers" value={`${caseSupplierIds(appData, selectedProject).length} linked`} />
                 <Field label="Drawing items" value={`${selectedProject.itemIds.length} included`} />
               </div>
               <CaseQuoteWorkbench onSourceRoleChange={onSourceRoleChange} project={selectedProject} />
@@ -1243,6 +1203,7 @@ export function Quotes({
   onVoid: VoidHandler;
   selectedProjectId: string;
 }) {
+  const { data: appData } = useAppData();
   const [modeFilter, setModeFilter] = useState<"All" | Quote["quoteType"]>("All");
   const [projectFilter, setProjectFilter] = useState(selectedProjectId || "All");
   const [modelFilter, setModelFilter] = useState("All");
@@ -1250,22 +1211,22 @@ export function Quotes({
   const [supplierFilter, setSupplierFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<"All" | Quote["status"]>("All");
 
-  const filteredQuotes = quotes
+  const filteredQuotes = appData.quotes
     .filter((quote) => quote.recordState !== "Void")
-    .filter((quote) => modeFilter === "All" || (modeFilter === "Case-linked" ? quoteHasCaseLink(quote) : !quoteHasCaseLink(quote)))
-    .filter((quote) => projectFilter === "All" || quoteAppliesToProject(quote, projectFilter) || (projectFilter === "Standalone" && !quote.projectId))
+    .filter((quote) => modeFilter === "All" || (modeFilter === "Case-linked" ? quoteHasCaseLink(appData, quote) : !quoteHasCaseLink(appData, quote)))
+    .filter((quote) => projectFilter === "All" || quoteAppliesToProject(appData, quote, projectFilter) || (projectFilter === "Standalone" && !quote.projectId))
     .filter((quote) => modelFilter === "All" || quote.modelId === modelFilter)
     .filter((quote) => itemFilter === "All" || quote.itemId === itemFilter)
     .filter((quote) => supplierFilter === "All" || quote.supplierId === supplierFilter)
     .filter((quote) => statusFilter === "All" || quote.status === statusFilter);
 
-  const itemOptions = items.filter((item) => modelFilter === "All" || item.usedForModels.includes(modelFilter));
+  const itemOptions = appData.items.filter((item) => modelFilter === "All" || item.usedForModels.includes(modelFilter));
 
   return (
     <section className="pageStack">
       <TableToolbar
         action="Add quote"
-        extraActions={<button className="ghostButton" onClick={() => exportQuotes(filteredQuotes)} type="button">Export quotes</button>}
+        extraActions={<button className="ghostButton" onClick={() => exportQuotes(appData, filteredQuotes)} type="button">Export quotes</button>}
         help="Quote Status is edited here. Source Role is decided in Case Progress after QC pass."
         onAction={onAdd}
         title="Quotation entry"
@@ -1285,7 +1246,7 @@ export function Quotes({
             <select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}>
               <option value="All">All cases</option>
               <option value="Standalone">Standalone only</option>
-              {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+              {appData.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
             </select>
           </label>
           <label>
@@ -1295,7 +1256,7 @@ export function Quotes({
               setItemFilter("All");
             }}>
               <option value="All">All models</option>
-              {models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+              {appData.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
             </select>
           </label>
           <label>
@@ -1309,7 +1270,7 @@ export function Quotes({
             Supplier
             <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
               <option value="All">All suppliers</option>
-              {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              {appData.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
             </select>
           </label>
           <label>
@@ -1348,25 +1309,25 @@ export function Quotes({
               )}
               {filteredQuotes.map((quote) => (
                 <tr key={quote.id}>
-                  <td>{supplierName(quote.supplierId)}</td>
-                  <td>{itemCode(quote.itemId)}</td>
-                  <td>{modelName(quote.modelId)}</td>
-                  <td>{drawingSetName(quote.drawingSetId)}</td>
-                  <td><StatusPill label={quoteCaseLabel(quote, projectFilter)} /></td>
+                  <td>{supplierName(appData, quote.supplierId)}</td>
+                  <td>{itemCode(appData, quote.itemId)}</td>
+                  <td>{modelName(appData, quote.modelId)}</td>
+                  <td>{drawingSetName(appData, quote.drawingSetId)}</td>
+                  <td><StatusPill label={quoteCaseLabel(appData, quote, projectFilter)} /></td>
                   <td>{formatMoney(quote.unitPrice)}</td>
                   <td>{quote.effectiveFrom ?? quote.quoteDate}</td>
                   <td>{quote.moq}</td>
                   <td>{quote.leadTime}</td>
                   <td><QuoteStatusSelect quote={quote} onChange={onQuoteStatusChange} /></td>
-                  <td><StatusPill label={sourceRoleForQuote(quote) ?? "Not assigned"} /></td>
+                  <td><StatusPill label={sourceRoleForQuote(appData, quote) ?? "Not assigned"} /></td>
                   <td>
                     <div className="tableActions">
                       <RecordMenu
-                        canDelete={canDeleteRecord("quotes", quote.id)}
-                        label={`${supplierName(quote.supplierId)} ${itemCode(quote.itemId)} quote`}
+                        canDelete={canDeleteRecord(appData, "quotes", quote.id)}
+                        label={`${supplierName(appData, quote.supplierId)} ${itemCode(appData, quote.itemId)} quote`}
                         onDelete={() => onDelete("quotes", quote.id, "quote")}
                         onEdit={() => onEdit({ endpoint: "quotes", record: quote })}
-                        onHistory={() => onHistory("Quote", quote.id, `${supplierName(quote.supplierId)} / ${itemCode(quote.itemId)}`)}
+                        onHistory={() => onHistory("Quote", quote.id, `${supplierName(appData, quote.supplierId)} / ${itemCode(appData, quote.itemId)}`)}
                         onVoid={() => onVoid("quotes", quote.id, "quote")}
                       />
                     </div>
@@ -1382,8 +1343,9 @@ export function Quotes({
 }
 
 export function Comparison({ projectId }: { projectId: string }) {
-  const [selectedProjectId, setSelectedProjectId] = useState(projectId || projects[0]?.id || "");
-  const selectedProject = projects.find((current) => current.id === selectedProjectId);
+  const { data: appData } = useAppData();
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId || appData.projects[0]?.id || "");
+  const selectedProject = appData.projects.find((current) => current.id === selectedProjectId);
   const [selectedItemId, setSelectedItemId] = useState(selectedProject?.itemIds[0] ?? "");
   const [serverRows, setServerRows] = useState<ComparisonRow[] | null>(null);
   const [comparisonError, setComparisonError] = useState("");
@@ -1423,7 +1385,7 @@ export function Comparison({ projectId }: { projectId: string }) {
     return () => {
       isMounted = false;
     };
-  }, [selectedProjectId, quotes.length, inspections.length]);
+  }, [selectedProjectId, appData.quotes.length, appData.inspections.length]);
 
   if (!selectedProject) {
     return (
@@ -1436,13 +1398,13 @@ export function Comparison({ projectId }: { projectId: string }) {
   }
 
   const fallbackRows: ComparisonRow[] = selectedProject.itemIds.map((itemId) => {
-    const itemQuotes = quotes.filter((quote) => quoteAppliesToProject(quote, selectedProject.id) && quote.itemId === itemId && quote.recordState !== "Void");
+    const itemQuotes = appData.quotes.filter((quote) => quoteAppliesToProject(appData, quote, selectedProject.id) && quote.itemId === itemId && quote.recordState !== "Void");
     const supplierIds = Array.from(new Set(itemQuotes.map((quote) => quote.supplierId)));
-    const itemInspections = inspections.filter((inspection) => inspection.projectId === selectedProject.id && inspection.itemId === itemId && inspection.recordState !== "Void");
+    const itemInspections = appData.inspections.filter((inspection) => inspection.projectId === selectedProject.id && inspection.itemId === itemId && inspection.recordState !== "Void");
     return {
-      item: itemById(itemId),
+      item: itemById(appData, itemId),
       suppliers: supplierIds.map((supplierId) => ({
-        supplier: suppliers.find((supplier) => supplier.id === supplierId),
+        supplier: appData.suppliers.find((supplier) => supplier.id === supplierId),
         quote: itemQuotes
           .filter((quote) => quote.supplierId === supplierId)
           .sort((a, b) => (b.effectiveFrom ?? b.quoteDate).localeCompare(a.effectiveFrom ?? a.quoteDate))[0],
@@ -1471,8 +1433,8 @@ export function Comparison({ projectId }: { projectId: string }) {
             <span>Display Item</span>
             <select value={effectiveSelectedItemId} onChange={(event) => setSelectedItemId(event.target.value)}>
               {comparableItemIds.map((itemId) => {
-                const item = itemById(itemId);
-                return <option key={itemId} value={itemId}>{item ? `${item.itemCode} - ${item.type}` : itemCode(itemId)}</option>;
+                const item = itemById(appData, itemId);
+                return <option key={itemId} value={itemId}>{item ? `${item.itemCode} - ${item.type}` : itemCode(appData, itemId)}</option>;
               })}
             </select>
           </label>
@@ -1498,7 +1460,7 @@ export function Comparison({ projectId }: { projectId: string }) {
             {selectedRow.suppliers.map((cell, cellIndex) => {
               const offerQuotes = cell.quotes?.length ? cell.quotes : cell.quote ? [cell.quote] : [];
               const quote = offerQuotes.find(isSelectedQuote) ?? offerQuotes.find(isSampleRequestedQuote) ?? offerQuotes[0];
-              const inspection = quote ? latestInspectionForQuote(quote.id) : cell.inspection;
+              const inspection = quote ? latestInspectionForQuote(appData, quote.id) : cell.inspection;
               const supplier = cell.supplier;
               return (
                 <tr key={`single-${supplier?.id ?? quote?.supplierId ?? cellIndex}`}>
@@ -1509,8 +1471,8 @@ export function Comparison({ projectId }: { projectId: string }) {
                   <td>{offerQuotes.length ? <QuoteValueStack quotes={offerQuotes} field="leadTime" /> : "-"}</td>
                   <td>{offerQuotes.length ? <QuoteValueStack quotes={offerQuotes} field="extraCost" /> : "-"}</td>
                   <td>{supplier?.paymentTerms || "-"}</td>
-                  <td>{quote ? qcQueueStatus(quote) : "-"}</td>
-                  <td>{supplier ? supplierScore(supplier.id) : "-"}</td>
+                  <td>{quote ? qcQueueStatus(appData, quote) : "-"}</td>
+                  <td>{supplier ? supplierScore(appData, supplier.id) : "-"}</td>
                 </tr>
               );
             })}
@@ -1539,13 +1501,14 @@ export function SampleInspections({
   onView: (inspection: SampleInspection) => void;
   onVoid: VoidHandler;
 }) {
+  const { data: appData } = useAppData();
   const [sourceFilter, setSourceFilter] = useState<"All" | "From Quote" | "Standalone">("All");
   const [supplierFilter, setSupplierFilter] = useState("All");
   const [itemFilter, setItemFilter] = useState("All");
   const [resultFilter, setResultFilter] = useState<"All" | SampleInspection["result"]>("All");
-  const sampleRequestedQuotes = quotes.filter((quote) => isSampleRequestedQuote(quote) && quote.recordState !== "Void");
-  const queueQuotes = sampleRequestedQuotes.filter((quote) => isQuoteInQcQueue(quote));
-  const visibleInspections = inspections
+  const sampleRequestedQuotes = appData.quotes.filter((quote) => isSampleRequestedQuote(quote) && quote.recordState !== "Void");
+  const queueQuotes = sampleRequestedQuotes.filter((quote) => isQuoteInQcQueue(appData, quote));
+  const visibleInspections = appData.inspections
     .filter((inspection) => inspection.recordState !== "Void")
     .filter((inspection) => sourceFilter === "All" || (sourceFilter === "Standalone" ? !inspection.relatedQuoteId : Boolean(inspection.relatedQuoteId)))
     .filter((inspection) => supplierFilter === "All" || inspection.supplierId === supplierFilter)
@@ -1581,21 +1544,21 @@ export function SampleInspections({
               </tr>
             )}
             {queueQuotes.map((quote) => {
-              const latestInspection = latestInspectionForQuote(quote.id);
+              const latestInspection = latestInspectionForQuote(appData, quote.id);
               const nextRound = latestInspection?.result === "Not Submitted" ? latestInspection.sampleRound : (latestInspection?.sampleRound ?? 0) + 1;
               return (
                 <tr key={`qc-queue-${quote.id}`}>
-                  <td>{supplierName(quote.supplierId)}</td>
-                  <td>{itemCode(quote.itemId)}</td>
+                  <td>{supplierName(appData, quote.supplierId)}</td>
+                  <td>{itemCode(appData, quote.itemId)}</td>
                   <td>{formatMoney(quote.unitPrice)} / {quote.effectiveFrom ?? quote.quoteDate}</td>
-                  <td>{drawingSetName(quote.drawingSetId)}</td>
+                  <td>{drawingSetName(appData, quote.drawingSetId)}</td>
                   <td>Round {nextRound}</td>
-                  <td><StatusPill label={qcQueueStatus(quote)} /></td>
+                  <td><StatusPill label={qcQueueStatus(appData, quote)} /></td>
                   <td>
                     {latestInspection?.result === "Not Submitted" ? (
                       <button className="ghostButton" onClick={() => onEdit({ endpoint: "inspections", record: latestInspection })} type="button">Complete inspection</button>
                     ) : (
-                      <button className="ghostButton" onClick={() => onRecordQuote(quote.id)} type="button">{qcQueueActionLabel(quote)}</button>
+                      <button className="ghostButton" onClick={() => onRecordQuote(quote.id)} type="button">{qcQueueActionLabel(appData, quote)}</button>
                     )}
                   </td>
                 </tr>
@@ -1618,14 +1581,14 @@ export function SampleInspections({
             Comparison Supplier
             <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
               <option value="All">All suppliers</option>
-              {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              {appData.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
             </select>
           </label>
           <label>
             Item
             <select value={itemFilter} onChange={(event) => setItemFilter(event.target.value)}>
               <option value="All">All items</option>
-              {items.map((item) => <option key={item.id} value={item.id}>{item.itemCode}</option>)}
+              {appData.items.map((item) => <option key={item.id} value={item.id}>{item.itemCode}</option>)}
             </select>
           </label>
           <label>
@@ -1663,8 +1626,8 @@ export function SampleInspections({
               return (
                 <tr key={`inspection-record-${inspection.id}`}>
                   <td>{inspection.relatedQuoteId ? "From Quote" : "Standalone"}</td>
-                  <td>{supplierName(inspection.supplierId)}</td>
-                  <td>{itemCode(inspection.itemId)}</td>
+                  <td>{supplierName(appData, inspection.supplierId)}</td>
+                  <td>{itemCode(appData, inspection.itemId)}</td>
                   <td>Round {inspection.sampleRound}</td>
                   <td>{inspection.sampleReceivedDate}</td>
                   <td>{inspection.inspectionDate ?? "Pending"}</td>
@@ -1674,11 +1637,11 @@ export function SampleInspections({
                     <div className="tableActions">
                       <LifecyclePill record={inspection} />
                       <RecordMenu
-                        canDelete={canDeleteRecord("inspections", inspection.id)}
-                        label={`${supplierName(inspection.supplierId)} ${itemCode(inspection.itemId)} inspection`}
+                        canDelete={canDeleteRecord(appData, "inspections", inspection.id)}
+                        label={`${supplierName(appData, inspection.supplierId)} ${itemCode(appData, inspection.itemId)} inspection`}
                         onDelete={() => onDelete("inspections", inspection.id, "inspection")}
                         onEdit={() => onEdit({ endpoint: "inspections", record: inspection })}
-                        onHistory={() => onHistory("Inspection", inspection.id, `${supplierName(inspection.supplierId)} / ${itemCode(inspection.itemId)} Round ${inspection.sampleRound}`)}
+                        onHistory={() => onHistory("Inspection", inspection.id, `${supplierName(appData, inspection.supplierId)} / ${itemCode(appData, inspection.itemId)} Round ${inspection.sampleRound}`)}
                         onView={() => onView(inspection)}
                         onVoid={() => onVoid("inspections", inspection.id, "inspection")}
                       />
@@ -1709,12 +1672,13 @@ export function IncomingDefects({
   onView: (defect: IncomingDefectRecord) => void;
   onVoid: VoidHandler;
 }) {
+  const { data: appData } = useAppData();
   const [supplierFilter, setSupplierFilter] = useState("All");
   const [itemFilter, setItemFilter] = useState("All");
   const [poFilter, setPoFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | "Pending" | "Complete">("All");
   const [actionFilter, setActionFilter] = useState<"All" | IncomingDefectRecord["defectAction"]>("All");
-  const allActiveDefects = incomingDefects
+  const allActiveDefects = appData.incomingDefects
     .filter((defect) => defect.recordState !== "Void")
     .sort((a, b) => b.defectDate.localeCompare(a.defectDate));
   const filteredDefects = allActiveDefects
@@ -1731,7 +1695,7 @@ export function IncomingDefects({
     <section className="pageStack">
       <TableToolbar
         action="Record incoming defect"
-        extraActions={<button className="ghostButton" onClick={() => exportIncomingDefectHistory(filteredDefects)} type="button">Export historical record</button>}
+        extraActions={<button className="ghostButton" onClick={() => exportIncomingDefectHistory(appData, filteredDefects)} type="button">Export historical record</button>}
         help="Incoming defects track rejected or returned production receipts and feed the supplier Incoming Quality score."
         onAction={onAdd}
         title="Incoming defects and returns"
@@ -1762,8 +1726,8 @@ export function IncomingDefects({
               <tr key={defect.id}>
                 <td>{defect.poNumber ?? "-"}</td>
                 <td>{defect.defectDate}</td>
-                <td>{supplierName(defect.supplierId)}</td>
-                <td>{itemCode(defect.itemId)}</td>
+                <td>{supplierName(appData, defect.supplierId)}</td>
+                <td>{itemCode(appData, defect.itemId)}</td>
                 <td>{defect.poQty ?? "-"}</td>
                 <td>{incomingDefectCurrentReceivedQty(defect) || "-"}</td>
                 <td>{defect.defectQty}</td>
@@ -1773,11 +1737,11 @@ export function IncomingDefects({
                   <div className="tableActions">
                     <LifecyclePill record={defect} />
                     <RecordMenu
-                      canDelete={canDeleteRecord("incoming-defects", defect.id)}
-                      label={`${supplierName(defect.supplierId)} ${itemCode(defect.itemId)} incoming defect`}
+                      canDelete={canDeleteRecord(appData, "incoming-defects", defect.id)}
+                      label={`${supplierName(appData, defect.supplierId)} ${itemCode(appData, defect.itemId)} incoming defect`}
                       onDelete={() => onDelete("incoming-defects", defect.id, "incoming defect")}
                       onEdit={() => onEdit({ endpoint: "incoming-defects", record: defect })}
-                      onHistory={() => onHistory("IncomingDefect", defect.id, `${supplierName(defect.supplierId)} / ${itemCode(defect.itemId)}`)}
+                      onHistory={() => onHistory("IncomingDefect", defect.id, `${supplierName(appData, defect.supplierId)} / ${itemCode(appData, defect.itemId)}`)}
                       onView={() => onView(defect)}
                       onVoid={() => onVoid("incoming-defects", defect.id, "incoming defect")}
                     />
@@ -1794,14 +1758,14 @@ export function IncomingDefects({
             Supplier
             <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
               <option value="All">All suppliers</option>
-              {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              {appData.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
             </select>
           </label>
           <label>
             Item
             <select value={itemFilter} onChange={(event) => setItemFilter(event.target.value)}>
               <option value="All">All items</option>
-              {items.map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
+              {appData.items.map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
             </select>
           </label>
           <label>
@@ -1850,8 +1814,8 @@ export function IncomingDefects({
               <tr key={`defect-record-${defect.id}`}>
                 <td>{defect.poNumber ?? "-"}</td>
                 <td>{defect.defectDate}</td>
-                <td>{supplierName(defect.supplierId)}</td>
-                <td>{itemCode(defect.itemId)}</td>
+                <td>{supplierName(appData, defect.supplierId)}</td>
+                <td>{itemCode(appData, defect.itemId)}</td>
                 <td>{defect.defectType}</td>
                 <td>{defect.defectQty}</td>
                 <td><StatusPill label={incomingDefectActionLabel(defect)} /></td>
@@ -1872,13 +1836,14 @@ export function IncomingDefects({
 }
 
 export function PriceAnalytics() {
-  const activeItems = items.filter((item) => isPublishedRecord(item) && item.recordState !== "Void");
-  const activeSuppliers = suppliers.filter((supplier) => isPublishedRecord(supplier) && supplier.recordState !== "Void");
+  const { data: appData } = useAppData();
+  const activeItems = appData.items.filter((item) => isPublishedRecord(item) && item.recordState !== "Void");
+  const activeSuppliers = appData.suppliers.filter((supplier) => isPublishedRecord(supplier) && supplier.recordState !== "Void");
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>(activeItems.slice(0, 3).map((item) => item.id));
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(activeSuppliers.slice(0, 3).map((supplier) => supplier.id));
   const [sourceFilter, setSourceFilter] = useState<"All Quotes" | "Selected Quotes">("Selected Quotes");
 
-  const visibleQuotes = quotes.filter(
+  const visibleQuotes = appData.quotes.filter(
     (quote) =>
       quote.recordState !== "Void" &&
       selectedItemIds.includes(quote.itemId) &&
@@ -1890,17 +1855,17 @@ export function PriceAnalytics() {
   const includeSelectedSeries = sourceFilter === "Selected Quotes";
   const seriesNames = Array.from(
     new Set([
-      ...(includeAllQuoteSeries ? chartQuotes.map((quote) => `${supplierName(quote.supplierId)} all quotes`) : []),
-      ...(includeSelectedSeries ? chartQuotes.filter(isSelectedQuote).map((quote) => `${supplierName(quote.supplierId)} selected`) : []),
+      ...(includeAllQuoteSeries ? chartQuotes.map((quote) => `${supplierName(appData, quote.supplierId)} all quotes`) : []),
+      ...(includeSelectedSeries ? chartQuotes.filter(isSelectedQuote).map((quote) => `${supplierName(appData, quote.supplierId)} selected`) : []),
     ]),
   );
-  const chartRows = buildQuotePriceChartRows(chartQuotes, includeAllQuoteSeries, includeSelectedSeries);
+  const chartRows = buildQuotePriceChartRows(appData, chartQuotes, includeAllQuoteSeries, includeSelectedSeries);
   const detailRows = chartQuotes.map((quote) => ({
       id: quote.id,
       date: quote.effectiveFrom ?? quote.quoteDate,
       source: isSelectedQuote(quote) ? "Selected Quote" : "Quote",
-      supplier: supplierName(quote.supplierId),
-      item: itemCode(quote.itemId),
+      supplier: supplierName(appData, quote.supplierId),
+      item: itemCode(appData, quote.itemId),
       price: quote.unitPrice,
       quantity: quote.moq,
       reference: `${quote.status} - ${quote.projectId ? "Case-linked" : "Standalone"}`,
@@ -2005,7 +1970,8 @@ export function PriceChanges({
   onHistory: HistoryHandler;
   onVoid: VoidHandler;
 }) {
-  const activePriceChanges = priceChanges.filter((change) => change.recordState !== "Void");
+  const { data: appData } = useAppData();
+  const activePriceChanges = appData.priceChanges.filter((change) => change.recordState !== "Void");
   return (
     <section className="pageStack">
       <Panel title="Price change events">
@@ -2036,12 +2002,12 @@ export function PriceChanges({
               const percent = ((change.newPrice - change.oldPrice) / change.oldPrice) * 100;
               return (
                 <tr key={change.id}>
-                  <td>{supplierName(change.supplierId)}</td>
-                  <td>{modelName(change.modelId)}</td>
-                  <td>{itemCode(change.itemId)}</td>
+                  <td>{supplierName(appData, change.supplierId)}</td>
+                  <td>{modelName(appData, change.modelId)}</td>
+                  <td>{itemCode(appData, change.itemId)}</td>
                   <td>{change.sourceType}</td>
-                  <td>{priceChangeReference(change.previousQuoteId, change.previousPurchasePriceId)}</td>
-                  <td>{priceChangeReference(change.sourceQuoteId, change.sourcePurchasePriceId)}</td>
+                  <td>{priceChangeReference(appData, change.previousQuoteId, change.previousPurchasePriceId)}</td>
+                  <td>{priceChangeReference(appData, change.sourceQuoteId, change.sourcePurchasePriceId)}</td>
                   <td>{formatMoney(change.oldPrice)}</td>
                   <td>{formatMoney(change.newPrice)}</td>
                   <td className={percent < 0 ? "positive" : "negative"}>{percent.toFixed(1)}%</td>
@@ -2051,11 +2017,11 @@ export function PriceChanges({
                     <div className="tableActions">
                       <LifecyclePill record={change} />
                       <RecordMenu
-                        canDelete={canDeleteRecord("price-changes", change.id)}
-                        label={`${supplierName(change.supplierId)} ${itemCode(change.itemId)} price change`}
+                        canDelete={canDeleteRecord(appData, "price-changes", change.id)}
+                        label={`${supplierName(appData, change.supplierId)} ${itemCode(appData, change.itemId)} price change`}
                         onDelete={() => onDelete("price-changes", change.id, "price change")}
                         onEdit={() => onEdit({ endpoint: "price-changes", record: change })}
-                        onHistory={() => onHistory("PriceChange", change.id, `${supplierName(change.supplierId)} / ${itemCode(change.itemId)} price change`)}
+                        onHistory={() => onHistory("PriceChange", change.id, `${supplierName(appData, change.supplierId)} / ${itemCode(appData, change.itemId)} price change`)}
                         onVoid={() => onVoid("price-changes", change.id, "price change")}
                       />
                     </div>
@@ -2071,8 +2037,9 @@ export function PriceChanges({
 }
 
 export function QuoteTrend() {
+  const { data: appData } = useAppData();
   const groups = Array.from(
-    quotes.reduce((map, quote) => {
+    appData.quotes.reduce((map, quote) => {
       const key = `${quote.supplierId}::${quote.itemId}`;
       const current = map.get(key) ?? [];
       current.push(quote);
@@ -2083,7 +2050,7 @@ export function QuoteTrend() {
     const [supplierId, itemId] = key.split("::");
     const sortedQuotes = [...groupQuotes].sort((a, b) => a.quoteDate.localeCompare(b.quoteDate));
     const prices = sortedQuotes.map((quote) => quote.unitPrice);
-    const relatedChanges = priceChanges.filter((change) => change.supplierId === supplierId && change.itemId === itemId);
+    const relatedChanges = appData.priceChanges.filter((change) => change.supplierId === supplierId && change.itemId === itemId);
     return {
       supplierId,
       itemId,
@@ -2115,8 +2082,8 @@ export function QuoteTrend() {
           <tbody>
             {groups.map((group) => (
               <tr key={`${group.supplierId}-${group.itemId}`}>
-                <td>{supplierName(group.supplierId)}</td>
-                <td>{itemCode(group.itemId)}</td>
+                <td>{supplierName(appData, group.supplierId)}</td>
+                <td>{itemCode(appData, group.itemId)}</td>
                 <td>{group.quoteCount}</td>
                 <td>{group.firstQuote.quoteDate} - {formatMoney(group.firstQuote.unitPrice)}</td>
                 <td>{group.latestQuote.quoteDate} - {formatMoney(group.latestQuote.unitPrice)}</td>
@@ -2143,18 +2110,18 @@ export function QuoteTrend() {
             </tr>
           </thead>
           <tbody>
-            {[...quotes]
+            {[...appData.quotes]
               .sort((a, b) => b.quoteDate.localeCompare(a.quoteDate))
               .map((quote) => (
                 <tr key={quote.id}>
                   <td>{quote.quoteDate}</td>
-                  <td>{supplierName(quote.supplierId)}</td>
-                  <td>{itemCode(quote.itemId)}</td>
-                  <td>{modelName(quote.modelId)}</td>
+                  <td>{supplierName(appData, quote.supplierId)}</td>
+                  <td>{itemCode(appData, quote.itemId)}</td>
+                  <td>{modelName(appData, quote.modelId)}</td>
                   <td>{quote.quoteType}</td>
                   <td>{quote.quoteReason}</td>
                   <td>{formatMoney(quote.unitPrice)}</td>
-                  <td>{quoteLabel(quote.previousQuoteId)}</td>
+                  <td>{quoteLabel(appData, quote.previousQuoteId)}</td>
                 </tr>
               ))}
           </tbody>
@@ -2165,11 +2132,12 @@ export function QuoteTrend() {
 }
 
 export function Scorecard() {
+  const { data: appData } = useAppData();
   const [serverRows, setServerRows] = useState<ScorecardRow[] | null>(null);
   const [scorecardError, setScorecardError] = useState("");
   const [itemFilter, setItemFilter] = useState("All");
-  const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => suppliers.map((supplier) => supplier.id));
-  const [featuredSupplierId, setFeaturedSupplierId] = useState(suppliers[0]?.id ?? "");
+  const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => appData.suppliers.map((supplier) => supplier.id));
+  const [featuredSupplierId, setFeaturedSupplierId] = useState(appData.suppliers[0]?.id ?? "");
   const [sortBy, setSortBy] = useState<ScorecardSortKey>("Score");
 
   useEffect(() => {
@@ -2188,9 +2156,9 @@ export function Scorecard() {
     return () => {
       isMounted = false;
     };
-  }, [suppliers.length, quotes.length, inspections.length, incomingDefects.length]);
+  }, [appData.suppliers.length, appData.quotes.length, appData.inspections.length, appData.incomingDefects.length]);
 
-  const fallbackRows: ScorecardRow[] = useMemo(() => suppliers.map((supplier) => buildSupplierScorecard(supplier)), [suppliers.length, quotes.length, inspections.length, incomingDefects.length]);
+  const fallbackRows: ScorecardRow[] = useMemo(() => appData.suppliers.map((supplier) => buildSupplierScorecard(appData, supplier)), [appData.suppliers.length, appData.quotes.length, appData.inspections.length, appData.incomingDefects.length]);
   const allRows = serverRows ?? fallbackRows;
   useEffect(() => {
     const availableIds = allRows.map((row) => row.supplier.id);
@@ -2202,7 +2170,7 @@ export function Scorecard() {
     });
   }, [allRows, featuredSupplierId]);
   const itemScopedRows = useMemo(() => allRows.filter((row) => {
-    const item = itemFilter === "All" ? undefined : items.find((candidate) => candidate.id === itemFilter);
+    const item = itemFilter === "All" ? undefined : appData.items.find((candidate) => candidate.id === itemFilter);
     return !item || row.supplier.capableItems.includes(item.type);
   }), [allRows, itemFilter]);
   const itemScopedSupplierIds = itemScopedRows.map((row) => row.supplier.id);
@@ -2277,7 +2245,7 @@ export function Scorecard() {
             Product / Item
             <select value={itemFilter} onChange={(event) => setItemFilter(event.target.value)}>
               <option value="All">All items</option>
-              {items.map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
+              {appData.items.map((item) => <option key={item.id} value={item.id}>{item.itemCode} - {item.itemName}</option>)}
             </select>
           </label>
           <FilterGroup
@@ -2329,7 +2297,7 @@ export function Scorecard() {
                   <td><ScoreCell category={categoryMap.responsiveness} /></td>
                   <td><ScoreCell category={categoryMap.scope} /></td>
                   <td><ScoreCell category={categoryMap.setup} /></td>
-                  <td>{scoreIssueSummary({ supplier, score, documentsComplete, grade, categories, scopeLabel } as ScorecardRow)}</td>
+                  <td>{scoreIssueSummary(appData, { supplier, score, documentsComplete, grade, categories, scopeLabel } as ScorecardRow)}</td>
                   <td><strong>{score}</strong></td>
                   <td>{grade}</td>
                 </tr>
@@ -2391,7 +2359,7 @@ export function scorecardSortValue(row: ScorecardRow, sortBy: ScorecardSortKey) 
   return row.categories.find((category) => category.key === keyBySort[sortBy])?.score ?? 0;
 }
 
-export function scoreIssueSummary(row: ScorecardRow) {
+export function scoreIssueSummary(appData: Pick<AppData, "incomingDefects">, row: ScorecardRow) {
   const issues: string[] = [];
   const quality = row.categories.find((category) => category.key === "quality");
   const pricing = row.categories.find((category) => category.key === "pricing");
@@ -2400,7 +2368,7 @@ export function scoreIssueSummary(row: ScorecardRow) {
   const leadTime = row.categories.find((category) => category.key === "setup");
   const sampleQuality = quality?.children?.find((child) => child.key === "sampleQuality");
   const incomingQuality = quality?.children?.find((child) => child.key === "incomingQuality");
-  const supplierDefectQty = incomingDefects
+  const supplierDefectQty = appData.incomingDefects
     .filter((defect) => defect.supplierId === row.supplier.id && defect.recordState !== "Void" && isWithinRecentDays(defect.defectDate, 90))
     .reduce((sum, defect) => sum + defect.defectQty, 0);
 
@@ -2429,9 +2397,9 @@ export function averageCategoryScore(rows: ScorecardRow[], key: ScorecardRow["ca
   return `${Math.round(totals.score / rows.length)}/${Math.round(totals.max / rows.length)}`;
 }
 
-export function aggregateRecentDefectsBySupplier(days: number) {
+export function aggregateRecentDefectsBySupplier(appData: Pick<AppData, "incomingDefects">, days: number) {
   const map = new Map<string, number>();
-  for (const defect of incomingDefects.filter((record) => record.recordState !== "Void" && isWithinRecentDays(record.defectDate, days))) {
+  for (const defect of appData.incomingDefects.filter((record) => record.recordState !== "Void" && isWithinRecentDays(record.defectDate, days))) {
     map.set(defect.supplierId, (map.get(defect.supplierId) ?? 0) + defect.defectQty);
   }
   return map;
@@ -2613,7 +2581,8 @@ export function HistoryModal({
   label: string;
   onClose: () => void;
 }) {
-  const records = auditLogs
+  const { data: appData } = useAppData();
+  const records = appData.auditLogs
     .filter((record) => record.entityType === entityType && record.entityId === entityId)
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
@@ -2654,13 +2623,14 @@ export function HistoryModal({
 }
 
 export function RecordDetailModal({ onClose, target }: { onClose: () => void; target: ViewTarget }) {
+  const { data: appData } = useAppData();
   return (
     <div className="modalBackdrop" role="presentation">
       <section className="modalPanel detailModal">
         <div className="modalHeader">
           <div>
             <h2>{target.type === "inspection" ? "Inspection record" : "Incoming defect record"}</h2>
-            <p>{target.type === "inspection" ? `${supplierName(target.record.supplierId)} / ${itemCode(target.record.itemId)}` : `${target.record.poNumber ?? "No PO"} / ${supplierName(target.record.supplierId)}`}</p>
+            <p>{target.type === "inspection" ? `${supplierName(appData, target.record.supplierId)} / ${itemCode(appData, target.record.itemId)}` : `${target.record.poNumber ?? "No PO"} / ${supplierName(appData, target.record.supplierId)}`}</p>
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
@@ -2671,17 +2641,18 @@ export function RecordDetailModal({ onClose, target }: { onClose: () => void; ta
 }
 
 export function InspectionRecordDetails({ inspection }: { inspection: SampleInspection }) {
-  const drawingItem = drawingItemForInspection(inspection);
+  const { data: appData } = useAppData();
+  const drawingItem = drawingItemForInspection(appData, inspection);
   return (
     <div className="recordDetailStack">
       <div className="fieldGrid large">
         <Field label="Source" value={inspection.relatedQuoteId ? "From Quote" : "Standalone"} />
-        <Field label="Supplier" value={supplierName(inspection.supplierId)} />
-        <Field label="Item" value={itemCode(inspection.itemId)} />
-        <Field label="Model" value={modelName(inspection.modelId)} />
-        <Field label="Packaging set" value={drawingSetName(inspection.drawingSetId)} />
+        <Field label="Supplier" value={supplierName(appData, inspection.supplierId)} />
+        <Field label="Item" value={itemCode(appData, inspection.itemId)} />
+        <Field label="Model" value={modelName(appData, inspection.modelId)} />
+        <Field label="Packaging set" value={drawingSetName(appData, inspection.drawingSetId)} />
         <Field label="Drawing revision" value={drawingItem?.revision ?? "-"} />
-        <Field label="Related quote" value={quoteLabel(inspection.relatedQuoteId)} />
+        <Field label="Related quote" value={quoteLabel(appData, inspection.relatedQuoteId)} />
         <Field label="Sample round" value={`Round ${inspection.sampleRound}`} />
         <Field label="Sample received" value={inspection.sampleReceivedDate} />
         <Field label="Inspection date" value={inspection.inspectionDate ?? "Pending"} />
@@ -2692,7 +2663,7 @@ export function InspectionRecordDetails({ inspection }: { inspection: SampleInsp
       </div>
       <section className="detailSection">
         <h3>Drawing file</h3>
-        <DrawingFileReference drawingItem={drawingItem} drawingSet={drawingSets.find((set) => set.id === inspection.drawingSetId)} />
+        <DrawingFileReference drawingItem={drawingItem} drawingSet={appData.drawingSets.find((set) => set.id === inspection.drawingSetId)} />
       </section>
       <section className="detailSection">
         <h3>Problem photos</h3>
@@ -2707,13 +2678,14 @@ export function InspectionRecordDetails({ inspection }: { inspection: SampleInsp
 }
 
 export function IncomingDefectRecordDetails({ defect }: { defect: IncomingDefectRecord }) {
+  const { data: appData } = useAppData();
   return (
     <div className="recordDetailStack">
       <div className="fieldGrid large">
         <Field label="PO number" value={defect.poNumber ?? "-"} />
-        <Field label="Supplier" value={supplierName(defect.supplierId)} />
-        <Field label="Item" value={itemCode(defect.itemId)} />
-        <Field label="Model" value={defect.modelId ? modelName(defect.modelId) : "-"} />
+        <Field label="Supplier" value={supplierName(appData, defect.supplierId)} />
+        <Field label="Item" value={itemCode(appData, defect.itemId)} />
+        <Field label="Model" value={defect.modelId ? modelName(appData, defect.modelId) : "-"} />
         <Field label="Defect date" value={defect.defectDate} />
         <Field label="Defect type" value={defect.defectType} />
         <Field label="PO qty" value={String(defect.poQty ?? "-")} />
@@ -2832,6 +2804,7 @@ export function EditRecordModal({
   onSave: (patch: Record<string, unknown>) => Promise<void>;
   target: EditTarget;
 }) {
+  const { data: appData } = useAppData();
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -2856,7 +2829,7 @@ export function EditRecordModal({
         <div className="modalHeader">
           <div>
             <h2>Edit record</h2>
-            <p>{editTitle(target)}</p>
+            <p>{editTitle(appData, target)}</p>
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
@@ -2874,6 +2847,7 @@ export function EditRecordModal({
 }
 
 export function EditFields({ target }: { target: EditTarget }) {
+  const { data: appData } = useAppData();
   if (target.endpoint === "suppliers") {
     const record = target.record;
     const [capableItems, setCapableItems] = useState<PackagingItemType[]>(record.capableItems);
@@ -2929,7 +2903,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <input name="usedForModelsJson" type="hidden" value={JSON.stringify(usedForModels)} />
         <div className="formSection fullSpan">
           <MultiSelectDropdown
-            items={models.filter((model) => model.recordState !== "Void").map((model) => ({ id: model.id, label: model.name }))}
+            items={appData.models.filter((model) => model.recordState !== "Void").map((model) => ({ id: model.id, label: model.name }))}
             label="Used for models"
             selectedIds={usedForModels}
             setSelectedIds={setUsedForModels}
@@ -2941,7 +2915,7 @@ export function EditFields({ target }: { target: EditTarget }) {
 
   if (target.endpoint === "drawing-sets") {
     const record = target.record;
-    const modelItems = items.filter((item) => isPublishedRecord(item) && item.usedForModels.includes(record.modelId));
+    const modelItems = appData.items.filter((item) => isPublishedRecord(item) && item.usedForModels.includes(record.modelId));
     const syncedDrawingItems = modelItems.map((item) => ({
       itemId: item.id,
       revision: record.revision,
@@ -2955,7 +2929,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <label>Maintained By<input name="maintainedBy" defaultValue={record.maintainedBy} /></label>
         <input name="drawingItemsJson" type="hidden" value={JSON.stringify(syncedDrawingItems)} />
         <div className="notice modalNotice fullSpan">
-          This packaging set covers all {modelItems.length} active item{modelItems.length === 1 ? "" : "s"} linked to {modelName(record.modelId)}. Import a new packaging set to replace the PDF/version.
+          This packaging set covers all {modelItems.length} active item{modelItems.length === 1 ? "" : "s"} linked to {modelName(appData, record.modelId)}. Import a new packaging set to replace the PDF/version.
         </div>
       </>
     );
@@ -2963,16 +2937,16 @@ export function EditFields({ target }: { target: EditTarget }) {
 
   if (target.endpoint === "projects") {
     const record = target.record;
-    const [modelId, setModelId] = useState(record.modelIds[0] ?? models[0]?.id ?? "");
-    const drawingSetOptions = activeDrawingSetsForModel(drawingSets, modelId, record.drawingSetId);
+    const [modelId, setModelId] = useState(record.modelIds[0] ?? appData.models[0]?.id ?? "");
+    const drawingSetOptions = activeDrawingSetsForModel(appData.drawingSets, modelId, record.drawingSetId);
     const [drawingSetId, setDrawingSetId] = useState(
       drawingSetOptions.some((drawingSet) => drawingSet.id === record.drawingSetId)
         ? record.drawingSetId
         : drawingSetOptions[0]?.id ?? "",
     );
-    const selectedDrawingSet = drawingSets.find((drawingSet) => drawingSet.id === drawingSetId);
+    const selectedDrawingSet = appData.drawingSets.find((drawingSet) => drawingSet.id === drawingSetId);
     const drawingSetItemOptions = selectedDrawingSet?.drawingItems.map((drawingItem) => {
-      const item = itemById(drawingItem.itemId);
+      const item = itemById(appData, drawingItem.itemId);
       return {
         id: drawingItem.itemId,
         label: `${item?.itemCode ?? "Unknown item"} - ${item?.itemName ?? ""} / ${drawingItem.revision}`,
@@ -2982,7 +2956,7 @@ export function EditFields({ target }: { target: EditTarget }) {
     const [itemIds, setItemIds] = useState<string[]>(record.itemIds);
 
     useEffect(() => {
-      const nextDrawingSet = activeDrawingSetsForModel(drawingSets, modelId, record.drawingSetId)[0];
+      const nextDrawingSet = activeDrawingSetsForModel(appData.drawingSets, modelId, record.drawingSetId)[0];
       setDrawingSetId((current) => drawingSetOptions.some((drawingSet) => drawingSet.id === current) ? current : nextDrawingSet?.id ?? "");
     }, [modelId]);
 
@@ -3000,7 +2974,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <label>
           Model
           <select value={modelId} onChange={(event) => setModelId(event.target.value)} required>
-            {models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+            {appData.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
           </select>
         </label>
         <label>
@@ -3023,7 +2997,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <input name="drawingSetId" type="hidden" value={drawingSetId} />
         <div className="formSection fullSpan">
           <MultiSelectDropdown
-            items={suppliers.filter((supplier) => supplier.recordState !== "Void").map((supplier) => ({ id: supplier.id, label: supplier.name }))}
+            items={appData.suppliers.filter((supplier) => supplier.recordState !== "Void").map((supplier) => ({ id: supplier.id, label: supplier.name }))}
             label="Suppliers linked"
             selectedIds={supplierIds}
             setSelectedIds={setSupplierIds}
@@ -3284,11 +3258,11 @@ export function buildEditPatch(target: EditTarget, form: FormData) {
   return patch;
 }
 
-export function editTitle(target: EditTarget) {
+export function editTitle(appData: Pick<AppData, "items" | "suppliers">, target: EditTarget) {
   if ("name" in target.record) return target.record.name;
   if ("itemCode" in target.record) return target.record.itemCode;
-  if (target.endpoint === "quotes") return `${supplierName(target.record.supplierId)} ${itemCode(target.record.itemId)} quote`;
-  return `${supplierName(target.record.supplierId)} ${itemCode(target.record.itemId)}`;
+  if (target.endpoint === "quotes") return `${supplierName(appData, target.record.supplierId)} ${itemCode(appData, target.record.itemId)} quote`;
+  return `${supplierName(appData, target.record.supplierId)} ${itemCode(appData, target.record.itemId)}`;
 }
 
 export function CaseQuoteWorkbench({
@@ -3298,12 +3272,13 @@ export function CaseQuoteWorkbench({
   onSourceRoleChange: (input: Omit<SourceAssignment, "id" | "recordState">) => Promise<void>;
   project: AppData["projects"][number];
 }) {
+  const { data: appData } = useAppData();
   const [selectedItemId, setSelectedItemId] = useState("All");
   useEffect(() => {
     if (selectedItemId !== "All" && !project.itemIds.includes(selectedItemId)) setSelectedItemId("All");
   }, [project.id, project.itemIds, selectedItemId]);
   const visibleItemIds = project.itemIds.filter((itemId) => selectedItemId === "All" || itemId === selectedItemId);
-  const rows = buildCaseProgressRows(project, visibleItemIds);
+  const rows = buildCaseProgressRows(appData, project, visibleItemIds);
   return (
     <div className="caseWorkbench">
       <div className="caseProgressHeader">
@@ -3314,8 +3289,8 @@ export function CaseQuoteWorkbench({
             <select value={selectedItemId} onChange={(event) => setSelectedItemId(event.target.value)}>
               <option value="All">All items</option>
               {project.itemIds.map((itemId) => {
-                const item = itemById(itemId);
-                return <option key={itemId} value={itemId}>{item ? `${item.itemCode} - ${item.type}` : itemCode(itemId)}</option>;
+                const item = itemById(appData, itemId);
+                return <option key={itemId} value={itemId}>{item ? `${item.itemCode} - ${item.type}` : itemCode(appData, itemId)}</option>;
               })}
             </select>
           </label>
@@ -3346,7 +3321,7 @@ export function CaseQuoteWorkbench({
               <tr key={`supplier-progress-${row.itemId}-${row.supplierId}`}>
                 {selectedItemId === "All" && (
                   <td>
-                    <strong>{row.item ? row.item.itemCode : itemCode(row.itemId)}</strong>
+                    <strong>{row.item ? row.item.itemCode : itemCode(appData, row.itemId)}</strong>
                     <span>{row.item?.type ?? ""}</span>
                   </td>
                 )}
@@ -3392,44 +3367,44 @@ export function CaseQuoteWorkbench({
   );
 }
 
-export function caseSupplierIds(project: AppData["projects"][number]) {
-  const quotedSupplierIds = quotes
-    .filter((quote) => quoteAppliesToProject(quote, project.id) && quote.recordState !== "Void")
+export function caseSupplierIds(appData: Pick<AppData, "items" | "projects" | "quoteCaseLinks" | "quotes">, project: AppData["projects"][number]) {
+  const quotedSupplierIds = appData.quotes
+    .filter((quote) => quoteAppliesToProject(appData, quote, project.id) && quote.recordState !== "Void")
     .map((quote) => quote.supplierId);
   return Array.from(new Set([...project.supplierIds, ...quotedSupplierIds]));
 }
 
-export function buildCaseProgressRows(project: AppData["projects"][number], visibleItemIds: string[]) {
+export function buildCaseProgressRows(appData: Pick<AppData, "inspections" | "items" | "projects" | "quoteCaseLinks" | "quotes" | "sourceAssignments" | "suppliers">, project: AppData["projects"][number], visibleItemIds: string[]) {
   const rowKeys = new Set(
-    quotes
+    appData.quotes
       .filter((quote) =>
         quote.recordState !== "Void" &&
         visibleItemIds.includes(quote.itemId) &&
-        quoteAppliesToProject(quote, project.id))
+        quoteAppliesToProject(appData, quote, project.id))
       .map((quote) => `${quote.itemId}::${quote.supplierId}`),
   );
 
   return Array.from(rowKeys)
     .map((key) => {
       const [itemId, supplierId] = key.split("::");
-      return buildCaseProgressRow(project, itemId, supplierId);
+      return buildCaseProgressRow(appData, project, itemId, supplierId);
     })
     .sort((a, b) =>
-      itemCode(a.itemId).localeCompare(itemCode(b.itemId)) ||
-      supplierName(a.supplierId).localeCompare(supplierName(b.supplierId)),
+      itemCode(appData, a.itemId).localeCompare(itemCode(appData, b.itemId)) ||
+      supplierName(appData, a.supplierId).localeCompare(supplierName(appData, b.supplierId)),
     );
 }
 
-export function buildCaseProgressRow(project: AppData["projects"][number], itemId: string, supplierId: string) {
-  const item = itemById(itemId);
-  const supplier = suppliers.find((candidate) => candidate.id === supplierId);
+export function buildCaseProgressRow(appData: Pick<AppData, "inspections" | "items" | "projects" | "quoteCaseLinks" | "quotes" | "sourceAssignments" | "suppliers">, project: AppData["projects"][number], itemId: string, supplierId: string) {
+  const item = itemById(appData, itemId);
+  const supplier = appData.suppliers.find((candidate) => candidate.id === supplierId);
   const inScope = !item || !supplier || supplier.capableItems.includes(item.type);
-  const itemQuotes = quotesForCaseItemSupplier(project, itemId, supplierId);
+  const itemQuotes = quotesForCaseItemSupplier(appData, project, itemId, supplierId);
   const quote = itemQuotes.find(isSelectedQuote) ?? itemQuotes.find(isSampleRequestedQuote) ?? itemQuotes[0];
-  const quoteInspections = quote ? inspectionsForQuote(quote.id) : [];
-  const latestInspection = quote ? latestCaseInspection(project, quote) : undefined;
-  const quoteCaseLink = quote ? quoteCaseLinkFor(quote.id, project.id) : undefined;
-  const assignment = sourceAssignments
+  const quoteInspections = quote ? inspectionsForQuote(appData, quote.id) : [];
+  const latestInspection = quote ? latestCaseInspection(appData, project, quote) : undefined;
+  const quoteCaseLink = quote ? quoteCaseLinkFor(appData, quote.id, project.id) : undefined;
+  const assignment = appData.sourceAssignments
     .filter((current) =>
       current.recordState !== "Void" &&
       current.projectId === project.id &&
@@ -3449,9 +3424,9 @@ export function buildCaseProgressRow(project: AppData["projects"][number], itemI
     item,
     itemId,
     lastUpdate: latestActivityDate(itemQuotes, quoteInspections),
-    qcLabel: quote ? caseQcLabel(project, quote, latestInspection) : "No sample requested",
+    qcLabel: quote ? caseQcLabel(appData, project, quote, latestInspection) : "No sample requested",
     quoteCaseLink,
-    quoteLinkLabel: quote ? quoteCaseLabel(quote, project.id) : "",
+    quoteLinkLabel: quote ? quoteCaseLabel(appData, quote, project.id) : "",
     quote,
     quoteLabel: quote ? quote.status : inScope ? "No quote" : "Not in scope",
     sourceRole: assignment?.role,
@@ -3460,8 +3435,8 @@ export function buildCaseProgressRow(project: AppData["projects"][number], itemI
   };
 }
 
-export function sourceRoleForQuote(quote: Quote) {
-  return sourceAssignments.find((assignment) =>
+export function sourceRoleForQuote(appData: Pick<AppData, "sourceAssignments">, quote: Quote) {
+  return appData.sourceAssignments.find((assignment) =>
     assignment.recordState !== "Void" &&
     assignment.sourceQuoteId === quote.id)?.role;
 }
@@ -3478,13 +3453,13 @@ export function isActiveSourceRole(role: SourceAssignment["role"]) {
   return role === "Primary" || role === "Secondary" || role === "Tertiary";
 }
 
-export function averageLeadTimeForActiveSourceSuppliers(assignments: SourceAssignment[]) {
+export function averageLeadTimeForActiveSourceSuppliers(appData: Pick<AppData, "quotes">, assignments: SourceAssignment[]) {
   const activeAssignments = assignments.filter((assignment) => assignment.recordState !== "Void" && isActiveSourceRole(assignment.role));
   const quoteIds = new Set(activeAssignments.map((assignment) => assignment.sourceQuoteId).filter(Boolean));
-  let sourceQuotes = quotes.filter((quote) => quote.recordState !== "Void" && quoteIds.has(quote.id));
+  let sourceQuotes = appData.quotes.filter((quote) => quote.recordState !== "Void" && quoteIds.has(quote.id));
   if (sourceQuotes.length === 0) {
     const supplierIds = new Set(activeAssignments.map((assignment) => assignment.supplierId));
-    sourceQuotes = quotes.filter((quote) => quote.recordState !== "Void" && supplierIds.has(quote.supplierId) && isSelectedQuote(quote));
+    sourceQuotes = appData.quotes.filter((quote) => quote.recordState !== "Void" && supplierIds.has(quote.supplierId) && isSelectedQuote(quote));
   }
   const leadTimes = sourceQuotes
     .map((quote) => parseLeadTimeDays(quote.leadTime))
@@ -3536,14 +3511,14 @@ export function SourceRoleSelect({
   );
 }
 
-export function supplierCaseProgress(project: AppData["projects"][number], supplierId: string, visibleItemIds = project.itemIds) {
-  const supplier = suppliers.find((candidate) => candidate.id === supplierId);
+export function supplierCaseProgress(appData: Pick<AppData, "inspections" | "items" | "projects" | "quoteCaseLinks" | "quotes" | "suppliers">, project: AppData["projects"][number], supplierId: string, visibleItemIds = project.itemIds) {
+  const supplier = appData.suppliers.find((candidate) => candidate.id === supplierId);
   const inScopeItemIds = visibleItemIds.filter((itemId) => {
-    const item = itemById(itemId);
+    const item = itemById(appData, itemId);
     return !item || !supplier || supplier.capableItems.includes(item.type);
   });
-  const supplierQuotes = quotes.filter(
-    (quote) => quoteAppliesToProject(quote, project.id)
+  const supplierQuotes = appData.quotes.filter(
+    (quote) => quoteAppliesToProject(appData, quote, project.id)
       && quote.supplierId === supplierId
       && visibleItemIds.includes(quote.itemId)
       && quote.recordState !== "Void",
@@ -3552,12 +3527,12 @@ export function supplierCaseProgress(project: AppData["projects"][number], suppl
   const sampleRequestedQuotes = supplierQuotes.filter(isSampleRequestedQuote);
   const selectedQuotes = supplierQuotes.filter(isSelectedQuote);
   const selectedCount = selectedQuotes.length;
-  const pendingQc = sampleRequestedQuotes.filter(isQuoteInQcQueue).length;
-  const passedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(quote.id)?.result === "Pass").length;
-  const failedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(quote.id)?.result === "Fail").length;
+  const pendingQc = sampleRequestedQuotes.filter((value) => isQuoteInQcQueue(appData, value)).length;
+  const passedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(appData, quote.id)?.result === "Pass").length;
+  const failedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(appData, quote.id)?.result === "Fail").length;
 
   return {
-    lastUpdate: latestActivityDate(supplierQuotes, sampleRequestedQuotes.flatMap((quote) => inspectionsForQuote(quote.id))),
+    lastUpdate: latestActivityDate(supplierQuotes, sampleRequestedQuotes.flatMap((quote) => inspectionsForQuote(appData, quote.id))),
     qcLabel: sampleRequestedQuotes.length === 0
       ? "No sample requested"
       : pendingQc > 0
@@ -3579,22 +3554,22 @@ export function supplierCaseProgress(project: AppData["projects"][number], suppl
   };
 }
 
-export function itemCaseProgress(project: AppData["projects"][number], itemId: string, supplierIds: string[]) {
-  const item = itemById(itemId);
+export function itemCaseProgress(appData: Pick<AppData, "inspections" | "items" | "projects" | "quoteCaseLinks" | "quotes" | "suppliers">, project: AppData["projects"][number], itemId: string, supplierIds: string[]) {
+  const item = itemById(appData, itemId);
   const inScopeSupplierIds = supplierIds.filter((supplierId) => {
-    const supplier = suppliers.find((candidate) => candidate.id === supplierId);
+    const supplier = appData.suppliers.find((candidate) => candidate.id === supplierId);
     return !item || !supplier || supplier.capableItems.includes(item.type);
   });
-  const itemQuotes = quotes.filter((quote) => quoteAppliesToProject(quote, project.id) && quote.itemId === itemId && quote.recordState !== "Void");
+  const itemQuotes = appData.quotes.filter((quote) => quoteAppliesToProject(appData, quote, project.id) && quote.itemId === itemId && quote.recordState !== "Void");
   const sampleRequestedQuotes = itemQuotes.filter(isSampleRequestedQuote);
   const selectedQuotes = itemQuotes.filter(isSelectedQuote);
   const selectedQuote = selectedQuotes[0];
-  const pendingQc = sampleRequestedQuotes.filter(isQuoteInQcQueue).length;
-  const passedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(quote.id)?.result === "Pass").length;
+  const pendingQc = sampleRequestedQuotes.filter((value) => isQuoteInQcQueue(appData, value)).length;
+  const passedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(appData, quote.id)?.result === "Pass").length;
 
   return {
     inScopeCount: inScopeSupplierIds.length,
-    lastUpdate: latestActivityDate(itemQuotes, sampleRequestedQuotes.flatMap((quote) => inspectionsForQuote(quote.id))),
+    lastUpdate: latestActivityDate(itemQuotes, sampleRequestedQuotes.flatMap((quote) => inspectionsForQuote(appData, quote.id))),
     qcLabel: sampleRequestedQuotes.length === 0
       ? "No sample requested"
       : pendingQc > 0
@@ -3603,7 +3578,7 @@ export function itemCaseProgress(project: AppData["projects"][number], itemId: s
           ? "QC pass"
           : "QC in review",
     quoteCount: new Set(itemQuotes.map((quote) => quote.supplierId)).size,
-    selectedSupplier: selectedQuote ? supplierName(selectedQuote.supplierId) : "-",
+    selectedSupplier: selectedQuote ? supplierName(appData, selectedQuote.supplierId) : "-",
   };
 }
 
@@ -3615,17 +3590,17 @@ export function latestActivityDate(activityQuotes: Quote[], activityInspections:
   return dates.sort((a, b) => b.localeCompare(a))[0] ?? "-";
 }
 
-export function latestProjectQuote(projectId: string, supplierId: string, itemId: string) {
-  return quotes
-    .filter((quote) => quoteAppliesToProject(quote, projectId) && quote.supplierId === supplierId && quote.itemId === itemId && quote.recordState !== "Void")
+export function latestProjectQuote(appData: Pick<AppData, "items" | "projects" | "quoteCaseLinks" | "quotes">, projectId: string, supplierId: string, itemId: string) {
+  return appData.quotes
+    .filter((quote) => quoteAppliesToProject(appData, quote, projectId) && quote.supplierId === supplierId && quote.itemId === itemId && quote.recordState !== "Void")
     .sort((a, b) => b.quoteDate.localeCompare(a.quoteDate))[0];
 }
 
-export function quoteAppliesToProject(quote: Quote, projectId: string) {
+export function quoteAppliesToProject(appData: Pick<AppData, "items" | "projects" | "quoteCaseLinks">, quote: Quote, projectId: string) {
   if (quote.projectId === projectId) return true;
-  if (quoteCaseLinks.some((link) => link.recordState !== "Void" && link.projectId === projectId && link.quoteId === quote.id)) return true;
-  const project = projects.find((candidate) => candidate.id === projectId);
-  const item = itemById(quote.itemId);
+  if (appData.quoteCaseLinks.some((link) => link.recordState !== "Void" && link.projectId === projectId && link.quoteId === quote.id)) return true;
+  const project = appData.projects.find((candidate) => candidate.id === projectId);
+  const item = itemById(appData, quote.itemId);
   return Boolean(
     project &&
       item &&
@@ -3635,39 +3610,39 @@ export function quoteAppliesToProject(quote: Quote, projectId: string) {
   );
 }
 
-export function quoteCaseLinkFor(quoteId: string, projectId: string) {
-  return quoteCaseLinks.find((link) => link.recordState !== "Void" && link.projectId === projectId && link.quoteId === quoteId);
+export function quoteCaseLinkFor(appData: Pick<AppData, "quoteCaseLinks">, quoteId: string, projectId: string) {
+  return appData.quoteCaseLinks.find((link) => link.recordState !== "Void" && link.projectId === projectId && link.quoteId === quoteId);
 }
 
-export function quoteHasCaseLink(quote: Quote) {
-  return Boolean(quote.projectId) || quoteCaseLinks.some((link) => link.recordState !== "Void" && link.quoteId === quote.id);
+export function quoteHasCaseLink(appData: Pick<AppData, "quoteCaseLinks">, quote: Quote) {
+  return Boolean(quote.projectId) || appData.quoteCaseLinks.some((link) => link.recordState !== "Void" && link.quoteId === quote.id);
 }
 
-export function quoteCaseLabel(quote: Quote, projectFilter = "All") {
+export function quoteCaseLabel(appData: Pick<AppData, "projects" | "quoteCaseLinks">, quote: Quote, projectFilter = "All") {
   if (projectFilter !== "All" && projectFilter !== "Standalone") {
-    return quoteCaseLinkFor(quote.id, projectFilter)?.linkType ?? (quote.projectId === projectFilter ? "Origin Case" : "Reused Existing Quote");
+    return quoteCaseLinkFor(appData, quote.id, projectFilter)?.linkType ?? (quote.projectId === projectFilter ? "Origin Case" : "Reused Existing Quote");
   }
-  if (!quote.projectId && !quoteCaseLinks.some((link) => link.recordState !== "Void" && link.quoteId === quote.id)) return "Standalone";
-  const originProject = quote.projectId ? projectName(quote.projectId) : "";
-  const reusedCount = quoteCaseLinks.filter((link) => link.recordState !== "Void" && link.quoteId === quote.id && link.linkType === "Reused Existing Quote").length;
+  if (!quote.projectId && !appData.quoteCaseLinks.some((link) => link.recordState !== "Void" && link.quoteId === quote.id)) return "Standalone";
+  const originProject = quote.projectId ? projectName(appData, quote.projectId) : "";
+  const reusedCount = appData.quoteCaseLinks.filter((link) => link.recordState !== "Void" && link.quoteId === quote.id && link.linkType === "Reused Existing Quote").length;
   if (reusedCount > 0) return originProject ? `Origin + ${reusedCount} reused` : `${reusedCount} reused`;
   return originProject ? "Origin Case" : "Linked";
 }
 
-export function quotesForCaseItemSupplier(project: AppData["projects"][number], itemId: string, supplierId: string) {
-  return quotes
+export function quotesForCaseItemSupplier(appData: Pick<AppData, "items" | "projects" | "quoteCaseLinks" | "quotes">, project: AppData["projects"][number], itemId: string, supplierId: string) {
+  return appData.quotes
     .filter((quote) =>
       quote.recordState !== "Void" &&
       quote.supplierId === supplierId &&
       quote.itemId === itemId &&
-      quoteAppliesToProject(quote, project.id))
+      quoteAppliesToProject(appData, quote, project.id))
     .sort((a, b) => (b.effectiveFrom ?? b.quoteDate).localeCompare(a.effectiveFrom ?? a.quoteDate));
 }
 
-export function latestCaseInspection(project: AppData["projects"][number], quote: Quote) {
-  const directInspection = latestInspectionForQuote(quote.id);
+export function latestCaseInspection(appData: Pick<AppData, "inspections">, project: AppData["projects"][number], quote: Quote) {
+  const directInspection = latestInspectionForQuote(appData, quote.id);
   if (directInspection) return directInspection;
-  return inspections
+  return appData.inspections
     .filter((inspection) =>
       inspection.recordState !== "Void" &&
       inspection.supplierId === quote.supplierId &&
@@ -3677,23 +3652,23 @@ export function latestCaseInspection(project: AppData["projects"][number], quote
     .slice(-1)[0];
 }
 
-export function caseQcLabel(project: AppData["projects"][number], quote: Quote, inspection?: SampleInspection) {
-  const link = quoteCaseLinkFor(quote.id, project.id);
+export function caseQcLabel(appData: Pick<AppData, "inspections" | "quoteCaseLinks">, project: AppData["projects"][number], quote: Quote, inspection?: SampleInspection) {
+  const link = quoteCaseLinkFor(appData, quote.id, project.id);
   if (inspection?.result === "Pass" || inspection?.result === "Conditional") return "Existing QC Pass";
-  if (isSampleRequestedQuote(quote)) return qcQueueStatus(quote);
+  if (isSampleRequestedQuote(quote)) return qcQueueStatus(appData, quote);
   if (link?.sampleRequirement === "Not Required - Existing QC Pass") return "Existing QC Pass";
   if (link?.sampleRequirement === "Required") return "Sample Required";
   return "No sample requested";
 }
 
-export function inspectionsForQuote(quoteId: string) {
-  return inspections
+export function inspectionsForQuote(appData: Pick<AppData, "inspections">, quoteId: string) {
+  return appData.inspections
     .filter((inspection) => inspection.relatedQuoteId === quoteId && inspection.recordState !== "Void")
     .sort((a, b) => a.sampleRound - b.sampleRound || a.sampleReceivedDate.localeCompare(b.sampleReceivedDate));
 }
 
-export function latestInspectionForQuote(quoteId: string) {
-  return inspectionsForQuote(quoteId).slice(-1)[0];
+export function latestInspectionForQuote(appData: Pick<AppData, "inspections">, quoteId: string) {
+  return inspectionsForQuote(appData, quoteId).slice(-1)[0];
 }
 
 export function isSampleRequestedQuote(quote: Quote) {
@@ -3708,16 +3683,16 @@ export function isQcCandidateQuote(quote: Quote) {
   return isSampleRequestedQuote(quote) || isSelectedQuote(quote);
 }
 
-export function isQuoteInQcQueue(quote: Quote) {
-  const latestInspection = latestInspectionForQuote(quote.id);
+export function isQuoteInQcQueue(appData: Pick<AppData, "inspections">, quote: Quote) {
+  const latestInspection = latestInspectionForQuote(appData, quote.id);
   if (!latestInspection) return true;
   if (latestInspection.result === "Pass" || latestInspection.disposition === "Accepted") return false;
   if (latestInspection.disposition === "No Further Action") return false;
   return true;
 }
 
-export function qcQueueStatus(quote: Quote) {
-  const latestInspection = latestInspectionForQuote(quote.id);
+export function qcQueueStatus(appData: Pick<AppData, "inspections">, quote: Quote) {
+  const latestInspection = latestInspectionForQuote(appData, quote.id);
   if (!latestInspection) return "Waiting for Sample";
   if (latestInspection.result === "Not Submitted") return "Pending Inspection";
   if (latestInspection.result === "Fail") return latestInspection.disposition === "No Further Action" ? "Closed Fail" : "Re-sample Required";
@@ -3725,8 +3700,8 @@ export function qcQueueStatus(quote: Quote) {
   return "QC Pass";
 }
 
-export function qcQueueActionLabel(quote: Quote) {
-  const latestInspection = latestInspectionForQuote(quote.id);
+export function qcQueueActionLabel(appData: Pick<AppData, "inspections">, quote: Quote) {
+  const latestInspection = latestInspectionForQuote(appData, quote.id);
   if (!latestInspection) return "Receive sample";
   if (latestInspection.result === "Fail" && latestInspection.disposition !== "No Further Action") return "Receive next sample";
   return "Record inspection";
@@ -3745,15 +3720,16 @@ export function caseTypeForReason(reason: AppData["projects"][number]["caseReaso
   return reason;
 }
 
-export function nextInspectionRoundForQuote(quoteId: string) {
-  return (latestInspectionForQuote(quoteId)?.sampleRound ?? 0) + 1;
+export function nextInspectionRoundForQuote(appData: Pick<AppData, "inspections">, quoteId: string) {
+  return (latestInspectionForQuote(appData, quoteId)?.sampleRound ?? 0) + 1;
 }
 
-export function drawingItemForQuote(quote: Quote) {
-  return drawingSets.find((set) => set.id === quote.drawingSetId)?.drawingItems.find((drawingItem) => drawingItem.id === quote.drawingItemId);
+export function drawingItemForQuote(appData: Pick<AppData, "drawingSets">, quote: Quote) {
+  return appData.drawingSets.find((set) => set.id === quote.drawingSetId)?.drawingItems.find((drawingItem) => drawingItem.id === quote.drawingItemId);
 }
 
 export function CaseProgressCell({ inScope = true, inspection, quote }: { inScope?: boolean; inspection?: SampleInspection; quote?: Quote }) {
+  const { data: appData } = useAppData();
   if (!quote) {
     return (
       <div className="progressCell">
@@ -3764,7 +3740,7 @@ export function CaseProgressCell({ inScope = true, inspection, quote }: { inScop
   }
 
   const progressLabel = isSampleRequestedQuote(quote)
-    ? qcQueueStatus(quote)
+    ? qcQueueStatus(appData, quote)
     : inspection
       ? `QC ${inspection.result}`
       : quote.status;
@@ -3823,6 +3799,7 @@ export function fileToBase64(file: File) {
 }
 
 export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
+  const { data: appData } = useAppData();
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [capableItems, setCapableItems] = useState<PackagingItemType[]>(["Pallet"]);
@@ -3875,7 +3852,7 @@ export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onC
         </div>
 
         {formError && <div className="formError">{formError}</div>}
-        {models.length === 0 && <div className="formError">Create a model before adding items.</div>}
+        {appData.models.length === 0 && <div className="formError">Create a model before adding items.</div>}
 
         <div className="formGrid">
           <label>
@@ -4033,11 +4010,12 @@ export function ItemModal({
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
+  const { data: appData } = useAppData();
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [usedForModels, setUsedForModels] = useState<string[]>(models[0] ? [models[0].id] : []);
   const [itemCode, setItemCode] = useState("");
-  const duplicateItem = items.find((item) => item.recordState !== "Void" && item.itemCode.toLowerCase() === itemCode.trim().toLowerCase());
+  const duplicateItem = appData.items.find((item) => item.recordState !== "Void" && item.itemCode.toLowerCase() === itemCode.trim().toLowerCase());
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -4236,6 +4214,7 @@ export function DrawingSetModal({
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
+  const { data: appData } = useAppData();
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [modelId, setModelId] = useState(data.models[0]?.id ?? "");
@@ -4326,11 +4305,11 @@ export function DrawingSetModal({
           <input name="drawingPackageFile" required type="file" />
         </label>
         <div className="notice modalNotice">
-          This packaging set will cover all {modelItems.length} active item{modelItems.length === 1 ? "" : "s"} currently linked to {modelName(modelId)}.
+          This packaging set will cover all {modelItems.length} active item{modelItems.length === 1 ? "" : "s"} currently linked to {modelName(appData, modelId)}.
         </div>
         {activeDrawingSet && (
           <div className="notice modalNotice">
-            Current active package for {modelName(modelId)} is {activeDrawingSet.name} {activeDrawingSet.revision}. The new import will be saved as version {nextRevision} and replace it for user-facing workflow while keeping the old version in audit history.
+            Current active package for {modelName(appData, modelId)} is {activeDrawingSet.name} {activeDrawingSet.revision}. The new import will be saved as version {nextRevision} and replace it for user-facing workflow while keeping the old version in audit history.
           </div>
         )}
         <Panel title={`Version ${nextRevision} covers ${drawingRows.length} item${drawingRows.length === 1 ? "" : "s"}`}>
@@ -4351,7 +4330,7 @@ export function DrawingSetModal({
                   <td>{row.itemCode}</td>
                   <td>{item?.itemName ?? "-"}</td>
                   <td>{item?.type ?? "-"}</td>
-                  <td>{item?.usedForModels.map(modelName).join(", ") ?? "-"}</td>
+                  <td>{item?.usedForModels.map((value) => modelName(appData, value)).join(", ") ?? "-"}</td>
                 </tr>
                 );
               })}
@@ -4516,6 +4495,7 @@ export function QuoteModal({
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
+  const { data: appData } = useAppData();
   const project = data.projects.find((candidate) => candidate.id === projectId);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -4571,7 +4551,7 @@ export function QuoteModal({
         effectiveTo: String(form.get("effectiveTo") ?? "") || undefined,
         validUntil: undefined,
         currency: "USD",
-        uom: itemById(itemId)?.uom ?? "pcs",
+        uom: itemById(appData, itemId)?.uom ?? "pcs",
         unitPrice: Number(form.get("unitPrice") ?? 0),
         moq: String(form.get("moq") ?? ""),
         leadTime: String(form.get("leadTime") ?? ""),
@@ -4707,6 +4687,7 @@ export function InspectionModal({
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
+  const { data: appData } = useAppData();
   const sourceQuote = data.quotes.find((quote) => quote.id === quoteId);
   const project = data.projects.find((candidate) => candidate.id === (sourceQuote?.projectId ?? projectId));
   const [saving, setSaving] = useState(false);
@@ -4716,14 +4697,14 @@ export function InspectionModal({
   const inspectionDrawingSetOptions = activeDrawingSetsForModel(data.drawingSets, modelId, sourceQuote?.drawingSetId ?? project?.drawingSetId);
   const [drawingSetId, setDrawingSetId] = useState(sourceQuote?.drawingSetId ?? project?.drawingSetId ?? inspectionDrawingSetOptions[0]?.id ?? "");
   const drawingSet = data.drawingSets.find((candidate) => candidate.id === drawingSetId);
-  const supplierOptions = inspectionMode === "Case-linked" && project ? data.suppliers.filter((supplier) => caseSupplierIds(project).includes(supplier.id)) : data.suppliers;
+  const supplierOptions = inspectionMode === "Case-linked" && project ? data.suppliers.filter((supplier) => caseSupplierIds(appData, project).includes(supplier.id)) : data.suppliers;
   const itemOptions = inspectionMode === "Case-linked" && project ? data.items.filter((item) => project.itemIds.includes(item.id)) : data.items.filter((item) => item.usedForModels.includes(modelId));
   const [supplierId, setSupplierId] = useState(sourceQuote?.supplierId ?? supplierOptions[0]?.id ?? "");
   const [itemId, setItemId] = useState(sourceQuote?.itemId ?? itemOptions[0]?.id ?? "");
   const drawingItemId = sourceQuote?.drawingItemId ?? drawingSet?.drawingItems.find((drawingItem) => drawingItem.itemId === itemId)?.id ?? "";
   const selectedDrawingItem = drawingSet?.drawingItems.find((drawingItem) => drawingItem.id === drawingItemId);
   const lockedToQuote = Boolean(sourceQuote);
-  const nextRound = sourceQuote ? nextInspectionRoundForQuote(sourceQuote.id) : 1;
+  const nextRound = sourceQuote ? nextInspectionRoundForQuote(appData, sourceQuote.id) : 1;
   const [result, setResult] = useState<SampleInspection["result"]>("Not Submitted");
 
   useEffect(() => {
@@ -4867,7 +4848,7 @@ export function InspectionModal({
           </label>
         </div>
         <div className="notice modalNotice">
-          Packaging package: {drawingSet ? `${drawingSet.name} ${drawingSet.revision}` : "-"} / item link: {selectedDrawingItem ? itemCode(selectedDrawingItem.itemId) : "No packaging item linked"} / PDF: {drawingFileLabel(selectedDrawingItem, drawingSet)}
+          Packaging package: {drawingSet ? `${drawingSet.name} ${drawingSet.revision}` : "-"} / item link: {selectedDrawingItem ? itemCode(appData, selectedDrawingItem.itemId) : "No packaging item linked"} / PDF: {drawingFileLabel(appData, selectedDrawingItem, drawingSet)}
         </div>
         <label className="fullWidthLabel">
           Notes
@@ -5530,60 +5511,60 @@ export function RecordMenu({
   );
 }
 
-export function canDeleteRecord(endpoint: DeleteEndpoint, id: string) {
+export function canDeleteRecord(appData: Pick<AppData, "drawingSets" | "incomingDefects" | "inspections" | "items" | "priceChanges" | "projects" | "purchasePrices" | "quoteCaseLinks" | "quotes">, endpoint: DeleteEndpoint, id: string) {
   if (endpoint === "suppliers") {
     return (
-      !projects.some((project) => project.supplierIds.includes(id)) &&
-      !quotes.some((quote) => quote.supplierId === id) &&
-      !quoteCaseLinks.some((link) => link.supplierId === id) &&
-      !inspections.some((inspection) => inspection.supplierId === id) &&
-      !incomingDefects.some((defect) => defect.supplierId === id) &&
-      !priceChanges.some((change) => change.supplierId === id) &&
-      !purchasePrices.some((purchase) => purchase.supplierId === id)
+      !appData.projects.some((project) => project.supplierIds.includes(id)) &&
+      !appData.quotes.some((quote) => quote.supplierId === id) &&
+      !appData.quoteCaseLinks.some((link) => link.supplierId === id) &&
+      !appData.inspections.some((inspection) => inspection.supplierId === id) &&
+      !appData.incomingDefects.some((defect) => defect.supplierId === id) &&
+      !appData.priceChanges.some((change) => change.supplierId === id) &&
+      !appData.purchasePrices.some((purchase) => purchase.supplierId === id)
     );
   }
   if (endpoint === "models") {
     return (
-      !items.some((item) => item.usedForModels.includes(id)) &&
-      !drawingSets.some((drawingSet) => drawingSet.modelId === id) &&
-      !projects.some((project) => project.modelIds.includes(id)) &&
-      !quotes.some((quote) => quote.modelId === id) &&
-      !quoteCaseLinks.some((link) => link.modelId === id) &&
-      !inspections.some((inspection) => inspection.modelId === id) &&
-      !incomingDefects.some((defect) => defect.modelId === id) &&
-      !priceChanges.some((change) => change.modelId === id) &&
-      !purchasePrices.some((purchase) => purchase.modelId === id)
+      !appData.items.some((item) => item.usedForModels.includes(id)) &&
+      !appData.drawingSets.some((drawingSet) => drawingSet.modelId === id) &&
+      !appData.projects.some((project) => project.modelIds.includes(id)) &&
+      !appData.quotes.some((quote) => quote.modelId === id) &&
+      !appData.quoteCaseLinks.some((link) => link.modelId === id) &&
+      !appData.inspections.some((inspection) => inspection.modelId === id) &&
+      !appData.incomingDefects.some((defect) => defect.modelId === id) &&
+      !appData.priceChanges.some((change) => change.modelId === id) &&
+      !appData.purchasePrices.some((purchase) => purchase.modelId === id)
     );
   }
   if (endpoint === "items") {
     return (
-      !drawingSets.some((drawingSet) => drawingSet.drawingItems.some((drawingItem) => drawingItem.itemId === id)) &&
-      !projects.some((project) => project.itemIds.includes(id)) &&
-      !quotes.some((quote) => quote.itemId === id) &&
-      !quoteCaseLinks.some((link) => link.itemId === id) &&
-      !inspections.some((inspection) => inspection.itemId === id) &&
-      !incomingDefects.some((defect) => defect.itemId === id) &&
-      !priceChanges.some((change) => change.itemId === id) &&
-      !purchasePrices.some((purchase) => purchase.itemId === id)
+      !appData.drawingSets.some((drawingSet) => drawingSet.drawingItems.some((drawingItem) => drawingItem.itemId === id)) &&
+      !appData.projects.some((project) => project.itemIds.includes(id)) &&
+      !appData.quotes.some((quote) => quote.itemId === id) &&
+      !appData.quoteCaseLinks.some((link) => link.itemId === id) &&
+      !appData.inspections.some((inspection) => inspection.itemId === id) &&
+      !appData.incomingDefects.some((defect) => defect.itemId === id) &&
+      !appData.priceChanges.some((change) => change.itemId === id) &&
+      !appData.purchasePrices.some((purchase) => purchase.itemId === id)
     );
   }
   if (endpoint === "drawing-sets") {
     return (
-      !projects.some((project) => project.drawingSetId === id) &&
-      !quotes.some((quote) => quote.drawingSetId === id) &&
-      !inspections.some((inspection) => inspection.drawingSetId === id)
+      !appData.projects.some((project) => project.drawingSetId === id) &&
+      !appData.quotes.some((quote) => quote.drawingSetId === id) &&
+      !appData.inspections.some((inspection) => inspection.drawingSetId === id)
     );
   }
   if (endpoint === "projects") {
-    return !quotes.some((quote) => quote.projectId === id) && !quoteCaseLinks.some((link) => link.projectId === id) && !inspections.some((inspection) => inspection.projectId === id);
+    return !appData.quotes.some((quote) => quote.projectId === id) && !appData.quoteCaseLinks.some((link) => link.projectId === id) && !appData.inspections.some((inspection) => inspection.projectId === id);
   }
   if (endpoint === "quotes") {
     return (
-      !quotes.some((quote) => quote.previousQuoteId === id) &&
-      !quoteCaseLinks.some((link) => link.quoteId === id) &&
-      !inspections.some((inspection) => inspection.relatedQuoteId === id) &&
-      !priceChanges.some((change) => change.sourceQuoteId === id || change.previousQuoteId === id) &&
-      !purchasePrices.some((purchase) => purchase.linkedQuoteId === id)
+      !appData.quotes.some((quote) => quote.previousQuoteId === id) &&
+      !appData.quoteCaseLinks.some((link) => link.quoteId === id) &&
+      !appData.inspections.some((inspection) => inspection.relatedQuoteId === id) &&
+      !appData.priceChanges.some((change) => change.sourceQuoteId === id || change.previousQuoteId === id) &&
+      !appData.purchasePrices.some((purchase) => purchase.linkedQuoteId === id)
     );
   }
   if (endpoint === "purchase-prices") return true;
@@ -5676,7 +5657,8 @@ export function DocumentCheck({ fileId, label, ok }: { fileId?: string; label: s
 }
 
 export function FileReference({ fileId }: { fileId?: string }) {
-  const file = fileRecord(fileId);
+  const { data: appData } = useAppData();
+  const file = fileRecord(appData, fileId);
   if (!file) return <span className="muted">-</span>;
   return (
     <a className="fileLink" href={fileUrl(file)} rel="noreferrer" target="_blank" title={`${file.fileName} (${formatFileSize(file.size)})`}>
@@ -5738,7 +5720,7 @@ export function QuoteValueStack({ field, quotes: quoteList }: { field: "price" |
   );
 }
 
-export function recommendSupplier(candidateQuotes: Quote[], candidateInspections: SampleInspection[]) {
+export function recommendSupplier(appData: Pick<AppData, "suppliers">, candidateQuotes: Quote[], candidateInspections: SampleInspection[]) {
   const passSupplierIds = new Set(
     candidateInspections.filter((inspection) => inspection.result === "Pass").map((inspection) => inspection.supplierId),
   );
@@ -5748,20 +5730,20 @@ export function recommendSupplier(candidateQuotes: Quote[], candidateInspections
     return aPass - bPass || a.unitPrice - b.unitPrice;
   });
 
-  return candidates[0] ? supplierName(candidates[0].supplierId) : "Need quote";
+  return candidates[0] ? supplierName(appData, candidates[0].supplierId) : "Need quote";
 }
 
-export function supplierScore(supplierId: string) {
-  const supplier = suppliers.find((candidate) => candidate.id === supplierId);
+export function supplierScore(appData: Pick<AppData, "incomingDefects" | "inspections" | "items" | "quotes" | "suppliers">, supplierId: string) {
+  const supplier = appData.suppliers.find((candidate) => candidate.id === supplierId);
   if (!supplier) return 0;
 
-  return buildSupplierScorecard(supplier).score;
+  return buildSupplierScorecard(appData, supplier).score;
 }
 
-export function buildSupplierScorecard(supplier: Supplier): ScorecardRow {
-  const supplierQuotes = quotes.filter((quote) => quote.supplierId === supplier.id && quote.recordState !== "Void");
-  const supplierInspections = inspections.filter((inspection) => inspection.supplierId === supplier.id && inspection.recordState !== "Void");
-  const supplierDefects = incomingDefects.filter((defect) => defect.supplierId === supplier.id && defect.recordState !== "Void");
+export function buildSupplierScorecard(appData: Pick<AppData, "incomingDefects" | "inspections" | "items" | "quotes">, supplier: Supplier): ScorecardRow {
+  const supplierQuotes = appData.quotes.filter((quote) => quote.supplierId === supplier.id && quote.recordState !== "Void");
+  const supplierInspections = appData.inspections.filter((inspection) => inspection.supplierId === supplier.id && inspection.recordState !== "Void");
+  const supplierDefects = appData.incomingDefects.filter((defect) => defect.supplierId === supplier.id && defect.recordState !== "Void");
   const pass = supplierInspections.filter((inspection) => inspection.result === "Pass").length;
   const fail = supplierInspections.filter((inspection) => inspection.result === "Fail").length;
   const conditional = supplierInspections.filter((inspection) => inspection.result === "Conditional").length;
@@ -5782,13 +5764,13 @@ export function buildSupplierScorecard(supplier: Supplier): ScorecardRow {
   const declaredTypes = supplier.capableItems.length;
   const quotedDeclaredTypes = new Set(
     supplierQuotes
-      .map((quote) => items.find((item) => item.id === quote.itemId)?.type)
+      .map((quote) => appData.items.find((item) => item.id === quote.itemId)?.type)
       .filter((type) => type && supplier.capableItems.includes(type)),
   ).size;
   const passedDeclaredTypes = new Set(
     supplierInspections
       .filter((inspection) => inspection.result === "Pass")
-      .map((inspection) => items.find((item) => item.id === inspection.itemId)?.type)
+      .map((inspection) => appData.items.find((item) => item.id === inspection.itemId)?.type)
       .filter((type) => type && supplier.capableItems.includes(type)),
   ).size;
   const numericLeadTimes = supplierQuotes
@@ -5800,7 +5782,7 @@ export function buildSupplierScorecard(supplier: Supplier): ScorecardRow {
     reviewedSamples === 0
       ? 0
       : clamp(Math.round((pass / reviewedSamples) * (weights.sampleQuality - 5) + conditional * 2 - fail * 3 + (pass > 0 ? 5 : 0)), 0, weights.sampleQuality);
-  const pricingScore = scorePricingCompetitiveness(supplierQuotes, weights.pricing, supplier.paymentTerms);
+  const pricingScore = scorePricingCompetitiveness(appData, supplierQuotes, weights.pricing, supplier.paymentTerms);
   const responsivenessScore = clamp((supplierQuotes.length > 0 ? 8 : 0) + (averageLeadTime !== undefined && averageLeadTime <= 14 ? 4 : 0) + (selectedQuotes > 0 ? 3 : 0), 0, weights.responsiveness);
   const scopeScore = clamp((declaredTypes > 0 ? 4 : 0) + (quotedDeclaredTypes > 0 ? 3 : 0) + (passedDeclaredTypes > 0 ? 3 : 0), 0, weights.scopeFit);
   const leadTimeScore = scoreLeadTime(averageLeadTime, weights.setup);
@@ -5841,7 +5823,7 @@ export function buildSupplierScorecard(supplier: Supplier): ScorecardRow {
         label: "Pricing",
         score: pricingScore,
         max: weights.pricing,
-        detail: pricingDetail(supplierQuotes, supplier.paymentTerms),
+        detail: pricingDetail(appData, supplierQuotes, supplier.paymentTerms),
       },
       {
         key: "responsiveness",
@@ -5878,17 +5860,17 @@ export function buildSupplierScorecard(supplier: Supplier): ScorecardRow {
   };
 }
 
-export function scorePricingCompetitiveness(supplierQuotes: Quote[], max: number, paymentTerms = "") {
+export function scorePricingCompetitiveness(appData: Pick<AppData, "quotes">, supplierQuotes: Quote[], max: number, paymentTerms = "") {
   if (supplierQuotes.length === 0) return 0;
-  const quoteScores = supplierQuotes.map((quote) => quotePriceCompetitiveness(quote));
+  const quoteScores = supplierQuotes.map((quote) => quotePriceCompetitiveness(appData, quote));
   const averagePercent = quoteScores.reduce((sum, score) => sum + score, 0) / quoteScores.length;
   const priceMax = Math.round(max * 0.85);
   const termsMax = max - priceMax;
   return Math.round(priceMax * averagePercent) + scorePaymentTerms(paymentTerms, termsMax);
 }
 
-export function quotePriceCompetitiveness(quote: Quote): number {
-  const groupQuotes = quotes.filter(
+export function quotePriceCompetitiveness(appData: Pick<AppData, "quotes">, quote: Quote): number {
+  const groupQuotes = appData.quotes.filter(
     (candidate) =>
       candidate.recordState !== "Void" &&
       candidate.itemId === quote.itemId &&
@@ -5904,10 +5886,10 @@ export function quotePriceCompetitiveness(quote: Quote): number {
   return 0.3;
 }
 
-export function pricingDetail(supplierQuotes: Quote[], paymentTerms = "") {
+export function pricingDetail(appData: Pick<AppData, "quotes">, supplierQuotes: Quote[], paymentTerms = "") {
   if (supplierQuotes.length === 0) return "No quote for price comparison";
   const selectedCount = supplierQuotes.filter(isSelectedQuote).length;
-  const averagePercent = Math.round((supplierQuotes.reduce((sum, quote) => sum + quotePriceCompetitiveness(quote), 0) / supplierQuotes.length) * 100);
+  const averagePercent = Math.round((supplierQuotes.reduce((sum, quote) => sum + quotePriceCompetitiveness(appData, quote), 0) / supplierQuotes.length) * 100);
   const termsDays = paymentTermDays(paymentTerms);
   const termsLabel = termsDays === undefined ? "payment terms not set" : `Net ${termsDays} payment terms`;
   return `${averagePercent}% price competitiveness, ${termsLabel}, ${selectedCount} selected quote${selectedCount === 1 ? "" : "s"}`;
@@ -5934,7 +5916,7 @@ export function incomingDefectActionLabel(defect: IncomingDefectRecord) {
   return defect.defectAction;
 }
 
-export function exportIncomingDefectHistory(records: IncomingDefectRecord[]) {
+export function exportIncomingDefectHistory(appData: Pick<AppData, "items" | "suppliers">, records: IncomingDefectRecord[]) {
   const headers = [
     "PO Number",
     "Date",
@@ -5949,8 +5931,8 @@ export function exportIncomingDefectHistory(records: IncomingDefectRecord[]) {
   const rows = records.map((defect) => [
     defect.poNumber ?? "",
     defect.defectDate,
-    supplierName(defect.supplierId),
-    itemCode(defect.itemId),
+    supplierName(appData, defect.supplierId),
+    itemCode(appData, defect.itemId),
     defect.poQty ?? "",
     incomingDefectCurrentReceivedQty(defect) || "",
     defect.defectQty,
@@ -5967,7 +5949,7 @@ export function exportIncomingDefectHistory(records: IncomingDefectRecord[]) {
   URL.revokeObjectURL(url);
 }
 
-export function exportQuotes(records: Quote[]) {
+export function exportQuotes(appData: Pick<AppData, "drawingSets" | "files" | "items" | "models" | "priceChanges" | "projects" | "quoteCaseLinks" | "quotes" | "sourceAssignments" | "suppliers">, records: Quote[]) {
   const headers = [
     "Quote ID",
     "Supplier",
@@ -6000,30 +5982,30 @@ export function exportQuotes(records: Quote[]) {
     "Notes",
   ];
   const rows = records.map((quote) => {
-    const supplier = suppliers.find((candidate) => candidate.id === quote.supplierId);
-    const item = itemById(quote.itemId);
-    const sourceRole = sourceRoleForQuote(quote) ?? "";
-    const priceChange = priceChangeForQuote(quote.id);
+    const supplier = appData.suppliers.find((candidate) => candidate.id === quote.supplierId);
+    const item = itemById(appData, quote.itemId);
+    const sourceRole = sourceRoleForQuote(appData, quote) ?? "";
+    const priceChange = priceChangeForQuote(appData, quote.id);
     return [
       quote.id,
-      supplier?.name ?? supplierName(quote.supplierId),
+      supplier?.name ?? supplierName(appData, quote.supplierId),
       supplier?.erpVendorId ?? "",
       supplier?.paymentTerms ?? "",
-      item?.itemCode ?? itemCode(quote.itemId),
+      item?.itemCode ?? itemCode(appData, quote.itemId),
       item?.itemName ?? "",
       item?.type ?? "",
-      modelName(quote.modelId),
-      drawingSetName(quote.drawingSetId),
+      modelName(appData, quote.modelId),
+      drawingSetName(appData, quote.drawingSetId),
       quote.quoteType,
-      quoteCaseLabel(quote),
-      quote.projectId ? projectName(quote.projectId) : "Standalone",
+      quoteCaseLabel(appData, quote),
+      quote.projectId ? projectName(appData, quote.projectId) : "Standalone",
       quote.quoteReason,
       quote.status,
       sourceRole,
       quote.effectiveFrom ?? quote.quoteDate,
       quote.effectiveTo ?? "",
       quote.effectiveTo ? "No" : "Yes",
-      quote.previousQuoteId ? quoteExportReference(quote.previousQuoteId) : "",
+      quote.previousQuoteId ? quoteExportReference(appData, quote.previousQuoteId) : "",
       priceChange ? `${priceChange.effectiveDate}: ${formatMoney(priceChange.oldPrice)} -> ${formatMoney(priceChange.newPrice)} (${priceChange.status})` : "",
       formatDecimalPrice(quote.unitPrice),
       quote.currency,
@@ -6032,7 +6014,7 @@ export function exportQuotes(records: Quote[]) {
       quote.leadTime,
       quote.extraCostType ?? "None",
       quote.extraCostAmount ?? "",
-      quote.attachmentFileId ? fileLabel(quote.attachmentFileId) : "",
+      quote.attachmentFileId ? fileLabel(appData, quote.attachmentFileId) : "",
       quote.notes,
     ];
   });
@@ -6046,16 +6028,16 @@ export function exportQuotes(records: Quote[]) {
   URL.revokeObjectURL(url);
 }
 
-export function priceChangeForQuote(quoteId: string) {
-  return priceChanges.find((change) => change.recordState !== "Void" && change.sourceQuoteId === quoteId);
+export function priceChangeForQuote(appData: Pick<AppData, "priceChanges">, quoteId: string) {
+  return appData.priceChanges.find((change) => change.recordState !== "Void" && change.sourceQuoteId === quoteId);
 }
 
-export function quoteExportReference(quoteId: string) {
-  const quote = quotes.find((candidate) => candidate.id === quoteId);
-  return quote ? `${quote.effectiveFrom ?? quote.quoteDate} / ${supplierName(quote.supplierId)} / ${itemCode(quote.itemId)} / ${formatMoney(quote.unitPrice)}` : quoteId;
+export function quoteExportReference(appData: Pick<AppData, "items" | "quotes" | "suppliers">, quoteId: string) {
+  const quote = appData.quotes.find((candidate) => candidate.id === quoteId);
+  return quote ? `${quote.effectiveFrom ?? quote.quoteDate} / ${supplierName(appData, quote.supplierId)} / ${itemCode(appData, quote.itemId)} / ${formatMoney(quote.unitPrice)}` : quoteId;
 }
 
-export function buildQuotePriceChartRows(visibleQuotes: Quote[], includeAllQuoteSeries: boolean, includeSelectedSeries: boolean) {
+export function buildQuotePriceChartRows(appData: Pick<AppData, "suppliers">, visibleQuotes: Quote[], includeAllQuoteSeries: boolean, includeSelectedSeries: boolean) {
   const rows = new Map<string, Record<string, string | number>>();
   const ensureRow = (date: string) => {
     const row = rows.get(date) ?? { date };
@@ -6066,47 +6048,47 @@ export function buildQuotePriceChartRows(visibleQuotes: Quote[], includeAllQuote
   for (const quote of visibleQuotes) {
     const date = quote.effectiveFrom ?? quote.quoteDate;
     if (includeAllQuoteSeries) {
-      ensureRow(date)[`${supplierName(quote.supplierId)} all quotes`] = quote.unitPrice;
+      ensureRow(date)[`${supplierName(appData, quote.supplierId)} all quotes`] = quote.unitPrice;
     }
     if (includeSelectedSeries && isSelectedQuote(quote)) {
-      ensureRow(date)[`${supplierName(quote.supplierId)} selected`] = quote.unitPrice;
+      ensureRow(date)[`${supplierName(appData, quote.supplierId)} selected`] = quote.unitPrice;
     }
   }
 
   return Array.from(rows.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
-export function buildDashboardPriceTrendRows(visibleQuotes: Quote[]) {
+export function buildDashboardPriceTrendRows(appData: Pick<AppData, "suppliers">, visibleQuotes: Quote[]) {
   const rows = new Map<string, Record<string, string | number>>();
 
   for (const quote of visibleQuotes) {
     const date = quote.effectiveFrom ?? quote.quoteDate;
     const row = rows.get(date) ?? { date };
-    row[supplierName(quote.supplierId)] = quote.unitPrice;
+    row[supplierName(appData, quote.supplierId)] = quote.unitPrice;
     rows.set(date, row);
   }
 
   return Array.from(rows.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
-export function supplierName(id: string) {
-  return suppliers.find((supplier) => supplier.id === id)?.name ?? "Unknown supplier";
+export function supplierName(appData: Pick<AppData, "suppliers">, id: string) {
+  return appData.suppliers.find((supplier) => supplier.id === id)?.name ?? "Unknown supplier";
 }
 
-export function projectName(id: string) {
-  return projects.find((project) => project.id === id)?.name ?? "Unknown case";
+export function projectName(appData: Pick<AppData, "projects">, id: string) {
+  return appData.projects.find((project) => project.id === id)?.name ?? "Unknown case";
 }
 
 export function supplierLocation(supplier: Supplier) {
   return [supplier.region, supplier.country].filter(Boolean).join(", ") || "Not set";
 }
 
-export function modelName(id: string) {
-  return models.find((model) => model.id === id)?.name ?? "Unknown model";
+export function modelName(appData: Pick<AppData, "models">, id: string) {
+  return appData.models.find((model) => model.id === id)?.name ?? "Unknown model";
 }
 
-export function drawingSetName(id: string) {
-  return drawingSets.find((set) => set.id === id)?.name ?? "Unknown packaging set";
+export function drawingSetName(appData: Pick<AppData, "drawingSets">, id: string) {
+  return appData.drawingSets.find((set) => set.id === id)?.name ?? "Unknown packaging set";
 }
 
 export function activeDrawingSetsForModel(sets: DrawingSet[], modelId: string, keepId?: string) {
@@ -6116,32 +6098,32 @@ export function activeDrawingSetsForModel(sets: DrawingSet[], modelId: string, k
     (set.status === "Active" || set.id === keepId));
 }
 
-export function drawingItemForInspection(inspection: SampleInspection) {
-  return drawingSets
+export function drawingItemForInspection(appData: Pick<AppData, "drawingSets">, inspection: SampleInspection) {
+  return appData.drawingSets
     .find((set) => set.id === inspection.drawingSetId)
     ?.drawingItems.find((drawingItem) => drawingItem.id === inspection.drawingItemId);
 }
 
-export function drawingFileLabel(drawingItem?: DrawingSet["drawingItems"][number], drawingSet?: DrawingSet) {
+export function drawingFileLabel(appData: Pick<AppData, "files">, drawingItem?: DrawingSet["drawingItems"][number], drawingSet?: DrawingSet) {
   if (!drawingItem) return "-";
-  if (drawingSet?.packageFileId) return fileLabel(drawingSet.packageFileId);
+  if (drawingSet?.packageFileId) return fileLabel(appData, drawingSet.packageFileId);
   if (drawingItem.drawingSource === "Package PDF" && drawingSet?.packageFileName) return drawingSet.packageFileName;
-  if (drawingItem.fileId) return fileLabel(drawingItem.fileId);
+  if (drawingItem.fileId) return fileLabel(appData, drawingItem.fileId);
   return drawingItem.fileName ?? "-";
 }
 
-export function itemById(id: string): PackagingItem | undefined {
-  return items.find((item) => item.id === id);
+export function itemById(appData: Pick<AppData, "items">, id: string): PackagingItem | undefined {
+  return appData.items.find((item) => item.id === id);
 }
 
-export function itemCode(id: string) {
-  const item = itemById(id);
+export function itemCode(appData: Pick<AppData, "items">, id: string) {
+  const item = itemById(appData, id);
   return item ? item.itemCode : "Unknown item";
 }
 
-export function quoteLabel(id?: string) {
+export function quoteLabel(appData: Pick<AppData, "quotes">, id?: string) {
   if (!id) return "-";
-  const quote = quotes.find((candidate) => candidate.id === id);
+  const quote = appData.quotes.find((candidate) => candidate.id === id);
   return quote ? `${quote.quoteDate} ${formatMoney(quote.unitPrice)}` : "Missing quote";
 }
 
@@ -6150,28 +6132,28 @@ export function quoteExtraCostLabel(quote: Quote) {
   return `${quote.extraCostType}: ${formatMoney(quote.extraCostAmount ?? 0)}`;
 }
 
-export function purchasePriceLabel(id?: string) {
+export function purchasePriceLabel(appData: Pick<AppData, "purchasePrices">, id?: string) {
   if (!id) return "-";
-  const purchase = purchasePrices.find((candidate) => candidate.id === id);
+  const purchase = appData.purchasePrices.find((candidate) => candidate.id === id);
   return purchase ? `${purchase.poNumber} ${purchase.orderDate} ${formatMoney(purchase.unitPrice)}` : "Missing PO price";
 }
 
-export function fileLabel(id?: string) {
+export function fileLabel(appData: Pick<AppData, "files">, id?: string) {
   if (!id) return "-";
-  const file = fileRecord(id);
+  const file = fileRecord(appData, id);
   return file?.fileName ?? "Missing file";
 }
 
-export function fileRecord(id?: string) {
+export function fileRecord(appData: Pick<AppData, "files">, id?: string) {
   if (!id) return undefined;
-  return files.find((candidate) => candidate.id === id);
+  return appData.files.find((candidate) => candidate.id === id);
 }
 
 export function fileUrl(file: UploadedFileRecord) {
   return `/${file.storagePath.replace(/\\/g, "/")}`;
 }
 
-export function priceChangeReference(quoteId?: string, purchasePriceId?: string) {
-  if (purchasePriceId) return purchasePriceLabel(purchasePriceId);
-  return quoteLabel(quoteId);
+export function priceChangeReference(appData: Pick<AppData, "purchasePrices" | "quotes">, quoteId?: string, purchasePriceId?: string) {
+  if (purchasePriceId) return purchasePriceLabel(appData, purchasePriceId);
+  return quoteLabel(appData, quoteId);
 }
