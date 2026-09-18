@@ -13,6 +13,21 @@
     a { color: #E00700; text-decoration: none; }
     a:hover { color: #B51B16; }
     .kan { font-family: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+    @keyframes travel { from { transform: translateX(-120%); } to { transform: translateX(520%); } }
+    @keyframes tick { 0%, 92%, 100% { opacity: 0.28; } 94% { opacity: 0.85; } }
+    @keyframes settle { from { opacity: 0; letter-spacing: 0.30em; } to { opacity: 1; letter-spacing: 0.01em; } }
+    .settle { animation: settle 900ms cubic-bezier(0.22,0.61,0.36,1) 120ms both; }
+    .grid { animation: tick 6s steps(1, end) infinite; }
+    /* No visible track — only the light that passes over it, in the gaps between content. */
+    .rail { position: absolute; left: 0; right: 0; height: 1px; overflow: hidden; }
+    .rail.r1 { top: 17%; } .rail.r2 { top: 69%; } .rail.r3 { top: 85%; }
+    .rail span { position: absolute; top: 0; left: 0; height: 1px; width: 220px; opacity: 0.5;
+      background: linear-gradient(90deg, rgba(224,7,0,0) 0%, rgba(224,7,0,0.75) 50%, rgba(224,7,0,0) 100%); }
+    .rail.r1 span { animation: travel 5.5s linear infinite; }
+    .rail.r2 span { animation: travel 7.5s linear 1.2s infinite; }
+    .rail.r3 span { animation: travel 6.5s linear 2.6s infinite; }
+    @media (prefers-reduced-motion: reduce) { .settle,.grid,.rail span { animation: none; } .rail { display: none; } }
   </style>
 </helmet>
 
@@ -20,7 +35,10 @@
 
   <!-- solid brand block -->
   <div style="background: #141414; color: #FFFFFF; padding: 60px 64px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
-    <svg width="520" height="520" viewBox="0 0 520 520" style="position: absolute; right: -150px; bottom: -130px; opacity: 0.28;">
+    <div class="rail r1"><span></span></div>
+    <div class="rail r2"><span></span></div>
+    <div class="rail r3"><span></span></div>
+    <svg class="grid" width="520" height="520" viewBox="0 0 520 520" style="position: absolute; right: -150px; bottom: -130px; opacity: 0.28;">
       <g fill="none" stroke="#E00700" stroke-width="2">
         <rect x="60" y="120" width="400" height="280"></rect>
         <path d="M60 190h400M60 260h400M60 330h400"></path>
@@ -31,7 +49,7 @@
     <img src="seg-logo-white.svg" alt="SEG Solar" style="display: block; width: 190px; height: 32px; position: relative;">
 
     <div style="position: relative;">
-      <h1 class="kan" style="margin: 0; font-size: 54px; font-weight: 600; line-height: 1.02; letter-spacing: 0.01em; text-transform: uppercase;">Global<br>Sourcing</h1>
+      <h1 class="kan settle" style="margin: 0; font-size: 54px; font-weight: 600; line-height: 1.02; letter-spacing: 0.01em; text-transform: uppercase;">Global<br>Sourcing</h1>
       <div style="width: 72px; height: 4px; background: #E00700; margin: 26px 0 22px;"></div>
       <p style="margin: 0; font-size: 15px; max-width: 360px; color: #B8B8B8;">Packaging supplier development, quoting, sample QC and pricing for solar module production.</p>
     </div>

@@ -92,7 +92,7 @@
       "x": 0,
       "y": -150,
       "w": 900,
-      "text": "Sign-in follows the chosen direction: charcoal block, logo untouched, SEG red as the accent.\nThere is no password form — authentication goes to the company's Entra ID tenant, so the screen is one button plus the deactivated-account state."
+      "text": "Sign-in follows the chosen direction: charcoal block, logo untouched, SEG red as the accent, no password form — authentication goes to the company's Entra ID tenant.\nMotion direction C is applied: three rails carry red light across the block at different speeds, like modules moving down a line, and the heading's letter-spacing settles on load. Everything stops under prefers-reduced-motion."
     }
   ],
   "launch": {
