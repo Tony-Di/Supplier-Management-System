@@ -15,6 +15,16 @@ export function SignIn({ deactivated }: { deactivated: boolean }) {
   return (
     <div className="signInLayout">
       <aside className="signInBrand">
+        <div className="signInRail signInRail1"><span></span></div>
+        <div className="signInRail signInRail2"><span></span></div>
+        <div className="signInRail signInRail3"><span></span></div>
+        <svg className="signInGrid" width="520" height="520" viewBox="0 0 520 520">
+          <g fill="none" stroke="var(--seg-red)" strokeWidth="2">
+            <rect x="60" y="120" width="400" height="280"></rect>
+            <path d="M60 190h400M60 260h400M60 330h400"></path>
+            <path d="M160 120v280M260 120v280M360 120v280"></path>
+          </g>
+        </svg>
         <img src={logo} alt="SEG Solar" className="signInLogo" />
         <div>
           <h1 className="signInTitle">Global<br />Sourcing</h1>

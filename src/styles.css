@@ -2378,6 +2378,10 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
   font-size: 13px;
 }
 
+@keyframes travel { from { transform: translateX(-120%); } to { transform: translateX(520%); } }
+@keyframes tick { 0%, 92%, 100% { opacity: 0.28; } 94% { opacity: 0.85; } }
+@keyframes settle { from { opacity: 0; letter-spacing: 0.30em; } to { opacity: 1; letter-spacing: 0.01em; } }
+
 .signInLayout {
   display: grid;
   grid-template-columns: 1.15fr 1fr;
@@ -2392,6 +2396,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
   flex-direction: column;
   justify-content: space-between;
   gap: 40px;
+  position: relative;
+  overflow: hidden;
 }
 
 .signInLogo { display: block; width: 190px; height: 32px; }
@@ -2404,6 +2410,7 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
   line-height: 1.02;
   letter-spacing: 0.01em;
   text-transform: uppercase;
+  animation: settle 900ms cubic-bezier(0.22, 0.61, 0.36, 1) 120ms both;
 }
 
 .signInRule { width: 72px; height: 4px; background: var(--seg-red); margin: 26px 0 22px; }
@@ -2483,11 +2490,56 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 
 .signInDeactivatedBody { color: #7A3230; font-size: 12px; margin-top: 3px; }
 
+.signInRail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.signInRail1 { top: 34%; }
+.signInRail2 { top: 58%; }
+.signInRail3 { top: 78%; }
+
+.signInRail span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 120px;
+  background: linear-gradient(90deg, rgba(224, 7, 0, 0) 0%, var(--seg-red) 50%, rgba(224, 7, 0, 0) 100%);
+}
+
+.signInRail1 span { animation: travel 5.5s linear infinite; }
+.signInRail2 span { animation: travel 7.5s linear 1.2s infinite; }
+.signInRail3 span { animation: travel 6.5s linear 2.6s infinite; }
+
+.signInGrid {
+  position: absolute;
+  right: -150px;
+  bottom: -130px;
+  opacity: 0.28;
+  animation: tick 6s steps(1, end) infinite;
+}
+
 @media (max-width: 760px) {
   .signInLayout { grid-template-columns: 1fr; }
   .signInBrand { padding: 40px 28px; }
   .signInTitle { font-size: 38px; }
   .signInPanel { padding: 40px 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signInTitle,
+  .signInGrid,
+  .signInRail span {
+    animation: none;
+  }
+  .signInRail {
+    display: none;
+  }
 }
 
 /* Sidebar signed-in identity block, replaces the old sidebarFooter content. */
