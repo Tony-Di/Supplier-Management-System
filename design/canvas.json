@@ -1,12 +1,18 @@
 {
+  "pages": [
+    { "id": "page-1", "name": "Screens" },
+    { "id": "page-2", "name": "States" }
+  ],
   "artboards": [
-    { "file": "Main.dc.html", "title": "Dashboard", "x": 0, "y": 0, "w": 1440, "h": 1180 },
-    { "file": "Suppliers.dc.html", "title": "Suppliers", "x": 1560, "y": 0, "w": 1440, "h": 780 },
-    { "file": "Sourcing.dc.html", "title": "Sourcing Workbench — Comparison", "x": 0, "y": 1320, "w": 1440, "h": 1020 },
-    { "file": "Scorecard.dc.html", "title": "Supplier Scorecard", "x": 1560, "y": 1320, "w": 1440, "h": 1020 }
+    { "file": "Main.dc.html", "title": "Dashboard", "page": "page-1", "x": 0, "y": 0, "w": 1440, "h": 1180 },
+    { "file": "Suppliers.dc.html", "title": "Suppliers", "page": "page-1", "x": 1560, "y": 0, "w": 1440, "h": 780 },
+    { "file": "Sourcing.dc.html", "title": "Sourcing Workbench — Comparison", "page": "page-1", "x": 0, "y": 1320, "w": 1440, "h": 1020 },
+    { "file": "Scorecard.dc.html", "title": "Supplier Scorecard", "page": "page-1", "x": 1560, "y": 1320, "w": 1440, "h": 1020 },
+    { "file": "States.dc.html", "title": "Component states", "page": "page-2", "x": 0, "y": 0, "w": 1440, "h": 1060 }
   ],
   "annotations": [
-    { "id": "brand-note", "x": 0, "y": -150, "w": 700, "text": "Brand values lifted from segsolar.com stylesheets: red #E00700, dark red #B51B16, blue #1C5CB0, Kanit headings, square corners (the site uses 0 radius outside circular elements).\nData shown is live data from the prototype's store: 2 suppliers, real item codes and quotes, backend-calculated scores 85 and 94." }
+    { "id": "brand-note", "page": "page-1", "x": 0, "y": -150, "w": 700, "text": "Brand values lifted from segsolar.com stylesheets: red #E00700, dark red #B51B16, blue #1C5CB0, Kanit headings, square corners (the site uses 0 radius outside circular elements).\nData shown is live data from the prototype's store: 2 suppliers, real item codes and quotes, backend-calculated scores 79 and 94." },
+    { "id": "states-note", "page": "page-2", "x": 0, "y": -150, "w": 700, "text": "These three states are needed before the remaining backend rules land: blocking source roles until QC passes, and keeping voided records out of circulation.\nMessage text is copied from the API's own error strings." }
   ],
-  "launch": { "view": "canvas" }
+  "launch": { "view": "canvas", "page": "page-2" }
 }

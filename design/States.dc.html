@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      margin: 0;
+      background: #EFF2F7;
+      color: #1E1E1E;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #E00700; text-decoration: none; }
+    a:hover { color: #B51B16; }
+    .kan { font-family: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    .sheetTitle {
+      font-family: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+      margin: 0;
+    }
+    .caption { color: #666666; font-size: 12px; margin-top: 4px; }
+    .label { color: #999999; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .panel { background: #FFFFFF; border: 1px solid #D9DEE5; }
+    .panelHead { padding: 14px 20px; border-bottom: 1px solid #E6E8EB; }
+    .row { display: flex; align-items: flex-start; gap: 28px; padding: 20px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px;
+      font-family: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+  </style>
+</helmet>
+
+<div style="padding: 36px 40px 44px; background: #EFF2F7; min-height: 1060px;">
+
+  <div style="max-width: 1360px;">
+    <div style="color: #E00700; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;">Component states</div>
+    <h1 class="kan" style="margin: 6px 0 4px; font-size: 28px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;">Blocked, failed, voided</h1>
+    <p style="color: #666666; margin: 0 0 24px; max-width: 760px;">The three states every screen needs once the backend enforces its rules. Message text is the wording the API actually returns, so the UI and the server say the same thing.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+
+      <!-- 1. BLOCKED ACTION -->
+      <section class="panel">
+        <div class="panelHead">
+          <h2 class="sheetTitle">1 · Action blocked by a rule</h2>
+          <div class="caption">A source role cannot be assigned before sample QC passes. The control stays visible and says why, rather than failing after the click.</div>
+        </div>
+        <div class="row" style="gap: 20px;">
+          <div>
+            <div class="label">Allowed</div>
+            <div class="btn" style="margin-top: 8px; background: #E00700; color: #FFFFFF;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2"><path d="M4.5 12.5l5 5 10-10"></path></svg>
+              Assign Primary
+            </div>
+          </div>
+          <div>
+            <div class="label">Blocked</div>
+            <div class="btn" style="margin-top: 8px; background: #F2F3F5; color: #999999; border: 1px solid #D4D4D4;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#999999" stroke-width="2"><rect x="5" y="11" width="14" height="9"></rect><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"></path></svg>
+              Assign Primary
+            </div>
+          </div>
+        </div>
+        <div style="margin: 0 20px 20px; border: 1px solid #D4D4D4; background: #FAFBFC; padding: 12px 14px; display: flex; gap: 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666666" stroke-width="2" style="flex: 0 0 auto; margin-top: 1px;"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
+          <div>
+            <div style="font-size: 13px; font-weight: 700;">Sample QC must pass first</div>
+            <div style="color: #666666; font-size: 12px; margin-top: 3px;">Round 1 result is <strong style="color: #1E1E1E;">Fail</strong>. Record a passing or conditional inspection to unlock Primary, Secondary and Tertiary.</div>
+            <div style="margin-top: 8px;"><span style="font-size: 12px; color: #E00700; border-bottom: 1px solid #E00700;">Open QC record</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. REQUEST REJECTED -->
+      <section class="panel">
+        <div class="panelHead">
+          <h2 class="sheetTitle">2 · Request rejected by the API</h2>
+          <div class="caption">The page banner carries the server's own message. It stays until dismissed, because the record was not saved.</div>
+        </div>
+        <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="border: 1px solid #E8B4B1; border-left: 3px solid #E00700; background: #FDF3F2; padding: 13px 15px; display: flex; gap: 11px; align-items: flex-start;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#B51B16" stroke-width="2" style="flex: 0 0 auto; margin-top: 1px;"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 8v5"></path><path d="M12 16h.01"></path></svg>
+            <div style="min-width: 0;">
+              <div style="font-size: 13px; font-weight: 700; color: #B51B16;">Supplier not saved</div>
+              <div style="color: #7A3230; font-size: 12px; margin-top: 3px;">Item Code already exists. Edit the existing item and add additional models instead of creating a duplicate.</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B51B16" stroke-width="2" style="flex: 0 0 auto; margin-left: auto;"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+          </div>
+
+          <div>
+            <div class="label" style="margin-bottom: 6px;">Field-level error</div>
+            <div style="display: flex; flex-direction: column; gap: 6px; max-width: 320px;">
+              <span style="font-size: 12px; color: #666666;">Item Code</span>
+              <div style="height: 40px; border: 1px solid #E00700; background: #FFFFFF; display: flex; align-items: center; padding: 0 12px; font-size: 13px;">27.002.011.052</div>
+              <span style="font-size: 12px; color: #B51B16;">This item code is already in use by item-1001.</span>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid #E6E8EB; padding-top: 14px;">
+            <div class="label" style="margin-bottom: 8px;">Blocked delete — real API wording</div>
+            <div style="color: #666666; font-size: 12px;">Cannot delete supplier: linked to development cases, quotes, sample inspections.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. VOIDED RECORDS -->
+      <section class="panel">
+        <div class="panelHead">
+          <h2 class="sheetTitle">3 · Voided records</h2>
+          <div class="caption">A voided record stays visible for history but leaves circulation: dimmed, labelled with its reason, and gone from every picker.</div>
+        </div>
+        <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <span class="kan" style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #FFFFFF; background: #1E1E1E; padding: 5px 9px;">Active</span>
+            <span class="kan" style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #1E1E1E; border: 1px solid #C1C1C1; padding: 4px 8px;">Draft</span>
+            <span class="kan" style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #777777; border: 1px dashed #B8B8B8; background: #F2F3F5; padding: 4px 8px;">Void</span>
+          </div>
+
+          <div style="border: 1px solid #D4D4D4; background: #F7F8FA; padding: 14px 16px; opacity: 0.85;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;">
+              <div>
+                <div class="kan" style="font-size: 16px; font-weight: 600; color: #777777; text-decoration: line-through;">Sample Vendor Co.</div>
+                <div style="color: #999999; font-size: 12px; margin-top: 3px;">Voided 2026-09-12 · Entered in error</div>
+              </div>
+              <span class="kan" style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #777777; border: 1px dashed #B8B8B8; background: #FFFFFF; padding: 4px 8px;">Void</span>
+            </div>
+            <div style="color: #999999; font-size: 12px; margin-top: 10px;">Read-only. Quotes and inspections already linked to it keep working.</div>
+          </div>
+
+          <div>
+            <div class="label" style="margin-bottom: 8px;">Picker — voided entries are not offered</div>
+            <div style="border: 1px solid #D4D4D4; background: #FFFFFF; max-width: 360px;">
+              <div style="padding: 10px 14px; border-bottom: 1px solid #E6E8EB; font-size: 13px;">Legacy Paper &amp; Packaging, LLC</div>
+              <div style="padding: 10px 14px; border-bottom: 1px solid #E6E8EB; font-size: 13px;">UFP New Waverly LLC</div>
+              <div style="padding: 10px 14px; font-size: 13px; color: #B8B8B8; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <span style="text-decoration: line-through;">Sample Vendor Co.</span>
+                <span style="font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;">Hidden</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. WHERE THEY APPEAR -->
+      <section class="panel">
+        <div class="panelHead">
+          <h2 class="sheetTitle">Where each state appears</h2>
+          <div class="caption">Screens that need these states once the matching backend rule lands.</div>
+        </div>
+        <div style="padding: 4px 0 8px;">
+          <table style="border-collapse: collapse; width: 100%;">
+            <thead>
+              <tr>
+                <th style="text-align: left; color: #666666; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 11px 20px; border-bottom: 1px solid #D4D4D4; background: #F7F8FA;">State</th>
+                <th style="text-align: left; color: #666666; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 11px 14px; border-bottom: 1px solid #D4D4D4; background: #F7F8FA;">Screens</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-size: 13px; padding: 12px 20px; border-bottom: 1px solid #E6E8EB; font-weight: 700;">Blocked action</td>
+                <td style="font-size: 13px; padding: 12px 14px; border-bottom: 1px solid #E6E8EB; color: #666666;">Sourcing comparison — source role column</td>
+              </tr>
+              <tr>
+                <td style="font-size: 13px; padding: 12px 20px; border-bottom: 1px solid #E6E8EB; font-weight: 700;">Rejected request</td>
+                <td style="font-size: 13px; padding: 12px 14px; border-bottom: 1px solid #E6E8EB; color: #666666;">Every create, edit, import, upload and delete</td>
+              </tr>
+              <tr>
+                <td style="font-size: 13px; padding: 12px 20px; border-bottom: 1px solid #E6E8EB; font-weight: 700;">Voided record</td>
+                <td style="font-size: 13px; padding: 12px 14px; border-bottom: 1px solid #E6E8EB; color: #666666;">Suppliers, items, models, drawing sets, cases, quotes</td>
+              </tr>
+              <tr>
+                <td style="font-size: 13px; padding: 12px 20px; border-bottom: 1px solid #E6E8EB; font-weight: 700;">Picker filtering</td>
+                <td style="font-size: 13px; padding: 12px 14px; border-bottom: 1px solid #E6E8EB; color: #666666;">Quote, inspection, case and assignment forms</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

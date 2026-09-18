@@ -11,9 +11,13 @@ Published canvas: https://claude.ai/artifact/7a2q1e75dQ1yN4ihLeWKXn
 | `Suppliers.dc.html` | Suppliers |
 | `Sourcing.dc.html` | Sourcing Workbench — comparison tab |
 | `Scorecard.dc.html` | Supplier scorecard |
-| `canvas.json` | Artboard positions on the canvas |
+| `States.dc.html` | Component states: blocked action, rejected request, voided record |
+| `canvas.json` | Artboard positions and the two canvas pages |
 | `seg-logo-white.svg` | Brand mark for dark backgrounds, from segsolar.com |
 | `seg-logo-dark.svg` | Brand mark for light backgrounds, from segsolar.com |
+
+The canvas has two pages: **Screens** (the four app screens) and **States**
+(the component sheet).
 
 Each `.dc.html` is one artboard: a standalone HTML page with inline styles.
 Open one directly in a browser to view it.
