@@ -1,87 +1,17 @@
-import { CSSProperties, Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart as RechartsLineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  BarChart3,
-  ChevronDown,
-  ChevronUp,
-  ClipboardCheck,
-  Factory,
-  FileStack,
-  FolderKanban,
-  Gauge,
-  LayoutDashboard,
-  LineChart,
-  Menu,
-  MoreHorizontal,
-  PackageSearch,
-  Plus,
-  CircleHelp,
-  Search,
-  UserRound,
-} from "lucide-react";
-import {
-  drawingSets as seedDrawingSets,
-  inspections as seedInspections,
-  items as seedItems,
-  models as seedModels,
-  priceChanges as seedPriceChanges,
-  projects as seedProjects,
-  purchasePrices as seedPurchasePrices,
-  quotes as seedQuotes,
-  suppliers as seedSuppliers,
-} from "./data";
+import { LayoutDashboard, UserRound, PackageSearch, FolderKanban, LineChart, ClipboardCheck, Gauge, Menu, FileStack, Plus, ChevronDown, ChevronUp, Search, CircleHelp, MoreHorizontal } from "lucide-react";
+import { type AppData, type DeleteEndpoint, fetchBootstrap, deleteRecord, voidRecord, updateRecord, upsertSourceAssignment, type ComparisonRow, fetchComparison, type ScorecardRow, fetchScorecard, updateScoreWeights, uploadFile, createSupplier, createModel, createItem, importItems, createDrawingSet, createProject, createQuote, createInspection, createIncomingDefect, createPriceChange } from "./api";
+import { suppliers as seedSuppliers, models as seedModels, items as seedItems, drawingSets as seedDrawingSets, projects as seedProjects, quotes as seedQuotes, inspections as seedInspections, priceChanges as seedPriceChanges, purchasePrices as seedPurchasePrices } from "./data";
+import { type PackagingItemType, type Quote, type IncomingDefectRecord, type SampleInspection, type Supplier, type Model, type PackagingItem, type DrawingSet, type PriceChange, type SourceAssignment, type ScoreWeights, type AuditLogRecord, type UploadedFileRecord } from "./types";
+import { useState, useEffect, useMemo, CSSProperties, FormEvent, Dispatch, SetStateAction, useRef } from "react";
+import { ResponsiveContainer, LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line, Legend } from "recharts";
+import { formatMonthTick, formatMoney, formatAuditDate, formatAuditValue, todayDateString, formatFileSize, clamp, csvCell, formatDecimalPrice } from "./lib/format";
+import { dashboardPriceDomain, chartColor, priceAnalyticsDomain } from "./lib/charts";
+import { findDuplicateItemCodes, parseItemImportRows, nextPackagingSetRevision, buildDrawingRowsFromModelItems } from "./lib/import";
+import { isIncomingDefectPendingReceive, isIncomingDefectComplete, incomingDefectCurrentReceivedQty, incomingDefectPendingQty } from "./lib/defects";
+import { isWithinRecentDays, scoreIncomingQuality, scoreLeadTime, scorePaymentTerms, paymentTermDays } from "./lib/score";
 import { parseLeadTimeDays } from "./leadTime";
-import {
-  createInspection,
-  createIncomingDefect,
-  createDrawingSet,
-  createItem,
-  createModel,
-  createPriceChange,
-  createProject,
-  createQuote,
-  createSupplier,
-  deleteRecord,
-  fetchBootstrap,
-  fetchComparison,
-  fetchScorecard,
-  importItems,
-  updateScoreWeights,
-  upsertSourceAssignment,
-  uploadFile,
-  type AppData,
-  type ComparisonRow,
-  type DeleteEndpoint,
-  type ScorecardRow,
-  updateRecord,
-  voidRecord,
-} from "./api";
-import type {
-  AuditLogRecord,
-  DrawingSet,
-  IncomingDefectRecord,
-  Model,
-  PackagingItem,
-  PackagingItemType,
-  PriceChange,
-  Quote,
-  SampleInspection,
-  ScoreWeights,
-  SourceAssignment,
-  Supplier,
-  UploadedFileRecord,
-} from "./types";
 
-type Section =
+export type Section =
   | "Dashboard"
   | "Suppliers"
   | "Products & Drawings"
@@ -90,13 +20,17 @@ type Section =
   | "QC Inspections"
   | "Reports";
 
-type ProductsTab = "Models & Items" | "Packaging Sets";
-type SourcingTab = "Development Cases" | "Quotes" | "Comparison";
-type PricingTab = "Price Analytics" | "Price Changes";
-type QCTab = "Sample Inspections" | "Incoming Defects";
-type ReportsTab = "Scorecard" | "Score Settings";
+export type ProductsTab = "Models & Items" | "Packaging Sets";
 
-const navItems: { section: Section; icon: typeof LayoutDashboard }[] = [
+export type SourcingTab = "Development Cases" | "Quotes" | "Comparison";
+
+export type PricingTab = "Price Analytics" | "Price Changes";
+
+export type QCTab = "Sample Inspections" | "Incoming Defects";
+
+export type ReportsTab = "Scorecard" | "Score Settings";
+
+export const navItems: { section: Section; icon: typeof LayoutDashboard }[] = [
   { section: "Dashboard", icon: LayoutDashboard },
   { section: "Suppliers", icon: UserRound },
   { section: "Products & Drawings", icon: PackageSearch },
@@ -106,7 +40,7 @@ const navItems: { section: Section; icon: typeof LayoutDashboard }[] = [
   { section: "Reports", icon: Gauge },
 ];
 
-const fallbackData: AppData = {
+export const fallbackData: AppData = {
   suppliers: seedSuppliers,
   models: seedModels,
   items: seedItems,
@@ -123,7 +57,7 @@ const fallbackData: AppData = {
   auditLogs: [],
 };
 
-const packagingItemOptions: PackagingItemType[] = [
+export const packagingItemOptions: PackagingItemType[] = [
   "Paper Corner Protector",
   "Long Paper Protector",
   "Short Paper Protector",
@@ -134,19 +68,27 @@ const packagingItemOptions: PackagingItemType[] = [
   "Stretch Film",
 ];
 
-const quoteStatusOptions: Quote["status"][] = ["Received", "Under Review", "Sample Requested", "Selected", "Not Selected", "Expired"];
-const incomingDefectTypes: IncomingDefectRecord["defectType"][] = ["Damage", "Dimension", "Quantity Shortage", "Material", "Labeling", "Other"];
-type ScorecardSortKey = "Score" | "Quality" | "Pricing" | "Responsiveness" | "Scope Fit" | "Lead Time";
-const scorecardSortOptions: ScorecardSortKey[] = ["Score", "Quality", "Pricing", "Responsiveness", "Scope Fit", "Lead Time"];
+export const quoteStatusOptions: Quote["status"][] = ["Received", "Under Review", "Sample Requested", "Selected", "Not Selected", "Expired"];
 
-type DeleteHandler = (endpoint: DeleteEndpoint, id: string, label: string) => void;
-type VoidHandler = (endpoint: DeleteEndpoint, id: string, label: string) => void;
-type HistoryHandler = (entityType: string, entityId: string, label: string) => void;
-type VoidTarget = { endpoint: DeleteEndpoint; id: string; label: string };
-type ViewTarget =
+export const incomingDefectTypes: IncomingDefectRecord["defectType"][] = ["Damage", "Dimension", "Quantity Shortage", "Material", "Labeling", "Other"];
+
+export type ScorecardSortKey = "Score" | "Quality" | "Pricing" | "Responsiveness" | "Scope Fit" | "Lead Time";
+
+export const scorecardSortOptions: ScorecardSortKey[] = ["Score", "Quality", "Pricing", "Responsiveness", "Scope Fit", "Lead Time"];
+
+export type DeleteHandler = (endpoint: DeleteEndpoint, id: string, label: string) => void;
+
+export type VoidHandler = (endpoint: DeleteEndpoint, id: string, label: string) => void;
+
+export type HistoryHandler = (entityType: string, entityId: string, label: string) => void;
+
+export type VoidTarget = { endpoint: DeleteEndpoint; id: string; label: string };
+
+export type ViewTarget =
   | { type: "inspection"; record: SampleInspection }
   | { type: "incoming-defect"; record: IncomingDefectRecord };
-type EditTarget =
+
+export type EditTarget =
   | { endpoint: "suppliers"; record: Supplier }
   | { endpoint: "models"; record: Model }
   | { endpoint: "items"; record: PackagingItem }
@@ -158,20 +100,33 @@ type EditTarget =
   | { endpoint: "price-changes"; record: PriceChange }
   | { endpoint: "purchase-prices"; record: AppData["purchasePrices"][number] };
 
-let suppliers: Supplier[] = fallbackData.suppliers;
-let models = fallbackData.models;
-let items = fallbackData.items;
-let drawingSets = fallbackData.drawingSets;
-let projects = fallbackData.projects;
-let quotes = fallbackData.quotes;
-let quoteCaseLinks = fallbackData.quoteCaseLinks;
-let sourceAssignments = fallbackData.sourceAssignments;
-let inspections = fallbackData.inspections;
-let incomingDefects = fallbackData.incomingDefects;
-let priceChanges = fallbackData.priceChanges;
-let purchasePrices = fallbackData.purchasePrices;
-let files = fallbackData.files;
-let auditLogs = fallbackData.auditLogs;
+export let suppliers: Supplier[] = fallbackData.suppliers;
+
+export let models = fallbackData.models;
+
+export let items = fallbackData.items;
+
+export let drawingSets = fallbackData.drawingSets;
+
+export let projects = fallbackData.projects;
+
+export let quotes = fallbackData.quotes;
+
+export let quoteCaseLinks = fallbackData.quoteCaseLinks;
+
+export let sourceAssignments = fallbackData.sourceAssignments;
+
+export let inspections = fallbackData.inspections;
+
+export let incomingDefects = fallbackData.incomingDefects;
+
+export let priceChanges = fallbackData.priceChanges;
+
+export let purchasePrices = fallbackData.purchasePrices;
+
+export let files = fallbackData.files;
+
+export let auditLogs = fallbackData.auditLogs;
 
 export function App() {
   const [section, setSection] = useState<Section>("Dashboard");
@@ -573,7 +528,7 @@ export function App() {
   );
 }
 
-function Dashboard() {
+export function Dashboard() {
   const activeItems = items.filter((item) => item.recordState !== "Void");
   const activeSuppliers = suppliers.filter((supplier) => supplier.recordState !== "Void");
   const [selectedItemId, setSelectedItemId] = useState(activeItems[0]?.id ?? "");
@@ -752,7 +707,7 @@ function Dashboard() {
   );
 }
 
-function SubTabs({
+export function SubTabs({
   activeTab,
   onChange,
   tabs,
@@ -777,7 +732,7 @@ function SubTabs({
   );
 }
 
-function RiskGroup({ children, title }: { children: React.ReactNode; title: string }) {
+export function RiskGroup({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <div className="riskGroup">
       <h3>{title}</h3>
@@ -786,7 +741,7 @@ function RiskGroup({ children, title }: { children: React.ReactNode; title: stri
   );
 }
 
-function Suppliers({
+export function Suppliers({
   onAdd,
   onDelete,
   onEdit,
@@ -847,7 +802,7 @@ function Suppliers({
   );
 }
 
-function ModelsAndItems({
+export function ModelsAndItems({
   onAddItem,
   onAddModel,
   onDelete,
@@ -986,7 +941,7 @@ function ModelsAndItems({
   );
 }
 
-function DrawingSets({
+export function DrawingSets({
   onAdd,
   onDelete,
   onEdit,
@@ -1080,7 +1035,7 @@ function DrawingSets({
   );
 }
 
-function PackagingSetTitle({ set }: { set: DrawingSet }) {
+export function PackagingSetTitle({ set }: { set: DrawingSet }) {
   const title = `${set.name} ${set.revision}`;
   const file = fileRecord(set.packageFileId);
   if (file) {
@@ -1093,7 +1048,7 @@ function PackagingSetTitle({ set }: { set: DrawingSet }) {
   return <span>{title}</span>;
 }
 
-function SourcingProjects({
+export function SourcingProjects({
   onSourceRoleChange,
   onAdd,
   onDelete,
@@ -1212,7 +1167,7 @@ function SourcingProjects({
   );
 }
 
-function CaseToolbarSearch({
+export function CaseToolbarSearch({
   caseSearch,
   filteredProjects,
   onSearchChange,
@@ -1271,7 +1226,7 @@ function CaseToolbarSearch({
   );
 }
 
-function Quotes({
+export function Quotes({
   onAdd,
   onDelete,
   onEdit,
@@ -1426,7 +1381,7 @@ function Quotes({
   );
 }
 
-function Comparison({ projectId }: { projectId: string }) {
+export function Comparison({ projectId }: { projectId: string }) {
   const [selectedProjectId, setSelectedProjectId] = useState(projectId || projects[0]?.id || "");
   const selectedProject = projects.find((current) => current.id === selectedProjectId);
   const [selectedItemId, setSelectedItemId] = useState(selectedProject?.itemIds[0] ?? "");
@@ -1567,7 +1522,7 @@ function Comparison({ projectId }: { projectId: string }) {
   );
 }
 
-function SampleInspections({
+export function SampleInspections({
   onAdd,
   onDelete,
   onEdit,
@@ -1739,7 +1694,7 @@ function SampleInspections({
   );
 }
 
-function IncomingDefects({
+export function IncomingDefects({
   onAdd,
   onDelete,
   onEdit,
@@ -1916,7 +1871,7 @@ function IncomingDefects({
   );
 }
 
-function PriceAnalytics() {
+export function PriceAnalytics() {
   const activeItems = items.filter((item) => isPublishedRecord(item) && item.recordState !== "Void");
   const activeSuppliers = suppliers.filter((supplier) => isPublishedRecord(supplier) && supplier.recordState !== "Void");
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>(activeItems.slice(0, 3).map((item) => item.id));
@@ -2039,7 +1994,7 @@ function PriceAnalytics() {
   );
 }
 
-function PriceChanges({
+export function PriceChanges({
   onDelete,
   onEdit,
   onHistory,
@@ -2115,7 +2070,7 @@ function PriceChanges({
   );
 }
 
-function QuoteTrend() {
+export function QuoteTrend() {
   const groups = Array.from(
     quotes.reduce((map, quote) => {
       const key = `${quote.supplierId}::${quote.itemId}`;
@@ -2209,7 +2164,7 @@ function QuoteTrend() {
   );
 }
 
-function Scorecard() {
+export function Scorecard() {
   const [serverRows, setServerRows] = useState<ScorecardRow[] | null>(null);
   const [scorecardError, setScorecardError] = useState("");
   const [itemFilter, setItemFilter] = useState("All");
@@ -2388,7 +2343,7 @@ function Scorecard() {
   );
 }
 
-function ScoreCell({ category }: { category?: ScorecardRow["categories"][number] }) {
+export function ScoreCell({ category }: { category?: ScorecardRow["categories"][number] }) {
   if (!category) return <span className="muted">Not scored</span>;
   return (
     <span className="scoreCell" title={category.detail}>
@@ -2398,7 +2353,7 @@ function ScoreCell({ category }: { category?: ScorecardRow["categories"][number]
   );
 }
 
-function ScoreDonut({ row }: { row: ScorecardRow }) {
+export function ScoreDonut({ row }: { row: ScorecardRow }) {
   const segments = scoreDonutSegments(row);
   return (
     <div className="scoreDonut" style={{ "--segments": segments } as CSSProperties}>
@@ -2410,21 +2365,21 @@ function ScoreDonut({ row }: { row: ScorecardRow }) {
   );
 }
 
-function averageScore(rows: ScorecardRow[]) {
+export function averageScore(rows: ScorecardRow[]) {
   if (rows.length === 0) return 0;
   return Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length);
 }
 
-function bestScore(rows: ScorecardRow[]) {
+export function bestScore(rows: ScorecardRow[]) {
   return rows.reduce((best, row) => Math.max(best, row.score), 0);
 }
 
-function bestSupplierName(rows: ScorecardRow[]) {
+export function bestSupplierName(rows: ScorecardRow[]) {
   const best = [...rows].sort((a, b) => b.score - a.score)[0];
   return best ? best.supplier.name : "no visible suppliers";
 }
 
-function scorecardSortValue(row: ScorecardRow, sortBy: ScorecardSortKey) {
+export function scorecardSortValue(row: ScorecardRow, sortBy: ScorecardSortKey) {
   if (sortBy === "Score") return row.score;
   const keyBySort: Record<Exclude<ScorecardSortKey, "Score">, ScorecardRow["categories"][number]["key"]> = {
     Quality: "quality",
@@ -2436,7 +2391,7 @@ function scorecardSortValue(row: ScorecardRow, sortBy: ScorecardSortKey) {
   return row.categories.find((category) => category.key === keyBySort[sortBy])?.score ?? 0;
 }
 
-function scoreIssueSummary(row: ScorecardRow) {
+export function scoreIssueSummary(row: ScorecardRow) {
   const issues: string[] = [];
   const quality = row.categories.find((category) => category.key === "quality");
   const pricing = row.categories.find((category) => category.key === "pricing");
@@ -2459,7 +2414,7 @@ function scoreIssueSummary(row: ScorecardRow) {
   return issues.slice(0, 3).join(", ");
 }
 
-function averageCategoryScore(rows: ScorecardRow[], key: ScorecardRow["categories"][number]["key"]) {
+export function averageCategoryScore(rows: ScorecardRow[], key: ScorecardRow["categories"][number]["key"]) {
   if (rows.length === 0) return "0/0";
   const totals = rows.reduce(
     (sum, row) => {
@@ -2474,7 +2429,7 @@ function averageCategoryScore(rows: ScorecardRow[], key: ScorecardRow["categorie
   return `${Math.round(totals.score / rows.length)}/${Math.round(totals.max / rows.length)}`;
 }
 
-function aggregateRecentDefectsBySupplier(days: number) {
+export function aggregateRecentDefectsBySupplier(days: number) {
   const map = new Map<string, number>();
   for (const defect of incomingDefects.filter((record) => record.recordState !== "Void" && isWithinRecentDays(record.defectDate, days))) {
     map.set(defect.supplierId, (map.get(defect.supplierId) ?? 0) + defect.defectQty);
@@ -2482,7 +2437,7 @@ function aggregateRecentDefectsBySupplier(days: number) {
   return map;
 }
 
-function scoreDonutSegments(row: ScorecardRow) {
+export function scoreDonutSegments(row: ScorecardRow) {
   let cursor = 0;
   const segments = sortedScoreCategories(row).flatMap((category) => {
     const start = cursor;
@@ -2494,11 +2449,11 @@ function scoreDonutSegments(row: ScorecardRow) {
   return `conic-gradient(${segments.join(", ")})`;
 }
 
-function sortedScoreCategories(row: ScorecardRow) {
+export function sortedScoreCategories(row: ScorecardRow) {
   return [...row.categories].sort((a, b) => b.max - a.max || b.score - a.score);
 }
 
-function scoreCategoryColor(key: ScorecardRow["categories"][number]["key"]) {
+export function scoreCategoryColor(key: ScorecardRow["categories"][number]["key"]) {
   const colors: Record<ScorecardRow["categories"][number]["key"], string> = {
     quality: "#d71920",
     pricing: "#25282d",
@@ -2509,7 +2464,7 @@ function scoreCategoryColor(key: ScorecardRow["categories"][number]["key"]) {
   return colors[key];
 }
 
-function ScoreSettings({ onSaved }: { onSaved: () => Promise<void> }) {
+export function ScoreSettings({ onSaved }: { onSaved: () => Promise<void> }) {
   const [weights, setWeights] = useState<ScoreWeights>({
     sampleQuality: 25,
     incomingQuality: 20,
@@ -2593,7 +2548,7 @@ function ScoreSettings({ onSaved }: { onSaved: () => Promise<void> }) {
   );
 }
 
-function WeightInput({
+export function WeightInput({
   help,
   label,
   onChange,
@@ -2647,7 +2602,7 @@ function WeightInput({
   );
 }
 
-function HistoryModal({
+export function HistoryModal({
   entityId,
   entityType,
   label,
@@ -2698,7 +2653,7 @@ function HistoryModal({
   );
 }
 
-function RecordDetailModal({ onClose, target }: { onClose: () => void; target: ViewTarget }) {
+export function RecordDetailModal({ onClose, target }: { onClose: () => void; target: ViewTarget }) {
   return (
     <div className="modalBackdrop" role="presentation">
       <section className="modalPanel detailModal">
@@ -2715,7 +2670,7 @@ function RecordDetailModal({ onClose, target }: { onClose: () => void; target: V
   );
 }
 
-function InspectionRecordDetails({ inspection }: { inspection: SampleInspection }) {
+export function InspectionRecordDetails({ inspection }: { inspection: SampleInspection }) {
   const drawingItem = drawingItemForInspection(inspection);
   return (
     <div className="recordDetailStack">
@@ -2751,7 +2706,7 @@ function InspectionRecordDetails({ inspection }: { inspection: SampleInspection 
   );
 }
 
-function IncomingDefectRecordDetails({ defect }: { defect: IncomingDefectRecord }) {
+export function IncomingDefectRecordDetails({ defect }: { defect: IncomingDefectRecord }) {
   return (
     <div className="recordDetailStack">
       <div className="fieldGrid large">
@@ -2807,7 +2762,7 @@ function IncomingDefectRecordDetails({ defect }: { defect: IncomingDefectRecord 
   );
 }
 
-function AuditDiff({ record }: { record: AuditLogRecord }) {
+export function AuditDiff({ record }: { record: AuditLogRecord }) {
   const keys = Array.from(new Set([...Object.keys(record.before ?? {}), ...Object.keys(record.after ?? {})]));
   if (keys.length === 0) return <p className="historyReason">No field-level diff stored.</p>;
 
@@ -2824,7 +2779,7 @@ function AuditDiff({ record }: { record: AuditLogRecord }) {
   );
 }
 
-function VoidRecordModal({
+export function VoidRecordModal({
   onClose,
   onVoid,
   target,
@@ -2868,7 +2823,7 @@ function VoidRecordModal({
   );
 }
 
-function EditRecordModal({
+export function EditRecordModal({
   onClose,
   onSave,
   target,
@@ -2918,7 +2873,7 @@ function EditRecordModal({
   );
 }
 
-function EditFields({ target }: { target: EditTarget }) {
+export function EditFields({ target }: { target: EditTarget }) {
   if (target.endpoint === "suppliers") {
     const record = target.record;
     const [capableItems, setCapableItems] = useState<PackagingItemType[]>(record.capableItems);
@@ -3137,7 +3092,7 @@ function EditFields({ target }: { target: EditTarget }) {
   );
 }
 
-function IncomingDefectEditFields({ record }: { record: IncomingDefectRecord }) {
+export function IncomingDefectEditFields({ record }: { record: IncomingDefectRecord }) {
   const [defectQty, setDefectQty] = useState(String(record.defectQty));
   const [defectAction, setDefectAction] = useState<IncomingDefectRecord["defectAction"]>(record.defectAction ?? "Request Replacement");
   const [materialReturned, setMaterialReturned] = useState(Boolean(record.materialReturned));
@@ -3229,7 +3184,7 @@ function IncomingDefectEditFields({ record }: { record: IncomingDefectRecord }) 
   );
 }
 
-function InspectionEditFields({ record }: { record: SampleInspection }) {
+export function InspectionEditFields({ record }: { record: SampleInspection }) {
   const [result, setResult] = useState<SampleInspection["result"]>(record.result);
   const showAction = result !== "Pass" && result !== "Not Submitted";
   const defaultAction = result === "Conditional" ? "Conditional Approval" : "Re-sample Required";
@@ -3259,7 +3214,7 @@ function InspectionEditFields({ record }: { record: SampleInspection }) {
   );
 }
 
-function buildEditPatch(target: EditTarget, form: FormData) {
+export function buildEditPatch(target: EditTarget, form: FormData) {
   const patch: Record<string, unknown> = {
     recordState: String(form.get("recordState") ?? target.record.recordState ?? "Active"),
     voidReason: String(form.get("voidReason") ?? "") || undefined,
@@ -3329,14 +3284,14 @@ function buildEditPatch(target: EditTarget, form: FormData) {
   return patch;
 }
 
-function editTitle(target: EditTarget) {
+export function editTitle(target: EditTarget) {
   if ("name" in target.record) return target.record.name;
   if ("itemCode" in target.record) return target.record.itemCode;
   if (target.endpoint === "quotes") return `${supplierName(target.record.supplierId)} ${itemCode(target.record.itemId)} quote`;
   return `${supplierName(target.record.supplierId)} ${itemCode(target.record.itemId)}`;
 }
 
-function CaseQuoteWorkbench({
+export function CaseQuoteWorkbench({
   onSourceRoleChange,
   project,
 }: {
@@ -3437,14 +3392,14 @@ function CaseQuoteWorkbench({
   );
 }
 
-function caseSupplierIds(project: AppData["projects"][number]) {
+export function caseSupplierIds(project: AppData["projects"][number]) {
   const quotedSupplierIds = quotes
     .filter((quote) => quoteAppliesToProject(quote, project.id) && quote.recordState !== "Void")
     .map((quote) => quote.supplierId);
   return Array.from(new Set([...project.supplierIds, ...quotedSupplierIds]));
 }
 
-function buildCaseProgressRows(project: AppData["projects"][number], visibleItemIds: string[]) {
+export function buildCaseProgressRows(project: AppData["projects"][number], visibleItemIds: string[]) {
   const rowKeys = new Set(
     quotes
       .filter((quote) =>
@@ -3465,7 +3420,7 @@ function buildCaseProgressRows(project: AppData["projects"][number], visibleItem
     );
 }
 
-function buildCaseProgressRow(project: AppData["projects"][number], itemId: string, supplierId: string) {
+export function buildCaseProgressRow(project: AppData["projects"][number], itemId: string, supplierId: string) {
   const item = itemById(itemId);
   const supplier = suppliers.find((candidate) => candidate.id === supplierId);
   const inScope = !item || !supplier || supplier.capableItems.includes(item.type);
@@ -3505,25 +3460,25 @@ function buildCaseProgressRow(project: AppData["projects"][number], itemId: stri
   };
 }
 
-function sourceRoleForQuote(quote: Quote) {
+export function sourceRoleForQuote(quote: Quote) {
   return sourceAssignments.find((assignment) =>
     assignment.recordState !== "Void" &&
     assignment.sourceQuoteId === quote.id)?.role;
 }
 
-function sourceRoleRank(role: SourceAssignment["role"]) {
+export function sourceRoleRank(role: SourceAssignment["role"]) {
   return { Primary: 1, Secondary: 2, Tertiary: 3, Backup: 4 }[role];
 }
 
-function sourceRoleLabel(role: SourceAssignment["role"]) {
+export function sourceRoleLabel(role: SourceAssignment["role"]) {
   return role === "Backup" ? "Backup pool" : role;
 }
 
-function isActiveSourceRole(role: SourceAssignment["role"]) {
+export function isActiveSourceRole(role: SourceAssignment["role"]) {
   return role === "Primary" || role === "Secondary" || role === "Tertiary";
 }
 
-function averageLeadTimeForActiveSourceSuppliers(assignments: SourceAssignment[]) {
+export function averageLeadTimeForActiveSourceSuppliers(assignments: SourceAssignment[]) {
   const activeAssignments = assignments.filter((assignment) => assignment.recordState !== "Void" && isActiveSourceRole(assignment.role));
   const quoteIds = new Set(activeAssignments.map((assignment) => assignment.sourceQuoteId).filter(Boolean));
   let sourceQuotes = quotes.filter((quote) => quote.recordState !== "Void" && quoteIds.has(quote.id));
@@ -3537,7 +3492,7 @@ function averageLeadTimeForActiveSourceSuppliers(assignments: SourceAssignment[]
   return leadTimes.length === 0 ? undefined : leadTimes.reduce((sum, leadTime) => sum + leadTime, 0) / leadTimes.length;
 }
 
-function QuoteMini({ quote }: { quote: Quote }) {
+export function QuoteMini({ quote }: { quote: Quote }) {
   return (
     <div className="quoteMini">
       <strong>{formatMoney(quote.unitPrice)}</strong>
@@ -3547,7 +3502,7 @@ function QuoteMini({ quote }: { quote: Quote }) {
   );
 }
 
-function SourceRoleSelect({
+export function SourceRoleSelect({
   disabledReason,
   onAssign,
   value,
@@ -3581,7 +3536,7 @@ function SourceRoleSelect({
   );
 }
 
-function supplierCaseProgress(project: AppData["projects"][number], supplierId: string, visibleItemIds = project.itemIds) {
+export function supplierCaseProgress(project: AppData["projects"][number], supplierId: string, visibleItemIds = project.itemIds) {
   const supplier = suppliers.find((candidate) => candidate.id === supplierId);
   const inScopeItemIds = visibleItemIds.filter((itemId) => {
     const item = itemById(itemId);
@@ -3624,7 +3579,7 @@ function supplierCaseProgress(project: AppData["projects"][number], supplierId: 
   };
 }
 
-function itemCaseProgress(project: AppData["projects"][number], itemId: string, supplierIds: string[]) {
+export function itemCaseProgress(project: AppData["projects"][number], itemId: string, supplierIds: string[]) {
   const item = itemById(itemId);
   const inScopeSupplierIds = supplierIds.filter((supplierId) => {
     const supplier = suppliers.find((candidate) => candidate.id === supplierId);
@@ -3652,7 +3607,7 @@ function itemCaseProgress(project: AppData["projects"][number], itemId: string, 
   };
 }
 
-function latestActivityDate(activityQuotes: Quote[], activityInspections: SampleInspection[]) {
+export function latestActivityDate(activityQuotes: Quote[], activityInspections: SampleInspection[]) {
   const dates = [
     ...activityQuotes.map((quote) => quote.effectiveFrom ?? quote.quoteDate),
     ...activityInspections.flatMap((inspection) => [inspection.sampleReceivedDate, inspection.inspectionDate ?? ""]),
@@ -3660,13 +3615,13 @@ function latestActivityDate(activityQuotes: Quote[], activityInspections: Sample
   return dates.sort((a, b) => b.localeCompare(a))[0] ?? "-";
 }
 
-function latestProjectQuote(projectId: string, supplierId: string, itemId: string) {
+export function latestProjectQuote(projectId: string, supplierId: string, itemId: string) {
   return quotes
     .filter((quote) => quoteAppliesToProject(quote, projectId) && quote.supplierId === supplierId && quote.itemId === itemId && quote.recordState !== "Void")
     .sort((a, b) => b.quoteDate.localeCompare(a.quoteDate))[0];
 }
 
-function quoteAppliesToProject(quote: Quote, projectId: string) {
+export function quoteAppliesToProject(quote: Quote, projectId: string) {
   if (quote.projectId === projectId) return true;
   if (quoteCaseLinks.some((link) => link.recordState !== "Void" && link.projectId === projectId && link.quoteId === quote.id)) return true;
   const project = projects.find((candidate) => candidate.id === projectId);
@@ -3680,15 +3635,15 @@ function quoteAppliesToProject(quote: Quote, projectId: string) {
   );
 }
 
-function quoteCaseLinkFor(quoteId: string, projectId: string) {
+export function quoteCaseLinkFor(quoteId: string, projectId: string) {
   return quoteCaseLinks.find((link) => link.recordState !== "Void" && link.projectId === projectId && link.quoteId === quoteId);
 }
 
-function quoteHasCaseLink(quote: Quote) {
+export function quoteHasCaseLink(quote: Quote) {
   return Boolean(quote.projectId) || quoteCaseLinks.some((link) => link.recordState !== "Void" && link.quoteId === quote.id);
 }
 
-function quoteCaseLabel(quote: Quote, projectFilter = "All") {
+export function quoteCaseLabel(quote: Quote, projectFilter = "All") {
   if (projectFilter !== "All" && projectFilter !== "Standalone") {
     return quoteCaseLinkFor(quote.id, projectFilter)?.linkType ?? (quote.projectId === projectFilter ? "Origin Case" : "Reused Existing Quote");
   }
@@ -3699,7 +3654,7 @@ function quoteCaseLabel(quote: Quote, projectFilter = "All") {
   return originProject ? "Origin Case" : "Linked";
 }
 
-function quotesForCaseItemSupplier(project: AppData["projects"][number], itemId: string, supplierId: string) {
+export function quotesForCaseItemSupplier(project: AppData["projects"][number], itemId: string, supplierId: string) {
   return quotes
     .filter((quote) =>
       quote.recordState !== "Void" &&
@@ -3709,7 +3664,7 @@ function quotesForCaseItemSupplier(project: AppData["projects"][number], itemId:
     .sort((a, b) => (b.effectiveFrom ?? b.quoteDate).localeCompare(a.effectiveFrom ?? a.quoteDate));
 }
 
-function latestCaseInspection(project: AppData["projects"][number], quote: Quote) {
+export function latestCaseInspection(project: AppData["projects"][number], quote: Quote) {
   const directInspection = latestInspectionForQuote(quote.id);
   if (directInspection) return directInspection;
   return inspections
@@ -3722,7 +3677,7 @@ function latestCaseInspection(project: AppData["projects"][number], quote: Quote
     .slice(-1)[0];
 }
 
-function caseQcLabel(project: AppData["projects"][number], quote: Quote, inspection?: SampleInspection) {
+export function caseQcLabel(project: AppData["projects"][number], quote: Quote, inspection?: SampleInspection) {
   const link = quoteCaseLinkFor(quote.id, project.id);
   if (inspection?.result === "Pass" || inspection?.result === "Conditional") return "Existing QC Pass";
   if (isSampleRequestedQuote(quote)) return qcQueueStatus(quote);
@@ -3731,29 +3686,29 @@ function caseQcLabel(project: AppData["projects"][number], quote: Quote, inspect
   return "No sample requested";
 }
 
-function inspectionsForQuote(quoteId: string) {
+export function inspectionsForQuote(quoteId: string) {
   return inspections
     .filter((inspection) => inspection.relatedQuoteId === quoteId && inspection.recordState !== "Void")
     .sort((a, b) => a.sampleRound - b.sampleRound || a.sampleReceivedDate.localeCompare(b.sampleReceivedDate));
 }
 
-function latestInspectionForQuote(quoteId: string) {
+export function latestInspectionForQuote(quoteId: string) {
   return inspectionsForQuote(quoteId).slice(-1)[0];
 }
 
-function isSampleRequestedQuote(quote: Quote) {
+export function isSampleRequestedQuote(quote: Quote) {
   return quote.status === "Sample Requested";
 }
 
-function isSelectedQuote(quote: Quote) {
+export function isSelectedQuote(quote: Quote) {
   return quote.status === "Selected";
 }
 
-function isQcCandidateQuote(quote: Quote) {
+export function isQcCandidateQuote(quote: Quote) {
   return isSampleRequestedQuote(quote) || isSelectedQuote(quote);
 }
 
-function isQuoteInQcQueue(quote: Quote) {
+export function isQuoteInQcQueue(quote: Quote) {
   const latestInspection = latestInspectionForQuote(quote.id);
   if (!latestInspection) return true;
   if (latestInspection.result === "Pass" || latestInspection.disposition === "Accepted") return false;
@@ -3761,7 +3716,7 @@ function isQuoteInQcQueue(quote: Quote) {
   return true;
 }
 
-function qcQueueStatus(quote: Quote) {
+export function qcQueueStatus(quote: Quote) {
   const latestInspection = latestInspectionForQuote(quote.id);
   if (!latestInspection) return "Waiting for Sample";
   if (latestInspection.result === "Not Submitted") return "Pending Inspection";
@@ -3770,35 +3725,35 @@ function qcQueueStatus(quote: Quote) {
   return "QC Pass";
 }
 
-function qcQueueActionLabel(quote: Quote) {
+export function qcQueueActionLabel(quote: Quote) {
   const latestInspection = latestInspectionForQuote(quote.id);
   if (!latestInspection) return "Receive sample";
   if (latestInspection.result === "Fail" && latestInspection.disposition !== "No Further Action") return "Receive next sample";
   return "Record inspection";
 }
 
-function defaultDispositionForResult(result: SampleInspection["result"]): SampleInspection["disposition"] {
+export function defaultDispositionForResult(result: SampleInspection["result"]): SampleInspection["disposition"] {
   if (result === "Pass") return "Accepted";
   if (result === "Fail") return "Re-sample Required";
   if (result === "Conditional") return "Conditional Approval";
   return "Pending";
 }
 
-function caseTypeForReason(reason: AppData["projects"][number]["caseReason"]): AppData["projects"][number]["type"] {
+export function caseTypeForReason(reason: AppData["projects"][number]["caseReason"]): AppData["projects"][number]["type"] {
   if (reason === "New Supplier Intro") return "New Supplier Development";
   if (reason === "Change Work Order") return "Model Change";
   return reason;
 }
 
-function nextInspectionRoundForQuote(quoteId: string) {
+export function nextInspectionRoundForQuote(quoteId: string) {
   return (latestInspectionForQuote(quoteId)?.sampleRound ?? 0) + 1;
 }
 
-function drawingItemForQuote(quote: Quote) {
+export function drawingItemForQuote(quote: Quote) {
   return drawingSets.find((set) => set.id === quote.drawingSetId)?.drawingItems.find((drawingItem) => drawingItem.id === quote.drawingItemId);
 }
 
-function CaseProgressCell({ inScope = true, inspection, quote }: { inScope?: boolean; inspection?: SampleInspection; quote?: Quote }) {
+export function CaseProgressCell({ inScope = true, inspection, quote }: { inScope?: boolean; inspection?: SampleInspection; quote?: Quote }) {
   if (!quote) {
     return (
       <div className="progressCell">
@@ -3823,7 +3778,7 @@ function CaseProgressCell({ inScope = true, inspection, quote }: { inScope?: boo
   );
 }
 
-async function uploadOptionalFormFile(
+export async function uploadOptionalFormFile(
   form: FormData,
   fieldName: string,
   purpose: UploadedFileRecord["purpose"],
@@ -3834,7 +3789,7 @@ async function uploadOptionalFormFile(
   return uploadSelectedFile(file, purpose, linkedRecordType);
 }
 
-async function uploadMultipleFormFiles(
+export async function uploadMultipleFormFiles(
   form: FormData,
   fieldName: string,
   purpose: UploadedFileRecord["purpose"],
@@ -3844,7 +3799,7 @@ async function uploadMultipleFormFiles(
   return Promise.all(selectedFiles.map((file) => uploadSelectedFile(file, purpose, linkedRecordType)));
 }
 
-async function uploadSelectedFile(file: File, purpose: UploadedFileRecord["purpose"], linkedRecordType?: string) {
+export async function uploadSelectedFile(file: File, purpose: UploadedFileRecord["purpose"], linkedRecordType?: string) {
   const contentBase64 = await fileToBase64(file);
   return uploadFile({
     fileName: file.name,
@@ -3855,7 +3810,7 @@ async function uploadSelectedFile(file: File, purpose: UploadedFileRecord["purpo
   });
 }
 
-function fileToBase64(file: File) {
+export function fileToBase64(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -3867,7 +3822,7 @@ function fileToBase64(file: File) {
   });
 }
 
-function SupplierModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
+export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [capableItems, setCapableItems] = useState<PackagingItemType[]>(["Pallet"]);
@@ -3999,7 +3954,7 @@ function SupplierModal({ onClose, onCreated }: { onClose: () => void; onCreated:
   );
 }
 
-function ModelModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
+export function ModelModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -4069,7 +4024,7 @@ function ModelModal({ onClose, onCreated }: { onClose: () => void; onCreated: ()
   );
 }
 
-function ItemModal({
+export function ItemModal({
   models,
   onClose,
   onCreated,
@@ -4174,7 +4129,7 @@ function ItemModal({
   );
 }
 
-function ItemImportModal({
+export function ItemImportModal({
   models,
   onClose,
   onImported,
@@ -4272,7 +4227,7 @@ function ItemImportModal({
   );
 }
 
-function DrawingSetModal({
+export function DrawingSetModal({
   data,
   onClose,
   onCreated,
@@ -4414,7 +4369,7 @@ function DrawingSetModal({
   );
 }
 
-function ProjectModal({
+export function ProjectModal({
   data,
   onClose,
   onCreated,
@@ -4550,7 +4505,7 @@ function ProjectModal({
   );
 }
 
-function QuoteModal({
+export function QuoteModal({
   data,
   projectId,
   onClose,
@@ -4739,7 +4694,7 @@ function QuoteModal({
   );
 }
 
-function InspectionModal({
+export function InspectionModal({
   data,
   projectId,
   quoteId,
@@ -4929,7 +4884,7 @@ function InspectionModal({
   );
 }
 
-function IncomingDefectModal({
+export function IncomingDefectModal({
   data,
   onClose,
   onCreated,
@@ -5091,7 +5046,7 @@ function IncomingDefectModal({
   );
 }
 
-function ScoreSettingsModal({
+export function ScoreSettingsModal({
   onClose,
   onSaved,
 }: {
@@ -5186,7 +5141,7 @@ function ScoreSettingsModal({
   );
 }
 
-function PriceChangeModal({
+export function PriceChangeModal({
   data,
   onClose,
   onCreated,
@@ -5317,7 +5272,7 @@ function PriceChangeModal({
   );
 }
 
-function CheckGroup({
+export function CheckGroup({
   items,
   label,
   selectedIds,
@@ -5331,7 +5286,7 @@ function CheckGroup({
   return <MultiSelectDropdown items={items} label={label} selectedIds={selectedIds} setSelectedIds={setSelectedIds} />;
 }
 
-function FilterGroup({
+export function FilterGroup({
   items,
   label,
   selectedIds,
@@ -5345,7 +5300,7 @@ function FilterGroup({
   return <MultiSelectDropdown items={items} label={label} selectedIds={selectedIds} setSelectedIds={setSelectedIds} />;
 }
 
-function MultiSelectDropdown<T extends string>({
+export function MultiSelectDropdown<T extends string>({
   items,
   label,
   selectedIds,
@@ -5409,7 +5364,7 @@ function MultiSelectDropdown<T extends string>({
   );
 }
 
-function Metric({ label, value, sub }: { label: string; value: string; sub: string }) {
+export function Metric({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <article className="metricCard">
       <span>{label}</span>
@@ -5419,7 +5374,7 @@ function Metric({ label, value, sub }: { label: string; value: string; sub: stri
   );
 }
 
-function Panel({ actions, title, children, help }: { actions?: React.ReactNode; title: React.ReactNode; children: React.ReactNode; help?: string }) {
+export function Panel({ actions, title, children, help }: { actions?: React.ReactNode; title: React.ReactNode; children: React.ReactNode; help?: string }) {
   return (
     <section className="panel">
       <div className="panelHeader">
@@ -5438,7 +5393,7 @@ function Panel({ actions, title, children, help }: { actions?: React.ReactNode; 
   );
 }
 
-function TableToolbar({
+export function TableToolbar({
   action,
   extraActions,
   help,
@@ -5474,7 +5429,7 @@ function TableToolbar({
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+export function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="field">
       <span>{label}</span>
@@ -5483,7 +5438,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TimelineRow({ label, value }: { label: string; value: string }) {
+export function TimelineRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="timelineRow">
       <span>{label}</span>
@@ -5492,7 +5447,7 @@ function TimelineRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AlertRow({ title, text }: { title: string; text: string }) {
+export function AlertRow({ title, text }: { title: string; text: string }) {
   return (
     <div className="alertRow">
       <strong>{title}</strong>
@@ -5501,21 +5456,21 @@ function AlertRow({ title, text }: { title: string; text: string }) {
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+export function EmptyState({ text }: { text: string }) {
   return <p className="emptyState">{text}</p>;
 }
 
-function StatusPill({ label }: { label: string }) {
+export function StatusPill({ label }: { label: string }) {
   const key = label.toLowerCase().replace(/\s+/g, "-");
   return <span className={`statusPill ${key}`}>{label}</span>;
 }
 
-function LifecyclePill({ record }: { record: { recordState?: "Draft" | "Active" | "Void" } }) {
+export function LifecyclePill({ record }: { record: { recordState?: "Draft" | "Active" | "Void" } }) {
   if (!record.recordState || record.recordState === "Active") return null;
   return <span className={`lifecyclePill ${record.recordState.toLowerCase()}`}>{record.recordState}</span>;
 }
 
-function RecordMenu({
+export function RecordMenu({
   canDelete,
   label,
   onDelete,
@@ -5575,7 +5530,7 @@ function RecordMenu({
   );
 }
 
-function canDeleteRecord(endpoint: DeleteEndpoint, id: string) {
+export function canDeleteRecord(endpoint: DeleteEndpoint, id: string) {
   if (endpoint === "suppliers") {
     return (
       !projects.some((project) => project.supplierIds.includes(id)) &&
@@ -5635,11 +5590,11 @@ function canDeleteRecord(endpoint: DeleteEndpoint, id: string) {
   return true;
 }
 
-function isPublishedRecord(record: { recordState?: "Draft" | "Active" | "Void" }) {
+export function isPublishedRecord(record: { recordState?: "Draft" | "Active" | "Void" }) {
   return (record.recordState ?? "Active") !== "Draft";
 }
 
-function markRecordVoid(data: AppData, endpoint: DeleteEndpoint, id: string, reason: string): AppData {
+export function markRecordVoid(data: AppData, endpoint: DeleteEndpoint, id: string, reason: string): AppData {
   const keyByEndpoint = {
     suppliers: "suppliers",
     models: "models",
@@ -5663,16 +5618,7 @@ function markRecordVoid(data: AppData, endpoint: DeleteEndpoint, id: string, rea
   };
 }
 
-function findDuplicateItemCodes(records: PackagingItem[]) {
-  const counts = records.reduce((map, item) => {
-    const key = item.itemCode.trim().toLowerCase();
-    map.set(key, (map.get(key) ?? 0) + 1);
-    return map;
-  }, new Map<string, number>());
-  return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key));
-}
-
-function TagRow({ tags }: { tags: string[] }) {
+export function TagRow({ tags }: { tags: string[] }) {
   return (
     <div className="tagRow">
       {tags.map((tag) => (
@@ -5682,11 +5628,11 @@ function TagRow({ tags }: { tags: string[] }) {
   );
 }
 
-function CheckLabel({ ok, label }: { ok: boolean; label: string }) {
+export function CheckLabel({ ok, label }: { ok: boolean; label: string }) {
   return <span className={ok ? "checkLabel ok" : "checkLabel"}>{label}</span>;
 }
 
-function QuoteStatusSelect({
+export function QuoteStatusSelect({
   onChange,
   quote,
 }: {
@@ -5715,7 +5661,7 @@ function QuoteStatusSelect({
   );
 }
 
-function DocumentCheck({ fileId, label, ok }: { fileId?: string; label: string; ok: boolean }) {
+export function DocumentCheck({ fileId, label, ok }: { fileId?: string; label: string; ok: boolean }) {
   return (
     <span className={ok ? "checkLabel ok" : "checkLabel"}>
       {label}
@@ -5729,7 +5675,7 @@ function DocumentCheck({ fileId, label, ok }: { fileId?: string; label: string; 
   );
 }
 
-function FileReference({ fileId }: { fileId?: string }) {
+export function FileReference({ fileId }: { fileId?: string }) {
   const file = fileRecord(fileId);
   if (!file) return <span className="muted">-</span>;
   return (
@@ -5739,7 +5685,7 @@ function FileReference({ fileId }: { fileId?: string }) {
   );
 }
 
-function DrawingFileReference({ drawingItem, drawingSet }: { drawingItem?: DrawingSet["drawingItems"][number]; drawingSet?: DrawingSet }) {
+export function DrawingFileReference({ drawingItem, drawingSet }: { drawingItem?: DrawingSet["drawingItems"][number]; drawingSet?: DrawingSet }) {
   if (!drawingItem) return <span className="muted">-</span>;
   if (drawingSet?.packageFileId) return <FileReference fileId={drawingSet.packageFileId} />;
   if (drawingItem.drawingSource === "Package PDF" && drawingSet?.packageFileName) return <span>{drawingSet.packageFileName}</span>;
@@ -5747,7 +5693,7 @@ function DrawingFileReference({ drawingItem, drawingSet }: { drawingItem?: Drawi
   return <span>{drawingItem.fileName ?? "-"}</span>;
 }
 
-function PhotoFileReferences({ inspection }: { inspection: SampleInspection }) {
+export function PhotoFileReferences({ inspection }: { inspection: SampleInspection }) {
   if (!inspection.photoFileIds?.length) return <span>{inspection.problemPhotos} uploaded</span>;
   return (
     <div className="fileStack">
@@ -5756,7 +5702,7 @@ function PhotoFileReferences({ inspection }: { inspection: SampleInspection }) {
   );
 }
 
-function IncomingDefectFiles({ defect }: { defect: IncomingDefectRecord }) {
+export function IncomingDefectFiles({ defect }: { defect: IncomingDefectRecord }) {
   const fileIds = [...(defect.photoFileIds ?? []), ...(defect.attachmentFileIds ?? [])];
   if (fileIds.length === 0) return <span className="muted">-</span>;
   return (
@@ -5766,7 +5712,7 @@ function IncomingDefectFiles({ defect }: { defect: IncomingDefectRecord }) {
   );
 }
 
-function QuoteCell({ quote, inspection }: { quote: Quote; inspection?: SampleInspection }) {
+export function QuoteCell({ quote, inspection }: { quote: Quote; inspection?: SampleInspection }) {
   return (
     <div className="quoteCell">
       <strong>{formatMoney(quote.unitPrice)}</strong>
@@ -5777,7 +5723,7 @@ function QuoteCell({ quote, inspection }: { quote: Quote; inspection?: SampleIns
   );
 }
 
-function QuoteValueStack({ field, quotes: quoteList }: { field: "price" | "moq" | "leadTime" | "extraCost"; quotes: Quote[] }) {
+export function QuoteValueStack({ field, quotes: quoteList }: { field: "price" | "moq" | "leadTime" | "extraCost"; quotes: Quote[] }) {
   return (
     <div className="quoteStack">
       {quoteList.map((quote) => {
@@ -5792,7 +5738,7 @@ function QuoteValueStack({ field, quotes: quoteList }: { field: "price" | "moq" 
   );
 }
 
-function recommendSupplier(candidateQuotes: Quote[], candidateInspections: SampleInspection[]) {
+export function recommendSupplier(candidateQuotes: Quote[], candidateInspections: SampleInspection[]) {
   const passSupplierIds = new Set(
     candidateInspections.filter((inspection) => inspection.result === "Pass").map((inspection) => inspection.supplierId),
   );
@@ -5805,14 +5751,14 @@ function recommendSupplier(candidateQuotes: Quote[], candidateInspections: Sampl
   return candidates[0] ? supplierName(candidates[0].supplierId) : "Need quote";
 }
 
-function supplierScore(supplierId: string) {
+export function supplierScore(supplierId: string) {
   const supplier = suppliers.find((candidate) => candidate.id === supplierId);
   if (!supplier) return 0;
 
   return buildSupplierScorecard(supplier).score;
 }
 
-function buildSupplierScorecard(supplier: Supplier): ScorecardRow {
+export function buildSupplierScorecard(supplier: Supplier): ScorecardRow {
   const supplierQuotes = quotes.filter((quote) => quote.supplierId === supplier.id && quote.recordState !== "Void");
   const supplierInspections = inspections.filter((inspection) => inspection.supplierId === supplier.id && inspection.recordState !== "Void");
   const supplierDefects = incomingDefects.filter((defect) => defect.supplierId === supplier.id && defect.recordState !== "Void");
@@ -5932,27 +5878,7 @@ function buildSupplierScorecard(supplier: Supplier): ScorecardRow {
   };
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function scoreIncomingQuality(recentDefectQty: number, max: number) {
-  if (recentDefectQty < 5) return max;
-  if (recentDefectQty < 10) return Math.round(max * 0.75);
-  if (recentDefectQty < 20) return Math.round(max * 0.45);
-  return Math.round(max * 0.15);
-}
-
-function scoreLeadTime(averageLeadTime: number | undefined, max: number) {
-  if (averageLeadTime === undefined) return 0;
-  if (averageLeadTime <= 7) return max;
-  if (averageLeadTime <= 14) return Math.round(max * 0.8);
-  if (averageLeadTime <= 21) return Math.round(max * 0.55);
-  if (averageLeadTime <= 30) return Math.round(max * 0.3);
-  return Math.round(max * 0.1);
-}
-
-function scorePricingCompetitiveness(supplierQuotes: Quote[], max: number, paymentTerms = "") {
+export function scorePricingCompetitiveness(supplierQuotes: Quote[], max: number, paymentTerms = "") {
   if (supplierQuotes.length === 0) return 0;
   const quoteScores = supplierQuotes.map((quote) => quotePriceCompetitiveness(quote));
   const averagePercent = quoteScores.reduce((sum, score) => sum + score, 0) / quoteScores.length;
@@ -5961,7 +5887,7 @@ function scorePricingCompetitiveness(supplierQuotes: Quote[], max: number, payme
   return Math.round(priceMax * averagePercent) + scorePaymentTerms(paymentTerms, termsMax);
 }
 
-function quotePriceCompetitiveness(quote: Quote): number {
+export function quotePriceCompetitiveness(quote: Quote): number {
   const groupQuotes = quotes.filter(
     (candidate) =>
       candidate.recordState !== "Void" &&
@@ -5978,7 +5904,7 @@ function quotePriceCompetitiveness(quote: Quote): number {
   return 0.3;
 }
 
-function pricingDetail(supplierQuotes: Quote[], paymentTerms = "") {
+export function pricingDetail(supplierQuotes: Quote[], paymentTerms = "") {
   if (supplierQuotes.length === 0) return "No quote for price comparison";
   const selectedCount = supplierQuotes.filter(isSelectedQuote).length;
   const averagePercent = Math.round((supplierQuotes.reduce((sum, quote) => sum + quotePriceCompetitiveness(quote), 0) / supplierQuotes.length) * 100);
@@ -5987,68 +5913,7 @@ function pricingDetail(supplierQuotes: Quote[], paymentTerms = "") {
   return `${averagePercent}% price competitiveness, ${termsLabel}, ${selectedCount} selected quote${selectedCount === 1 ? "" : "s"}`;
 }
 
-function scorePaymentTerms(paymentTerms: string, max: number) {
-  const days = paymentTermDays(paymentTerms);
-  if (days === undefined) return 0;
-  if (days >= 60) return max;
-  if (days >= 45) return Math.round(max * 0.8);
-  if (days >= 30) return Math.round(max * 0.6);
-  if (days >= 15) return Math.round(max * 0.3);
-  return Math.round(max * 0.1);
-}
-
-function paymentTermDays(paymentTerms: string) {
-  const match = paymentTerms.match(/(?:net\s*)?(\d{1,3})/i);
-  return match ? Number(match[1]) : undefined;
-}
-
-function isWithinRecentDays(dateText: string, days: number) {
-  const date = new Date(`${dateText}T00:00:00`);
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  return date >= cutoff;
-}
-
-function sumDefectQty(records: IncomingDefectRecord[], days?: number) {
-  return records
-    .filter((record) => !days || isWithinRecentDays(record.defectDate, days))
-    .reduce((sum, record) => sum + record.defectQty, 0);
-}
-
-function sumReturnedDefectQty(records: IncomingDefectRecord[], days?: number) {
-  return records
-    .filter((record) => record.materialReturned)
-    .filter((record) => !days || isWithinRecentDays(record.returnDate ?? record.defectDate, days))
-    .reduce((sum, record) => sum + record.defectQty, 0);
-}
-
-function incomingDefectAcceptedReplacementQty(defect: Pick<IncomingDefectRecord, "replacementReceipts">) {
-  return (defect.replacementReceipts ?? [])
-    .filter((receipt) => receipt.result === "Accepted")
-    .reduce((sum, receipt) => sum + receipt.receivedQty, 0);
-}
-
-function incomingDefectCurrentReceivedQty(defect: Pick<IncomingDefectRecord, "receivedQty" | "replacementReceipts">) {
-  return (defect.receivedQty ?? 0) + incomingDefectAcceptedReplacementQty(defect);
-}
-
-function incomingDefectPendingQty(defect: Pick<IncomingDefectRecord, "defectAction" | "defectQty" | "poQty" | "receivedQty" | "replacementQty" | "replacementReceipts">) {
-  if (defect.defectAction !== "Request Replacement") return 0;
-  const acceptedReplacementQty = incomingDefectAcceptedReplacementQty(defect);
-  if (defect.poQty === undefined || defect.receivedQty === undefined) return Math.max((defect.replacementQty ?? defect.defectQty) - acceptedReplacementQty, 0);
-  return Math.max(defect.poQty - incomingDefectCurrentReceivedQty(defect), 0);
-}
-
-function isIncomingDefectComplete(defect: Pick<IncomingDefectRecord, "defectAction" | "defectQty" | "poQty" | "receivedQty" | "replacementQty" | "replacementReceipts">) {
-  if (defect.defectAction === "Request Credit") return true;
-  return incomingDefectPendingQty(defect) === 0;
-}
-
-function isIncomingDefectPendingReceive(defect: Pick<IncomingDefectRecord, "defectAction" | "defectQty" | "poQty" | "receivedQty" | "replacementQty" | "replacementReceipts">) {
-  return defect.defectAction === "Request Replacement" && !isIncomingDefectComplete(defect);
-}
-
-function incomingDefectTimeline(defect: IncomingDefectRecord) {
+export function incomingDefectTimeline(defect: IncomingDefectRecord) {
   const poNumber = defect.poNumber ?? "PO";
   const poQty = defect.poQty ?? (defect.receivedQty ?? 0) + defect.defectQty;
   const firstReceivedQty = defect.receivedQty ?? Math.max(poQty - defect.defectQty, 0);
@@ -6062,14 +5927,14 @@ function incomingDefectTimeline(defect: IncomingDefectRecord) {
   return events.join(" / ");
 }
 
-function incomingDefectActionLabel(defect: IncomingDefectRecord) {
+export function incomingDefectActionLabel(defect: IncomingDefectRecord) {
   if (isIncomingDefectComplete(defect)) {
     return defect.defectAction === "Request Replacement" ? "Replacement Completed" : "Credit Requested";
   }
   return defect.defectAction;
 }
 
-function exportIncomingDefectHistory(records: IncomingDefectRecord[]) {
+export function exportIncomingDefectHistory(records: IncomingDefectRecord[]) {
   const headers = [
     "PO Number",
     "Date",
@@ -6102,7 +5967,7 @@ function exportIncomingDefectHistory(records: IncomingDefectRecord[]) {
   URL.revokeObjectURL(url);
 }
 
-function exportQuotes(records: Quote[]) {
+export function exportQuotes(records: Quote[]) {
   const headers = [
     "Quote ID",
     "Supplier",
@@ -6181,32 +6046,16 @@ function exportQuotes(records: Quote[]) {
   URL.revokeObjectURL(url);
 }
 
-function priceChangeForQuote(quoteId: string) {
+export function priceChangeForQuote(quoteId: string) {
   return priceChanges.find((change) => change.recordState !== "Void" && change.sourceQuoteId === quoteId);
 }
 
-function quoteExportReference(quoteId: string) {
+export function quoteExportReference(quoteId: string) {
   const quote = quotes.find((candidate) => candidate.id === quoteId);
   return quote ? `${quote.effectiveFrom ?? quote.quoteDate} / ${supplierName(quote.supplierId)} / ${itemCode(quote.itemId)} / ${formatMoney(quote.unitPrice)}` : quoteId;
 }
 
-function formatMoney(value: number) {
-  return `$${formatDecimalPrice(value)}`;
-}
-
-function formatDecimalPrice(value: number) {
-  return Number(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 3,
-  });
-}
-
-function csvCell(value: string | number | undefined) {
-  const text = String(value ?? "");
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-function buildQuotePriceChartRows(visibleQuotes: Quote[], includeAllQuoteSeries: boolean, includeSelectedSeries: boolean) {
+export function buildQuotePriceChartRows(visibleQuotes: Quote[], includeAllQuoteSeries: boolean, includeSelectedSeries: boolean) {
   const rows = new Map<string, Record<string, string | number>>();
   const ensureRow = (date: string) => {
     const row = rows.get(date) ?? { date };
@@ -6227,7 +6076,7 @@ function buildQuotePriceChartRows(visibleQuotes: Quote[], includeAllQuoteSeries:
   return Array.from(rows.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
-function buildDashboardPriceTrendRows(visibleQuotes: Quote[]) {
+export function buildDashboardPriceTrendRows(visibleQuotes: Quote[]) {
   const rows = new Map<string, Record<string, string | number>>();
 
   for (const quote of visibleQuotes) {
@@ -6240,122 +6089,40 @@ function buildDashboardPriceTrendRows(visibleQuotes: Quote[]) {
   return Array.from(rows.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
-function dashboardPriceDomain(visibleQuotes: Quote[]): [number, number] | ["auto", "auto"] {
-  return priceAnalyticsDomain(visibleQuotes);
-}
-
-function priceAnalyticsDomain(visibleQuotes: Quote[]): [number, number] | ["auto", "auto"] {
-  const prices = visibleQuotes.map((quote) => quote.unitPrice).filter((price) => Number.isFinite(price));
-  if (prices.length === 0) return ["auto", "auto"];
-
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  if (max <= 1) return [0, 1];
-
-  const range = max - min;
-  const padding = range === 0 ? Math.max(max * 0.08, 0.5) : range * 0.18;
-  const roughStep = Math.max((max + padding) / 8, 0.01);
-  const stepMagnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const stepBase = roughStep / stepMagnitude;
-  const step = stepBase <= 2 ? 2 * stepMagnitude : stepBase <= 5 ? 5 * stepMagnitude : 10 * stepMagnitude;
-  const lower = Math.floor(Math.max(0, min - padding) / step) * step;
-  const upper = Math.ceil((max + padding) / step) * step;
-
-  return [lower, upper];
-}
-
-function formatMonthTick(dateText: string) {
-  const parsedDate = new Date(`${dateText}T00:00:00`);
-  if (Number.isNaN(parsedDate.getTime())) return dateText;
-
-  return parsedDate.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-}
-
-function chartColor(index: number) {
-  const palette = ["#d71920", "#25282d", "#8f2b31", "#6b7280", "#c84d52", "#3f4652", "#a84348", "#9ca3af"];
-  return palette[index % palette.length];
-}
-
-function parseItemImportRows(rawText: string) {
-  return rawText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line, index) => index !== 0 || !/^item code[\t,]/i.test(line))
-    .map((line) => {
-      const columns = line.includes("\t") ? line.split("\t") : line.split(",");
-      const [itemCode = "", description = "", type = "", usedFor = ""] = columns.map((column) => column.trim());
-      return {
-        itemCode,
-        description,
-        type: type as PackagingItemType,
-        usedFor: usedFor.split(/[;,]/).map((value) => value.trim()).filter(Boolean),
-      };
-    })
-    .filter((row) => row.itemCode && row.description && row.type && row.usedFor.length > 0);
-}
-
-function parseDrawingImportRows(rawText: string) {
-  return rawText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line, index) => index !== 0 || !/^item code[\t,]/i.test(line))
-    .map((line) => {
-      const columns = line.includes("\t") ? line.split("\t") : line.split(",");
-      const [itemCode = "", revision = "", fileName = ""] = columns.map((column) => column.trim());
-      return { itemCode, revision, fileName };
-    })
-    .filter((row) => row.itemCode && row.revision);
-}
-
-function buildDrawingRowsFromModelItems(modelItems: PackagingItem[], revision: string) {
-  return modelItems.map((item) => ({
-    itemCode: item.itemCode,
-    revision,
-    fileName: "",
-  }));
-}
-
-function nextPackagingSetRevision(sets: DrawingSet[], modelId: string) {
-  const existingCount = sets.filter((set) => set.modelId === modelId && set.recordState !== "Void").length;
-  return `${existingCount + 1}.0`;
-}
-
-function supplierName(id: string) {
+export function supplierName(id: string) {
   return suppliers.find((supplier) => supplier.id === id)?.name ?? "Unknown supplier";
 }
 
-function projectName(id: string) {
+export function projectName(id: string) {
   return projects.find((project) => project.id === id)?.name ?? "Unknown case";
 }
 
-function supplierLocation(supplier: Supplier) {
+export function supplierLocation(supplier: Supplier) {
   return [supplier.region, supplier.country].filter(Boolean).join(", ") || "Not set";
 }
 
-function modelName(id: string) {
+export function modelName(id: string) {
   return models.find((model) => model.id === id)?.name ?? "Unknown model";
 }
 
-function drawingSetName(id: string) {
+export function drawingSetName(id: string) {
   return drawingSets.find((set) => set.id === id)?.name ?? "Unknown packaging set";
 }
 
-function activeDrawingSetsForModel(sets: DrawingSet[], modelId: string, keepId?: string) {
+export function activeDrawingSetsForModel(sets: DrawingSet[], modelId: string, keepId?: string) {
   return sets.filter((set) =>
     set.modelId === modelId &&
     set.recordState !== "Void" &&
     (set.status === "Active" || set.id === keepId));
 }
 
-function drawingItemForInspection(inspection: SampleInspection) {
+export function drawingItemForInspection(inspection: SampleInspection) {
   return drawingSets
     .find((set) => set.id === inspection.drawingSetId)
     ?.drawingItems.find((drawingItem) => drawingItem.id === inspection.drawingItemId);
 }
 
-function drawingFileLabel(drawingItem?: DrawingSet["drawingItems"][number], drawingSet?: DrawingSet) {
+export function drawingFileLabel(drawingItem?: DrawingSet["drawingItems"][number], drawingSet?: DrawingSet) {
   if (!drawingItem) return "-";
   if (drawingSet?.packageFileId) return fileLabel(drawingSet.packageFileId);
   if (drawingItem.drawingSource === "Package PDF" && drawingSet?.packageFileName) return drawingSet.packageFileName;
@@ -6363,72 +6130,48 @@ function drawingFileLabel(drawingItem?: DrawingSet["drawingItems"][number], draw
   return drawingItem.fileName ?? "-";
 }
 
-function itemById(id: string): PackagingItem | undefined {
+export function itemById(id: string): PackagingItem | undefined {
   return items.find((item) => item.id === id);
 }
 
-function itemCode(id: string) {
+export function itemCode(id: string) {
   const item = itemById(id);
   return item ? item.itemCode : "Unknown item";
 }
 
-function quoteLabel(id?: string) {
+export function quoteLabel(id?: string) {
   if (!id) return "-";
   const quote = quotes.find((candidate) => candidate.id === id);
   return quote ? `${quote.quoteDate} ${formatMoney(quote.unitPrice)}` : "Missing quote";
 }
 
-function quoteExtraCostLabel(quote: Quote) {
+export function quoteExtraCostLabel(quote: Quote) {
   if (!quote.extraCostType || quote.extraCostType === "None") return "-";
   return `${quote.extraCostType}: ${formatMoney(quote.extraCostAmount ?? 0)}`;
 }
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function purchasePriceLabel(id?: string) {
+export function purchasePriceLabel(id?: string) {
   if (!id) return "-";
   const purchase = purchasePrices.find((candidate) => candidate.id === id);
   return purchase ? `${purchase.poNumber} ${purchase.orderDate} ${formatMoney(purchase.unitPrice)}` : "Missing PO price";
 }
 
-function fileLabel(id?: string) {
+export function fileLabel(id?: string) {
   if (!id) return "-";
   const file = fileRecord(id);
   return file?.fileName ?? "Missing file";
 }
 
-function fileRecord(id?: string) {
+export function fileRecord(id?: string) {
   if (!id) return undefined;
   return files.find((candidate) => candidate.id === id);
 }
 
-function fileUrl(file: UploadedFileRecord) {
+export function fileUrl(file: UploadedFileRecord) {
   return `/${file.storagePath.replace(/\\/g, "/")}`;
 }
 
-function formatAuditDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function formatAuditValue(value: unknown) {
-  if (value === undefined || value === null || value === "") return "-";
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
-
-function formatFileSize(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function priceChangeReference(quoteId?: string, purchasePriceId?: string) {
+export function priceChangeReference(quoteId?: string, purchasePriceId?: string) {
   if (purchasePriceId) return purchasePriceLabel(purchasePriceId);
   return quoteLabel(quoteId);
 }
