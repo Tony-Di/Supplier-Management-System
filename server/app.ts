@@ -1,5 +1,5 @@
 import cors from "cors";
-import express, { type Express } from "express";
+import express, { type Express, type Request } from "express";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import {
@@ -42,7 +42,9 @@ import { latestInspection, qcAllowsSourceRole } from "./rules";
 import { nextId, saveStore, store, ValidationError } from "./store";
 import { errorHandler } from "./errorHandler";
 import { authRouter } from "./routes/auth";
-import { requireAuth, sessionMiddleware, verifyCsrf } from "./session";
+import { requireAdmin, requireAuth, sessionMiddleware, verifyCsrf } from "./session";
+import { appendAuditEntry, listAuditEntries } from "./auditLog";
+import { pool } from "./db";
 
 export function createApp(): Express {
   const app = express();
@@ -69,16 +71,27 @@ export function createApp(): Express {
   app.use("/api", requireAuth, verifyCsrf);
   app.use("/uploads", requireAuth, express.static(join(process.cwd(), "uploads")));
 
-  app.get("/api/bootstrap", (_request, response) => {
-    if (syncActivePackagingSetItems(store.models.map((model) => model.id), "Bootstrap")) saveStore();
-    if (syncActiveCasesForModels(store.models.map((model) => model.id), "Bootstrap")) saveStore();
+  app.get("/api/bootstrap", (request, response) => {
+    if (syncActivePackagingSetItems(request, store.models.map((model) => model.id), "Bootstrap")) saveStore();
+    if (syncActiveCasesForModels(request, store.models.map((model) => model.id), "Bootstrap")) saveStore();
     if (syncReusableQuotesForProjects()) saveStore();
-    if (syncQuoteStatusesFromPassedInspections()) saveStore();
+    if (syncQuoteStatusesFromPassedInspections(request)) saveStore();
     if (reconcileQuotePriceChanges()) saveStore();
     response.json(store);
   });
 
-  app.get("/api/audit-logs", (_request, response) => response.json(store.auditLogs));
+  app.get("/api/audit-logs", requireAdmin, async (request, response, next) => {
+    try {
+      response.json(await listAuditEntries(pool, {
+        entityType: request.query.entityType as string | undefined,
+        entityId: request.query.entityId as string | undefined,
+        actorUserId: request.query.actorUserId ? Number(request.query.actorUserId) : undefined,
+        limit: request.query.limit ? Number(request.query.limit) : undefined,
+      }));
+    } catch (error) {
+      next(error);
+    }
+  });
 
   app.get("/api/files", (_request, response) => response.json(store.files));
   app.post("/api/files", (request, response, next) => {
@@ -101,7 +114,7 @@ export function createApp(): Express {
       file.storagePath = join("uploads", `${file.id}${extension}`);
       writeFileSync(join(process.cwd(), file.storagePath), Buffer.from(parsed.contentBase64, "base64"));
       store.files.push(file);
-      audit("Upload", "File", file.id, file.fileName, undefined, file, undefined, parsed.linkedRecordId);
+      audit(request, "Upload", "File", file.id, file.fileName, undefined, file, undefined, parsed.linkedRecordId);
       saveStore();
       response.status(201).json(file);
     } catch (error) {
@@ -114,7 +127,7 @@ export function createApp(): Express {
     try {
       const supplier = { id: nextId("sup"), ...supplierSchema.parse(request.body) };
       store.suppliers.push(supplier);
-      audit("Create", "Supplier", supplier.id, supplier.name, undefined, supplier);
+      audit(request, "Create", "Supplier", supplier.id, supplier.name, undefined, supplier);
       saveStore();
       response.status(201).json(supplier);
     } catch (error) {
@@ -126,7 +139,7 @@ export function createApp(): Express {
       ensureNoSupplierLinks(request.params.id);
       const before = store.suppliers.find((record) => record.id === request.params.id);
       deleteById(store.suppliers, request.params.id, "Supplier");
-      audit("Delete", "Supplier", request.params.id, before ? entityLabel("Supplier", before) : request.params.id, before);
+      audit(request, "Delete", "Supplier", request.params.id, before ? entityLabel("Supplier", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -137,7 +150,7 @@ export function createApp(): Express {
     try {
       const before = cloneRecord(store.suppliers.find((record) => record.id === request.params.id));
       const supplier = updateById(store.suppliers, request.params.id, request.body, supplierSchema.parse);
-      audit(editAction(before, supplier), "Supplier", supplier.id, supplier.name, before, supplier);
+      audit(request, editAction(before, supplier), "Supplier", supplier.id, supplier.name, before, supplier);
       response.json(supplier);
     } catch (error) {
       next(error);
@@ -148,7 +161,7 @@ export function createApp(): Express {
       const before = cloneRecord(store.suppliers.find((record) => record.id === request.params.id));
       voidById(store.suppliers, request.params.id, request.body?.reason);
       const after = store.suppliers.find((record) => record.id === request.params.id);
-      audit("Void", "Supplier", request.params.id, after ? entityLabel("Supplier", after) : request.params.id, before, after, request.body?.reason);
+      audit(request, "Void", "Supplier", request.params.id, after ? entityLabel("Supplier", after) : request.params.id, before, after, request.body?.reason);
       response.json({ ok: true });
     } catch (error) {
       next(error);
@@ -160,7 +173,7 @@ export function createApp(): Express {
     try {
       const model = { id: nextId("model"), ...modelSchema.parse(request.body) };
       store.models.push(model);
-      audit("Create", "Model", model.id, model.name, undefined, model);
+      audit(request, "Create", "Model", model.id, model.name, undefined, model);
       saveStore();
       response.status(201).json(model);
     } catch (error) {
@@ -172,7 +185,7 @@ export function createApp(): Express {
       ensureNoModelLinks(request.params.id);
       const before = store.models.find((record) => record.id === request.params.id);
       deleteById(store.models, request.params.id, "Model");
-      audit("Delete", "Model", request.params.id, before ? entityLabel("Model", before) : request.params.id, before);
+      audit(request, "Delete", "Model", request.params.id, before ? entityLabel("Model", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -183,7 +196,7 @@ export function createApp(): Express {
     try {
       const before = cloneRecord(store.models.find((record) => record.id === request.params.id));
       const model = updateById(store.models, request.params.id, request.body, modelSchema.parse);
-      audit(editAction(before, model), "Model", model.id, model.name, before, model);
+      audit(request, editAction(before, model), "Model", model.id, model.name, before, model);
       response.json(model);
     } catch (error) {
       next(error);
@@ -194,7 +207,7 @@ export function createApp(): Express {
       const before = cloneRecord(store.models.find((record) => record.id === request.params.id));
       voidById(store.models, request.params.id, request.body?.reason);
       const after = store.models.find((record) => record.id === request.params.id);
-      audit("Void", "Model", request.params.id, after ? entityLabel("Model", after) : request.params.id, before, after, request.body?.reason);
+      audit(request, "Void", "Model", request.params.id, after ? entityLabel("Model", after) : request.params.id, before, after, request.body?.reason);
       response.json({ ok: true });
     } catch (error) {
       next(error);
@@ -208,9 +221,9 @@ export function createApp(): Express {
       ensureUniqueItemCode(parsed.itemCode);
       const item = { id: nextId("item"), ...parsed };
       store.items.push(item);
-      syncActivePackagingSetItems(item.usedForModels, "Item create");
-      syncActiveCasesForModels(item.usedForModels, "Item create");
-      audit("Create", "Item", item.id, item.itemCode, undefined, item);
+      syncActivePackagingSetItems(request, item.usedForModels, "Item create");
+      syncActiveCasesForModels(request, item.usedForModels, "Item create");
+      audit(request, "Create", "Item", item.id, item.itemCode, undefined, item);
       saveStore();
       response.status(201).json(item);
     } catch (error) {
@@ -256,7 +269,7 @@ export function createApp(): Express {
         const item = { id: nextId("item"), ...itemBody };
         store.items.push(item);
         importedItemCodes.add(normalizedItemCode);
-        audit("Import", "Item", item.id, item.itemCode, undefined, item, "Created from item import", item.id, "Import");
+        audit(request, "Import", "Item", item.id, item.itemCode, undefined, item, "Created from item import", item.id, "Import");
         return { action: "created", item };
       });
       const affectedModelIds = Array.from(
@@ -265,8 +278,8 @@ export function createApp(): Express {
             .flatMap((row) => (row.action === "created" && row.item ? row.item.usedForModels : [])),
         ),
       );
-      syncActivePackagingSetItems(affectedModelIds, "Item import");
-      syncActiveCasesForModels(affectedModelIds, "Item import");
+      syncActivePackagingSetItems(request, affectedModelIds, "Item import");
+      syncActiveCasesForModels(request, affectedModelIds, "Item import");
       saveStore();
       response.status(201).json({
         totalRows: parsed.rows.length,
@@ -285,7 +298,7 @@ export function createApp(): Express {
       ensureNoItemLinks(request.params.id);
       const before = store.items.find((record) => record.id === request.params.id);
       deleteById(store.items, request.params.id, "Item");
-      audit("Delete", "Item", request.params.id, before ? entityLabel("Item", before) : request.params.id, before);
+      audit(request, "Delete", "Item", request.params.id, before ? entityLabel("Item", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -298,9 +311,9 @@ export function createApp(): Express {
       if (request.body?.itemCode) ensureUniqueItemCode(String(request.body.itemCode), request.params.id);
       const item = updateById(store.items, request.params.id, request.body, itemSchema.parse);
       const affectedModelIds = Array.from(new Set([...(before?.usedForModels ?? []), ...item.usedForModels]));
-      syncActivePackagingSetItems(affectedModelIds, "Item edit");
-      syncActiveCasesForModels(affectedModelIds, "Item edit");
-      audit(before?.recordState === "Draft" && item.recordState === "Active" ? "Approve" : editAction(before, item), "Item", item.id, item.itemCode, before, item);
+      syncActivePackagingSetItems(request, affectedModelIds, "Item edit");
+      syncActiveCasesForModels(request, affectedModelIds, "Item edit");
+      audit(request, before?.recordState === "Draft" && item.recordState === "Active" ? "Approve" : editAction(before, item), "Item", item.id, item.itemCode, before, item);
       saveStore();
       response.json(item);
     } catch (error) {
@@ -312,9 +325,9 @@ export function createApp(): Express {
       const before = cloneRecord(store.items.find((record) => record.id === request.params.id));
       voidById(store.items, request.params.id, request.body?.reason);
       const after = store.items.find((record) => record.id === request.params.id);
-      syncActivePackagingSetItems(before?.usedForModels ?? after?.usedForModels ?? [], "Item void");
-      syncActiveCasesForModels(before?.usedForModels ?? after?.usedForModels ?? [], "Item void");
-      audit("Void", "Item", request.params.id, after ? entityLabel("Item", after) : request.params.id, before, after, request.body?.reason);
+      syncActivePackagingSetItems(request, before?.usedForModels ?? after?.usedForModels ?? [], "Item void");
+      syncActiveCasesForModels(request, before?.usedForModels ?? after?.usedForModels ?? [], "Item void");
+      audit(request, "Void", "Item", request.params.id, after ? entityLabel("Item", after) : request.params.id, before, after, request.body?.reason);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -341,7 +354,7 @@ export function createApp(): Express {
           if (drawingSet.modelId === parsed.modelId && drawingSet.status === "Active") {
             const before = cloneRecord(drawingSet);
             drawingSet.status = "Superseded";
-            audit("Status Change", "DrawingSet", drawingSet.id, drawingSet.name, before, drawingSet, "Replaced by newer active drawing set");
+            audit(request, "Status Change", "DrawingSet", drawingSet.id, drawingSet.name, before, drawingSet, "Replaced by newer active drawing set");
           }
         }
       }
@@ -354,7 +367,7 @@ export function createApp(): Express {
         })),
       };
       store.drawingSets.push(drawingSet);
-      audit("Create", "DrawingSet", drawingSet.id, drawingSet.name, undefined, drawingSet);
+      audit(request, "Create", "DrawingSet", drawingSet.id, drawingSet.name, undefined, drawingSet);
       saveStore();
       response.status(201).json(drawingSet);
     } catch (error) {
@@ -366,7 +379,7 @@ export function createApp(): Express {
       ensureNoDrawingSetLinks(request.params.id);
       const before = store.drawingSets.find((record) => record.id === request.params.id);
       deleteById(store.drawingSets, request.params.id, "Drawing set");
-      audit("Delete", "DrawingSet", request.params.id, before ? entityLabel("DrawingSet", before) : request.params.id, before);
+      audit(request, "Delete", "DrawingSet", request.params.id, before ? entityLabel("DrawingSet", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -405,7 +418,7 @@ export function createApp(): Express {
         drawingItems: nextDrawingItems,
       });
       validateDrawingSetLinks(drawingSet);
-      audit(editAction(before, drawingSet), "DrawingSet", drawingSet.id, drawingSet.name, before, drawingSet);
+      audit(request, editAction(before, drawingSet), "DrawingSet", drawingSet.id, drawingSet.name, before, drawingSet);
       saveStore();
       response.json(drawingSet);
     } catch (error) {
@@ -417,7 +430,7 @@ export function createApp(): Express {
       const before = cloneRecord(store.drawingSets.find((record) => record.id === request.params.id));
       voidById(store.drawingSets, request.params.id, request.body?.reason);
       const after = store.drawingSets.find((record) => record.id === request.params.id);
-      audit("Void", "DrawingSet", request.params.id, after ? entityLabel("DrawingSet", after) : request.params.id, before, after, request.body?.reason);
+      audit(request, "Void", "DrawingSet", request.params.id, after ? entityLabel("DrawingSet", after) : request.params.id, before, after, request.body?.reason);
       response.json({ ok: true });
     } catch (error) {
       next(error);
@@ -432,7 +445,7 @@ export function createApp(): Express {
       const project = { id: nextId("proj"), ...parsed };
       store.projects.push(project);
       syncReusableQuotesForProject(project);
-      audit("Create", "Case", project.id, project.name, undefined, project);
+      audit(request, "Create", "Case", project.id, project.name, undefined, project);
       saveStore();
       response.status(201).json(project);
     } catch (error) {
@@ -444,7 +457,7 @@ export function createApp(): Express {
       ensureNoProjectLinks(request.params.id);
       const before = store.projects.find((record) => record.id === request.params.id);
       deleteById(store.projects, request.params.id, "Case");
-      audit("Delete", "Case", request.params.id, before ? entityLabel("Case", before) : request.params.id, before);
+      audit(request, "Delete", "Case", request.params.id, before ? entityLabel("Case", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -457,7 +470,7 @@ export function createApp(): Express {
       const project = updateById(store.projects, request.params.id, request.body, projectSchema.parse);
       validateProjectLinks(project);
       syncReusableQuotesForProject(project);
-      audit(editAction(before, project), "Case", project.id, project.name, before, project);
+      audit(request, editAction(before, project), "Case", project.id, project.name, before, project);
       response.json(project);
     } catch (error) {
       next(error);
@@ -468,7 +481,7 @@ export function createApp(): Express {
       const before = cloneRecord(store.projects.find((record) => record.id === request.params.id));
       voidById(store.projects, request.params.id, request.body?.reason);
       const after = store.projects.find((record) => record.id === request.params.id);
-      audit("Void", "Case", request.params.id, after ? entityLabel("Case", after) : request.params.id, before, after, request.body?.reason);
+      audit(request, "Void", "Case", request.params.id, after ? entityLabel("Case", after) : request.params.id, before, after, request.body?.reason);
       response.json({ ok: true });
     } catch (error) {
       next(error);
@@ -487,7 +500,7 @@ export function createApp(): Express {
       buildPriceChangeFromQuote(quote);
       closePreviousSelectedQuote(quote);
       syncReusableQuotesForProjects();
-      audit("Create", "Quote", quote.id, entityLabel("Quote", quote), undefined, quote, undefined, quote.projectId);
+      audit(request, "Create", "Quote", quote.id, entityLabel("Quote", quote), undefined, quote, undefined, quote.projectId);
       saveStore();
       response.status(201).json(quote);
     } catch (error) {
@@ -499,7 +512,7 @@ export function createApp(): Express {
       ensureNoQuoteLinks(request.params.id);
       const before = store.quotes.find((record) => record.id === request.params.id);
       deleteById(store.quotes, request.params.id, "Quote");
-      audit("Delete", "Quote", request.params.id, before ? entityLabel("Quote", before) : request.params.id, before);
+      audit(request, "Delete", "Quote", request.params.id, before ? entityLabel("Quote", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -516,7 +529,7 @@ export function createApp(): Express {
       buildPriceChangeFromQuote(quote);
       closePreviousSelectedQuote(quote);
       syncReusableQuotesForProjects();
-      audit(editAction(before, quote), "Quote", quote.id, entityLabel("Quote", quote), before, quote, undefined, quote.projectId);
+      audit(request, editAction(before, quote), "Quote", quote.id, entityLabel("Quote", quote), before, quote, undefined, quote.projectId);
       saveStore();
       response.json(quote);
     } catch (error) {
@@ -528,7 +541,7 @@ export function createApp(): Express {
       const before = cloneRecord(store.quotes.find((record) => record.id === request.params.id));
       voidById(store.quotes, request.params.id, request.body?.reason);
       const after = store.quotes.find((record) => record.id === request.params.id);
-      audit("Void", "Quote", request.params.id, after ? entityLabel("Quote", after) : request.params.id, before, after, request.body?.reason, after?.projectId);
+      audit(request, "Void", "Quote", request.params.id, after ? entityLabel("Quote", after) : request.params.id, before, after, request.body?.reason, after?.projectId);
       response.json({ ok: true });
     } catch (error) {
       next(error);
@@ -552,8 +565,8 @@ export function createApp(): Express {
       if (current) {
         const before = cloneRecord(current);
         Object.assign(current, parsed);
-        demoteConflictingSourceRoles(current);
-        audit("Edit", "SourceAssignment", current.id, entityLabel("SourceAssignment", current), before, current, undefined, current.projectId);
+        demoteConflictingSourceRoles(request, current);
+        audit(request, "Edit", "SourceAssignment", current.id, entityLabel("SourceAssignment", current), before, current, undefined, current.projectId);
         saveStore();
         response.json(current);
         return;
@@ -561,8 +574,8 @@ export function createApp(): Express {
 
       const assignment = { id: nextId("assign"), ...parsed };
       store.sourceAssignments.push(assignment);
-      demoteConflictingSourceRoles(assignment);
-      audit("Create", "SourceAssignment", assignment.id, entityLabel("SourceAssignment", assignment), undefined, assignment, undefined, assignment.projectId);
+      demoteConflictingSourceRoles(request, assignment);
+      audit(request, "Create", "SourceAssignment", assignment.id, entityLabel("SourceAssignment", assignment), undefined, assignment, undefined, assignment.projectId);
       saveStore();
       response.status(201).json(assignment);
     } catch (error) {
@@ -577,8 +590,8 @@ export function createApp(): Express {
       validateInspectionLinks(parsed);
       const inspection = { id: nextId("ins"), ...parsed };
       store.inspections.push(inspection);
-      syncQuoteStatusFromInspection(inspection);
-      audit("Create", "Inspection", inspection.id, entityLabel("Inspection", inspection), undefined, inspection, undefined, inspection.relatedQuoteId);
+      syncQuoteStatusFromInspection(request, inspection);
+      audit(request, "Create", "Inspection", inspection.id, entityLabel("Inspection", inspection), undefined, inspection, undefined, inspection.relatedQuoteId);
       saveStore();
       response.status(201).json(inspection);
     } catch (error) {
@@ -589,7 +602,7 @@ export function createApp(): Express {
     try {
       const before = store.inspections.find((record) => record.id === request.params.id);
       deleteById(store.inspections, request.params.id, "Inspection");
-      audit("Delete", "Inspection", request.params.id, before ? entityLabel("Inspection", before) : request.params.id, before);
+      audit(request, "Delete", "Inspection", request.params.id, before ? entityLabel("Inspection", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -601,8 +614,8 @@ export function createApp(): Express {
       const before = cloneRecord(store.inspections.find((record) => record.id === request.params.id));
       const inspection = updateById(store.inspections, request.params.id, request.body, inspectionSchema.parse);
       validateInspectionLinks(inspection);
-      syncQuoteStatusFromInspection(inspection);
-      audit(editAction(before, inspection), "Inspection", inspection.id, entityLabel("Inspection", inspection), before, inspection, undefined, inspection.relatedQuoteId);
+      syncQuoteStatusFromInspection(request, inspection);
+      audit(request, editAction(before, inspection), "Inspection", inspection.id, entityLabel("Inspection", inspection), before, inspection, undefined, inspection.relatedQuoteId);
       response.json(inspection);
     } catch (error) {
       next(error);
@@ -613,22 +626,22 @@ export function createApp(): Express {
       const before = cloneRecord(store.inspections.find((record) => record.id === request.params.id));
       voidById(store.inspections, request.params.id, request.body?.reason);
       const after = store.inspections.find((record) => record.id === request.params.id);
-      audit("Void", "Inspection", request.params.id, after ? entityLabel("Inspection", after) : request.params.id, before, after, request.body?.reason, after?.relatedQuoteId);
+      audit(request, "Void", "Inspection", request.params.id, after ? entityLabel("Inspection", after) : request.params.id, before, after, request.body?.reason, after?.relatedQuoteId);
       response.json({ ok: true });
     } catch (error) {
       next(error);
     }
   });
 
-  function syncQuoteStatusesFromPassedInspections() {
+  function syncQuoteStatusesFromPassedInspections(request: Request) {
     let changed = false;
     for (const inspection of store.inspections) {
-      if (inspection.recordState !== "Void") changed = syncQuoteStatusFromInspection(inspection) || changed;
+      if (inspection.recordState !== "Void") changed = syncQuoteStatusFromInspection(request, inspection) || changed;
     }
     return changed;
   }
 
-  function syncQuoteStatusFromInspection(inspection: { relatedQuoteId?: string; result: string }) {
+  function syncQuoteStatusFromInspection(request: Request, inspection: { relatedQuoteId?: string; result: string }) {
     if (!inspection.relatedQuoteId || inspection.result !== "Pass") return false;
     const quote = store.quotes.find((candidate) => candidate.id === inspection.relatedQuoteId && candidate.recordState !== "Void");
     if (!quote || quote.status === "Selected") return false;
@@ -640,6 +653,7 @@ export function createApp(): Express {
     syncCaseFromQuote(quote);
     syncReusableQuotesForProjects();
     audit(
+      request,
       "Status Change",
       "Quote",
       quote.id,
@@ -661,7 +675,7 @@ export function createApp(): Express {
       validateIncomingDefectLinks(parsed);
       const defect = { id: nextId("def"), ...parsed };
       store.incomingDefects.push(defect);
-      audit("Create", "IncomingDefect", defect.id, entityLabel("IncomingDefect", defect), undefined, defect);
+      audit(request, "Create", "IncomingDefect", defect.id, entityLabel("IncomingDefect", defect), undefined, defect);
       saveStore();
       response.status(201).json(defect);
     } catch (error) {
@@ -672,7 +686,7 @@ export function createApp(): Express {
     try {
       const before = store.incomingDefects.find((record) => record.id === request.params.id);
       deleteById(store.incomingDefects, request.params.id, "Incoming defect");
-      audit("Delete", "IncomingDefect", request.params.id, before ? entityLabel("IncomingDefect", before) : request.params.id, before);
+      audit(request, "Delete", "IncomingDefect", request.params.id, before ? entityLabel("IncomingDefect", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -685,7 +699,7 @@ export function createApp(): Express {
       const defect = updateById(store.incomingDefects, request.params.id, request.body, incomingDefectSchema.parse);
       normalizeIncomingDefectCompletion(defect);
       validateIncomingDefectLinks(defect);
-      audit(editAction(before, defect), "IncomingDefect", defect.id, entityLabel("IncomingDefect", defect), before, defect);
+      audit(request, editAction(before, defect), "IncomingDefect", defect.id, entityLabel("IncomingDefect", defect), before, defect);
       response.json(defect);
     } catch (error) {
       next(error);
@@ -696,7 +710,7 @@ export function createApp(): Express {
       const before = cloneRecord(store.incomingDefects.find((record) => record.id === request.params.id));
       voidById(store.incomingDefects, request.params.id, request.body?.reason);
       const after = store.incomingDefects.find((record) => record.id === request.params.id);
-      audit("Void", "IncomingDefect", request.params.id, after ? entityLabel("IncomingDefect", after) : request.params.id, before, after, request.body?.reason);
+      audit(request, "Void", "IncomingDefect", request.params.id, after ? entityLabel("IncomingDefect", after) : request.params.id, before, after, request.body?.reason);
       response.json({ ok: true });
     } catch (error) {
       next(error);
@@ -710,7 +724,7 @@ export function createApp(): Express {
       validatePriceChangeLinks(parsed);
       const priceChange = { id: nextId("pc"), ...parsed };
       store.priceChanges.push(priceChange);
-      audit("Create", "PriceChange", priceChange.id, entityLabel("PriceChange", priceChange), undefined, priceChange, undefined, priceChange.sourceQuoteId);
+      audit(request, "Create", "PriceChange", priceChange.id, entityLabel("PriceChange", priceChange), undefined, priceChange, undefined, priceChange.sourceQuoteId);
       saveStore();
       response.status(201).json(priceChange);
     } catch (error) {
@@ -721,7 +735,7 @@ export function createApp(): Express {
     try {
       const before = store.priceChanges.find((record) => record.id === request.params.id);
       deleteById(store.priceChanges, request.params.id, "Price change");
-      audit("Delete", "PriceChange", request.params.id, before ? entityLabel("PriceChange", before) : request.params.id, before);
+      audit(request, "Delete", "PriceChange", request.params.id, before ? entityLabel("PriceChange", before) : request.params.id, before);
       saveStore();
       response.json({ ok: true });
     } catch (error) {
@@ -733,7 +747,7 @@ export function createApp(): Express {
       const before = cloneRecord(store.priceChanges.find((record) => record.id === request.params.id));
       const priceChange = updateById(store.priceChanges, request.params.id, request.body, priceChangeSchema.parse);
       validatePriceChangeLinks(priceChange);
-      audit(editAction(before, priceChange), "PriceChange", priceChange.id, entityLabel("PriceChange", priceChange), before, priceChange, undefined, priceChange.sourceQuoteId);
+      audit(request, editAction(before, priceChange), "PriceChange", priceChange.id, entityLabel("PriceChange", priceChange), before, priceChange, undefined, priceChange.sourceQuoteId);
       response.json(priceChange);
     } catch (error) {
       next(error);
@@ -744,7 +758,7 @@ export function createApp(): Express {
       const before = cloneRecord(store.priceChanges.find((record) => record.id === request.params.id));
       voidById(store.priceChanges, request.params.id, request.body?.reason);
       const after = store.priceChanges.find((record) => record.id === request.params.id);
-      audit("Void", "PriceChange", request.params.id, after ? entityLabel("PriceChange", after) : request.params.id, before, after, request.body?.reason, after?.sourceQuoteId);
+      audit(request, "Void", "PriceChange", request.params.id, after ? entityLabel("PriceChange", after) : request.params.id, before, after, request.body?.reason, after?.sourceQuoteId);
       response.json({ ok: true });
     } catch (error) {
       next(error);
@@ -815,7 +829,7 @@ export function createApp(): Express {
       if (total !== 100) throw new ValidationError("Score weights must add up to 100.");
       const before = cloneRecord(store.scoreWeights);
       store.scoreWeights = weights;
-      audit("Edit", "ScoreSettings", "score-settings", "Score settings", before, store.scoreWeights);
+      audit(request, "Edit", "ScoreSettings", "score-settings", "Score settings", before, store.scoreWeights);
       saveStore();
       response.json(store.scoreWeights);
     } catch (error) {
@@ -826,6 +840,7 @@ export function createApp(): Express {
   type AuditAction = "Create" | "Edit" | "Status Change" | "Upload" | "Void" | "Delete" | "Approve" | "Import";
 
   function audit(
+    request: Request,
     action: AuditAction,
     entityType: string,
     entityId: string,
@@ -837,10 +852,11 @@ export function createApp(): Express {
     source: "UI" | "Import" | "System" = "UI",
   ) {
     const diff = compactDiff(before, after);
-    store.auditLogs.push({
-      id: nextId("audit"),
+    const actor = source === "System" ? undefined : request.user;
+    void appendAuditEntry(pool, {
       timestamp: new Date().toISOString(),
-      actor: "System",
+      actorUserId: actor?.id ?? null,
+      actorLabel: actor?.name ?? "System",
       action,
       entityType,
       entityId,
@@ -850,8 +866,7 @@ export function createApp(): Express {
       reason: String(reason ?? "").trim() || undefined,
       source,
       linkedRecordId,
-    });
-    saveStore();
+    }).catch((error) => console.error("Failed to write audit entry:", error));
   }
 
   function cloneRecord<T>(record: T | undefined): T | undefined {
@@ -940,7 +955,7 @@ export function createApp(): Express {
     return `${existingCount + 1}.0`;
   }
 
-  function syncActivePackagingSetItems(modelIds: string[], reason: string) {
+  function syncActivePackagingSetItems(request: Request, modelIds: string[], reason: string) {
     const targetModelIds = new Set(modelIds.filter(Boolean));
     if (targetModelIds.size === 0) return false;
     let changed = false;
@@ -969,6 +984,7 @@ export function createApp(): Express {
       });
       validateDrawingSetLinks(drawingSet);
       audit(
+        request,
         "Edit",
         "DrawingSet",
         drawingSet.id,
@@ -976,6 +992,8 @@ export function createApp(): Express {
         before,
         drawingSet,
         `${reason}: synced package coverage to active items for ${entityLabel("Model", store.models.find((model) => model.id === drawingSet.modelId))}`,
+        undefined,
+        "System",
       );
       changed = true;
     }
@@ -983,7 +1001,7 @@ export function createApp(): Express {
     return changed;
   }
 
-  function syncActiveCasesForModels(modelIds: string[], reason: string) {
+  function syncActiveCasesForModels(request: Request, modelIds: string[], reason: string) {
     const targetModelIds = new Set(modelIds.filter(Boolean));
     if (targetModelIds.size === 0) return false;
     let changed = false;
@@ -1015,6 +1033,7 @@ export function createApp(): Express {
       project.itemIds = Array.from(new Set([...project.itemIds, ...missingItemIds]));
       syncReusableQuotesForProject(project);
       audit(
+        request,
         "Edit",
         "Case",
         project.id,
@@ -1088,7 +1107,7 @@ export function createApp(): Express {
     }
   }
 
-  function demoteConflictingSourceRoles(current: {
+  function demoteConflictingSourceRoles(request: Request, current: {
     id: string;
     projectId?: string;
     modelId: string;
@@ -1107,7 +1126,7 @@ export function createApp(): Express {
       ) {
         const before = cloneRecord(assignment);
         assignment.role = "Backup";
-        audit("Edit", "SourceAssignment", assignment.id, entityLabel("SourceAssignment", assignment), before, assignment, `Demoted because another supplier was set as ${current.role}`, assignment.projectId, "System");
+        audit(request, "Edit", "SourceAssignment", assignment.id, entityLabel("SourceAssignment", assignment), before, assignment, `Demoted because another supplier was set as ${current.role}`, assignment.projectId, "System");
       }
     }
   }

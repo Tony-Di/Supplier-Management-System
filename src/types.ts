@@ -259,9 +259,10 @@ export interface UploadedFileRecord {
 }
 
 export interface AuditLogRecord {
-  id: string;
+  id: number;
   timestamp: string;
-  actor: string;
+  actorUserId: number | null;
+  actorLabel: string;
   action: "Create" | "Edit" | "Status Change" | "Upload" | "Void" | "Delete" | "Approve" | "Import";
   entityType: string;
   entityId: string;

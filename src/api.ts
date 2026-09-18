@@ -30,7 +30,6 @@ export interface AppData {
   priceChanges: PriceChange[];
   purchasePrices: PurchasePriceRecord[];
   files: UploadedFileRecord[];
-  auditLogs: AuditLogRecord[];
 }
 
 export interface ComparisonRow {
@@ -134,6 +133,11 @@ export function fetchComparison(projectId: string) {
 
 export function fetchScorecard() {
   return request<ScorecardResponse>("/api/scorecard");
+}
+
+export function fetchAuditLogs(params: { entityType: string; entityId: string }) {
+  const query = new URLSearchParams(params).toString();
+  return request<AuditLogRecord[]>(`/api/audit-logs?${query}`);
 }
 
 export function updateScoreWeights(payload: ScoreWeights) {
