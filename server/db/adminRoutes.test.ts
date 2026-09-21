@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { Express } from "express";
 
 import { withTestApp } from "../testDb";
+import { appendAuditEntry } from "../auditLog";
 
 // AUTH_MODE=dev is set by .env (loaded by `npm run test:db`); the dev bypass
 // signs in a fixed local account without contacting Entra.
@@ -38,8 +39,32 @@ test("a non-admin is refused", async () => {
   await withTestApp(async ({ createApp }) => {
     const app = createApp();
     const { cookie } = await signedInFetch(app);
-    const response = await call(app, "/api/admin/users", { cookie });
-    assert.equal(response.status, 403);
+    for (const path of ["/api/admin/users", "/api/admin/audit-usage", "/api/audit-logs", "/api/audit-logs?entityType=Supplier&entityId=s-1"]) {
+      const response = await call(app, path, { cookie });
+      assert.equal(response.status, 403, path);
+    }
+  });
+});
+
+test("the global audit view combines user and record filters before applying the limit", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const { cookie, me } = await signedInFetch(app);
+    await pool.query("UPDATE users SET role = 'admin' WHERE id = $1", [me.id]);
+    const base = { actorUserId: me.id, actorLabel: "Dev User", action: "Edit", entityType: "Supplier", entityId: "s-1", entityLabel: "Test Supplier", source: "UI" as const, before: { name: "Before" }, after: { name: "After" } };
+    await appendAuditEntry(pool, { ...base, timestamp: "2026-09-21T10:00:00Z" });
+    await appendAuditEntry(pool, { ...base, timestamp: "2026-09-21T11:00:00Z" });
+    await appendAuditEntry(pool, { ...base, timestamp: "2026-09-21T12:00:00Z", entityType: "Quote" });
+    await appendAuditEntry(pool, { ...base, timestamp: "2026-09-21T13:00:00Z", actorUserId: null, actorLabel: "System", source: "System" });
+    const response = await call(app, `/api/audit-logs?actorUserId=${me.id}&entityType=Supplier&limit=1`, { cookie });
+    assert.equal(response.status, 200);
+    const entries = await response.json();
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].timestamp, "2026-09-21T11:00:00.000Z");
+    assert.deepEqual(entries[0].before, { name: "Before" });
+    const usage = await (await call(app, "/api/admin/audit-usage", { cookie })).json();
+    assert.equal(usage.rows, 4);
+    assert.ok(usage.bytes > 0);
   });
 });
 

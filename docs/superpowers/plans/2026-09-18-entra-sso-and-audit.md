@@ -2028,6 +2028,10 @@ git commit -m "Add the admin user management API"
 
 ## Task 11: Admin console and audit view
 
+**Completed 2026-09-21.** Admin users and audit views are implemented, including role-gated navigation, record and voided-record history, and sign-out after changing the current admin's own role.
+
+Validation: 82 unit tests, 36 Postgres integration tests, frontend/server type checks, and the production build passed. Browser checks covered ordinary/admin visibility, role changes, self-deactivation and last-admin errors, activation, removal, audit filters/limits/diffs/empty results, per-record history, and 390px layouts. All write tests used isolated databases and a temporary JSON store; the audit preview used 61 synthetic historical entries plus a newly created supplier entry. Existing application users and business data were not changed.
+
 **Files:**
 - Create: `src/pages/AdminUsers.tsx`, `src/pages/AuditLog.tsx`
 - Modify: `src/api.ts`, `src/App.tsx`, `src/components/AppShell.tsx`, `src/uiTypes.ts`, `src/modals/record/HistoryModal.tsx`
@@ -2036,7 +2040,7 @@ git commit -m "Add the admin user management API"
 - Consumes: the Task 10 endpoints; `useSession()` (Task 7).
 - Produces: `fetchUsers()`, `updateUserRole(id, role)`, `updateUserActive(id, active)`, `removeUser(id)`, `fetchAuditUsage()`, `fetchAuditEntries(filter)` in `src/api.ts`.
 
-- [ ] **Step 1: Add the API calls to `src/api.ts`**
+- [x] **Step 1: Add the API calls to `src/api.ts`**
 
 ```ts
 export interface AdminUser {
@@ -2075,32 +2079,32 @@ export function fetchAuditEntries(filter: { entityType?: string; entityId?: stri
 }
 ```
 
-- [ ] **Step 2: Add the "Admin" section**
+- [x] **Step 2: Add the "Admin" section**
 
 Add `"Admin"` to the `Section` union in `src/uiTypes.ts`, and render the entry in `src/components/AppShell.tsx` only when `useSession().user?.role === "admin"`.
 
-- [ ] **Step 3: Write `src/pages/AdminUsers.tsx`**
+- [x] **Step 3: Write `src/pages/AdminUsers.tsx`**
 
 A `Panel` titled "Users" over a table with columns Name, Email, Role, Status, Last sign-in, Actions. Role is a `<select>` calling `updateUserRole`; Status is a button calling `updateUserActive`; Remove calls `removeUser` behind a `window.confirm` naming the person. Failures set an error message rendered through the existing `ErrorNotice`, showing the server's own text ("You cannot deactivate your own account.", "At least one active admin must remain."). Below the table, one line from `fetchAuditUsage()`: "Audit trail: 61 entries, 0.1 MB".
 
-- [ ] **Step 4: Write `src/pages/AuditLog.tsx`**
+- [x] **Step 4: Write `src/pages/AuditLog.tsx`**
 
 A `TableToolbar` with three filters — user, record type, limit — over a table of Time, User, Action, Record, Change. The Change cell reuses the existing `AuditDiff` component from `src/modals/record/RecordDetailModal.tsx`.
 
-- [ ] **Step 5: Gate the per-record History dialog**
+- [x] **Step 5: Gate the per-record History dialog**
 
 In `src/modals/record/HistoryModal.tsx`, fetch from `fetchAuditEntries({ entityType, entityId })`. Render the dialog only for `role === "admin"`; hide the History entry in `RecordMenu` for everyone else.
 
-- [ ] **Step 6: Verify by hand**
+- [x] **Step 6: Verify by hand**
 
 With `AUTH_MODE=dev`: the Admin section is hidden, then `npm run admin -- dev@segsolar.com`, sign out and in again, and it appears. Check the user table loads, the role toggle works, deactivating yourself shows the server's message, and the audit view lists the imported 61 entries plus anything created since.
 
-- [ ] **Step 7: Verify everything**
+- [x] **Step 7: Verify everything**
 
 Run: `npm test && AUTH_MODE=dev npm run test:db && npm run typecheck:api && npx tsc -p tsconfig.json --noEmit && npm run build`
 Expected: all green.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/pages/AdminUsers.tsx src/pages/AuditLog.tsx src/api.ts src/App.tsx src/components/AppShell.tsx src/uiTypes.ts src/modals/record/HistoryModal.tsx

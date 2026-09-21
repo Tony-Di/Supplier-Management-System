@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchAuditLogs } from "../../api";
+import { fetchAuditEntries } from "../../api";
+import { useSession } from "../../SessionContext";
 import { EmptyState } from "../../components/EmptyState";
 import { formatAuditDate } from "../../lib/format";
 import { StatusPill } from "../../components/StatusPill";
@@ -17,15 +18,18 @@ export function HistoryModal({
   label: string;
   onClose: () => void;
 }) {
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
   const [records, setRecords] = useState<AuditLogRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!isAdmin) return;
     let cancelled = false;
     setLoading(true);
     setError("");
-    fetchAuditLogs({ entityType, entityId })
+    fetchAuditEntries({ entityType, entityId })
       .then((entries) => {
         if (!cancelled) setRecords(entries);
       })
@@ -38,7 +42,9 @@ export function HistoryModal({
     return () => {
       cancelled = true;
     };
-  }, [entityType, entityId]);
+  }, [entityType, entityId, isAdmin]);
+
+  if (!isAdmin) return null;
 
   return (
     <div className="modalBackdrop" role="presentation">

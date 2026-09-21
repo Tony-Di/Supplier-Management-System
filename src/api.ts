@@ -115,6 +115,46 @@ export interface SessionUser {
   role: "admin" | "user";
 }
 
+export interface AdminUser extends SessionUser {
+  active: boolean;
+  lastLoginAt: string | null;
+}
+
+export interface AuditFilter {
+  entityType?: string;
+  entityId?: string;
+  actorUserId?: number;
+  limit?: number;
+}
+
+export function fetchUsers() {
+  return request<AdminUser[]>("/api/admin/users");
+}
+
+export function updateUserRole(id: number, role: AdminUser["role"]) {
+  return request<AdminUser>(`/api/admin/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) });
+}
+
+export function updateUserActive(id: number, active: boolean) {
+  return request<AdminUser>(`/api/admin/users/${id}/active`, { method: "PATCH", body: JSON.stringify({ active }) });
+}
+
+export function removeUser(id: number) {
+  return request<{ ok: true }>(`/api/admin/users/${id}`, { method: "DELETE" });
+}
+
+export function fetchAuditUsage() {
+  return request<{ rows: number; bytes: number }>("/api/admin/audit-usage");
+}
+
+export function fetchAuditEntries(filter: AuditFilter = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filter)) {
+    if (value !== undefined) params.set(key, String(value));
+  }
+  return request<AuditLogRecord[]>(`/api/audit-logs?${params.toString()}`);
+}
+
 export function fetchSession() {
   return request<SessionUser & { csrfToken: string }>("/api/auth/me");
 }
@@ -133,11 +173,6 @@ export function fetchComparison(projectId: string) {
 
 export function fetchScorecard() {
   return request<ScorecardResponse>("/api/scorecard");
-}
-
-export function fetchAuditLogs(params: { entityType: string; entityId: string }) {
-  const query = new URLSearchParams(params).toString();
-  return request<AuditLogRecord[]>(`/api/audit-logs?${query}`);
 }
 
 export function updateScoreWeights(payload: ScoreWeights) {

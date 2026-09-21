@@ -2,6 +2,7 @@ import { useState, useEffect, useId, useLayoutEffect, useRef, type KeyboardEvent
 import { createPortal } from "react-dom";
 import { MoreHorizontal } from "lucide-react";
 import { menuPosition } from "../lib/menuPosition";
+import { useSession } from "../SessionContext";
 
 export function RecordMenu({
   canDelete,
@@ -20,6 +21,7 @@ export function RecordMenu({
   onView?: () => void;
   onVoid: () => void;
 }) {
+  const { user } = useSession();
   const [open, setOpen] = useState(false);
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -121,6 +123,7 @@ export function RecordMenu({
         >
           {onView && <button role="menuitem" onClick={() => runAction(onView)} type="button">View</button>}
           <button role="menuitem" onClick={() => runAction(onEdit)} type="button">Edit</button>
+          {user?.role === "admin" && onHistory && <button role="menuitem" onClick={() => runAction(onHistory)} type="button">History</button>}
           <button role="menuitem" onClick={() => runAction(onVoid)} type="button">Void</button>
           {canDelete && <button role="menuitem" className="dangerMenuItem" onClick={() => runAction(onDelete)} type="button">Delete</button>}
         </div>, document.body,

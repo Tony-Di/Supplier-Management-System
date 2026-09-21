@@ -1884,6 +1884,7 @@ background: #F2F3F5; border: 1px dashed #B8B8B8; color: #666666;
 
 .historyRow {
   border: 1px solid var(--line);
+  border-radius: var(--radius-card);
   padding: 14px;
 }
 
@@ -2382,6 +2383,43 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
   border-bottom-right-radius: calc(var(--radius-card) - 1px);
 }
 .tableViewport table, .tableScroll table, .scoreBreakdownTable { display: table; }
+
+/* Administration uses the same panels, controls and radius scale as the workbench. */
+.adminPage { display: grid; gap: 18px; min-width: 0; }
+.adminPage > * { min-width: 0; }
+.adminPage .tableToolbar { flex-wrap: wrap; }
+.adminPage .toolbarActions { flex: 1 1 600px; min-width: 0; }
+.adminHint, .adminUsage { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.adminPage button:disabled, .adminPage select:disabled { cursor: not-allowed; opacity: 0.6; }
+.adminMeta { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; overflow-wrap: anywhere; }
+.adminUserStatus { display: flex; align-items: center; gap: 10px; }
+.adminUserStatus .active { background: #EAF5EF; border-color: #BADCCB; color: #236346; }
+.adminUserStatus .inactive { background: #F2F3F5; border-color: var(--line); color: var(--muted); }
+.adminUsersTable select, .auditFilters select { background: white; border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); min-height: 36px; padding: 7px 10px; }
+.adminUsersTable select { min-width: 90px; }
+.adminUsersTable .ghostButton, .adminUsersTable .dangerButton { min-height: 34px; }
+.adminUsersTable td { vertical-align: middle; }
+.adminUsersTable td:nth-child(2) { overflow-wrap: anywhere; }
+.adminPage .adminUsersTable { min-width: 840px; }
+.auditFilters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; width: 100%; }
+.auditFilters label { display: flex; flex: 1 1 145px; flex-direction: column; gap: 6px; min-width: 0; color: var(--muted); font-size: 11px; }
+.auditFilters label:first-child { flex: 2 1 220px; }
+.auditFilters select { width: 100%; }
+.adminPage .auditFilters .ghostButton { background: white; border-color: var(--line); color: var(--ink); min-height: 36px; }
+.adminPage .auditLogTable { min-width: 880px; table-layout: fixed; }
+.auditLogTable th:nth-child(1) { width: 145px; }
+.auditLogTable th:nth-child(2) { width: 120px; }
+.auditLogTable th:nth-child(3) { width: 100px; }
+.auditLogTable th:nth-child(4) { width: 190px; }
+.auditLogTable td { overflow-wrap: anywhere; }
+.auditChanges summary { color: var(--seg-red-dark); cursor: pointer; font-weight: 500; }
+.auditChanges .historyDiff { margin-top: 4px; padding-top: 6px; }
+.auditDiffHeading, .auditChanges .historyDiffRow { display: grid; gap: 10px; grid-template-columns: minmax(65px, 0.8fr) minmax(0, 1fr) minmax(0, 1fr); }
+.auditDiffHeading { margin-top: 12px; color: var(--muted); font-size: 10px; text-transform: uppercase; }
+.auditChanges .historyDiffRow span, .auditChanges .historyDiffRow strong { font-size: 11px; font-weight: 400; }
+@media (max-width: 760px) {
+  .adminPage .toolbarActions { flex: 0 1 auto; width: 100%; }
+}
 
 /* Sign-in screen */
 .signInLoading {

@@ -13,6 +13,7 @@ const sectionLabels: Record<Section, string> = {
   Pricing: "Commercial insights",
   "QC Inspections": "Quality assurance",
   Reports: "Supplier performance",
+  Admin: "Administration",
 };
 
 export function AppShell({ section, onSectionChange, children }: { section: Section; onSectionChange: (section: Section) => void; children: ReactNode }) {
@@ -44,7 +45,7 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
         </div>
 
         <nav id="main-navigation" className="navList" aria-label="Main navigation">
-          {navItems.map(({ section: item, icon: Icon }) => (
+          {navItems.filter(({ section: item }) => item !== "Admin" || user?.role === "admin").map(({ section: item, icon: Icon }) => (
             <button
               className={section === item ? "navButton active" : "navButton"}
               aria-current={section === item ? "page" : undefined}
