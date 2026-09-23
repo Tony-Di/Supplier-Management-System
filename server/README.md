@@ -43,7 +43,7 @@ General:
 
 - `GET /api/health`: no session required
 - `GET /api/bootstrap`: the full store, used by the frontend on load
-- `GET/POST /api/files`: uploads are sent as base64 JSON
+- `GET/POST /api/files`: uploads are sent as base64 JSON. Only the types in `server/uploads.ts` are accepted (PDF, common image, Excel, CSV and Word files); the stored extension and MIME type are set by the server. `/uploads` sends `X-Content-Type-Options: nosniff`, and anything other than a PDF or image is served as a download.
 
 Records. Each supports `GET` (list), `POST` (create), `PATCH /:id` (update), `DELETE /:id`, and `POST /:id/void`:
 

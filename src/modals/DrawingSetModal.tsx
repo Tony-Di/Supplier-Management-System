@@ -5,6 +5,7 @@ import { useState, FormEvent } from "react";
 import { isPublishedRecord } from "../lib/recordLifecycle";
 import { nextPackagingSetRevision, buildDrawingRowsFromModelItems } from "../lib/import";
 import { uploadOptionalFormFile } from "../lib/uploads";
+import { uploadAccept } from "../constants";
 import { modelName } from "../lib/lookups";
 import { Panel } from "../components/Panel";
 
@@ -105,7 +106,7 @@ export function DrawingSetModal({
         </div>
         <label className="fullWidthLabel">
           Package PDF
-          <input name="drawingPackageFile" required type="file" />
+          <input name="drawingPackageFile" required type="file" accept={uploadAccept} />
         </label>
         <div className="notice modalNotice">
           This packaging set will cover all {modelItems.length} active item{modelItems.length === 1 ? "" : "s"} currently linked to {modelName(appData, modelId)}.
