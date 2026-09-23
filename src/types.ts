@@ -16,7 +16,6 @@ export type PackagingItemType =
   | "Strapping"
   | "Stretch Film";
 
-export type Role = "Purchasing" | "QC" | "Process" | "Manager" | "Admin";
 export type RecordState = "Draft" | "Active" | "Void";
 
 export interface RecordLifecycle {

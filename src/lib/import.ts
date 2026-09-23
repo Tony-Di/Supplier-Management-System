@@ -28,20 +28,6 @@ export function parseItemImportRows(rawText: string) {
     .filter((row) => row.itemCode && row.description && row.type && row.usedFor.length > 0);
 }
 
-export function parseDrawingImportRows(rawText: string) {
-  return rawText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line, index) => index !== 0 || !/^item code[\t,]/i.test(line))
-    .map((line) => {
-      const columns = line.includes("\t") ? line.split("\t") : line.split(",");
-      const [itemCode = "", revision = "", fileName = ""] = columns.map((column) => column.trim());
-      return { itemCode, revision, fileName };
-    })
-    .filter((row) => row.itemCode && row.revision);
-}
-
 export function buildDrawingRowsFromModelItems(modelItems: PackagingItem[], revision: string) {
   return modelItems.map((item) => ({
     itemCode: item.itemCode,

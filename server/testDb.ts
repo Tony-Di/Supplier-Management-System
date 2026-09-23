@@ -7,8 +7,6 @@ import { runMigrations } from "../scripts/migrate";
 
 const connectionString = process.env.DATABASE_URL_TEST;
 
-export const databaseAvailable = Boolean(connectionString);
-
 /**
  * Runs `fn` with a client bound to a freshly created, isolated schema that has
  * every migration applied. The schema is dropped afterwards. Use this for
