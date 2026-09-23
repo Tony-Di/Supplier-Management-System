@@ -1,7 +1,7 @@
 import cors from "cors";
 import express, { type Express, type Request } from "express";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { extname, join } from "node:path";
+import { join } from "node:path";
 import {
   buildComparison,
   buildPriceChangeFromPurchase,
@@ -46,6 +46,7 @@ import { adminRouter } from "./routes/admin";
 import { requireAdmin, requireAuth, sessionMiddleware, verifyCsrf } from "./session";
 import { appendAuditEntry, listAuditEntries } from "./auditLog";
 import { pool } from "./db";
+import { setUploadHeaders, uploadFileType } from "./uploads";
 
 export function createApp(): Express {
   const app = express();
@@ -70,7 +71,7 @@ export function createApp(): Express {
   });
 
   app.use("/api", requireAuth, verifyCsrf);
-  app.use("/uploads", requireAuth, express.static(join(process.cwd(), "uploads")));
+  app.use("/uploads", requireAuth, express.static(join(process.cwd(), "uploads"), { setHeaders: setUploadHeaders }));
   app.use("/api/admin", adminRouter);
 
   app.get("/api/bootstrap", (request, response) => {
@@ -99,10 +100,11 @@ export function createApp(): Express {
   app.post("/api/files", (request, response, next) => {
     try {
       const parsed = fileUploadSchema.parse(request.body);
+      const { extension, mimeType } = uploadFileType(parsed.fileName);
       const file = {
         id: nextId("file"),
         fileName: parsed.fileName,
-        mimeType: parsed.mimeType,
+        mimeType,
         size: Buffer.byteLength(parsed.contentBase64, "base64"),
         storagePath: "",
         uploadedAt: new Date().toISOString(),
@@ -110,7 +112,6 @@ export function createApp(): Express {
         linkedRecordType: parsed.linkedRecordType,
         linkedRecordId: parsed.linkedRecordId,
       };
-      const extension = extname(parsed.fileName);
       const uploadDir = join(process.cwd(), "uploads");
       mkdirSync(uploadDir, { recursive: true });
       file.storagePath = join("uploads", `${file.id}${extension}`);

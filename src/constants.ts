@@ -17,3 +17,6 @@ export const quoteStatusOptions: Quote["status"][] = ["Received", "Under Review"
 export const incomingDefectTypes: IncomingDefectRecord["defectType"][] = ["Damage", "Dimension", "Quantity Shortage", "Material", "Labeling", "Other"];
 
 export const scorecardSortOptions: ScorecardSortKey[] = ["Score", "Quality", "Pricing", "Responsiveness", "Scope Fit", "Lead Time"];
+
+// Mirrors the server's upload allowlist in server/uploads.ts.
+export const uploadAccept = ".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,.xlsx,.xls,.csv,.docx,.doc";

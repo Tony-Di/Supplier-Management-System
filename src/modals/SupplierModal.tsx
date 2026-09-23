@@ -5,7 +5,7 @@ import { type PackagingItemType, type Supplier } from "../types";
 import { uploadOptionalFormFile } from "../lib/uploads";
 import { createSupplier } from "../api";
 import { MultiSelectDropdown } from "../components/MultiSelectDropdown";
-import { packagingItemOptions } from "../constants";
+import { packagingItemOptions, uploadAccept } from "../constants";
 
 export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
   const { data: appData } = useAppData();
@@ -116,11 +116,11 @@ export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onC
         <div className="formGrid">
           <label>
             W-9 file
-            <input name="w9File" type="file" />
+            <input name="w9File" type="file" accept={uploadAccept} />
           </label>
           <label>
             Bank / payment info file
-            <input name="paymentInfoFile" type="file" />
+            <input name="paymentInfoFile" type="file" accept={uploadAccept} />
           </label>
         </div>
 

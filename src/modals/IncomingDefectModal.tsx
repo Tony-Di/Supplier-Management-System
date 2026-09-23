@@ -3,7 +3,7 @@ import { type AppData, createIncomingDefect } from "../api";
 import { useState, FormEvent } from "react";
 import { type IncomingDefectRecord } from "../types";
 import { uploadMultipleFormFiles } from "../lib/uploads";
-import { incomingDefectTypes } from "../constants";
+import { incomingDefectTypes, uploadAccept } from "../constants";
 
 export function IncomingDefectModal({
   data,
@@ -145,11 +145,11 @@ export function IncomingDefectModal({
           )}
           <label>
             Photos
-            <input multiple name="photoFiles" type="file" />
+            <input multiple name="photoFiles" type="file" accept={uploadAccept} />
           </label>
           <label>
             Attachments
-            <input multiple name="attachmentFiles" type="file" />
+            <input multiple name="attachmentFiles" type="file" accept={uploadAccept} />
           </label>
         </div>
         <label className="fullWidthLabel">
