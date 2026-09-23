@@ -3,7 +3,9 @@ import { useState, useEffect } from "react";
 import { isActiveSourceRole, averageLeadTimeForActiveSourceSuppliers, isSelectedQuote, sourceRoleRank, sourceRoleLabel } from "../lib/sourcing";
 import { buildDashboardPriceTrendRows } from "../lib/priceCharts";
 import { supplierName, itemCode } from "../lib/lookups";
-import { buildSupplierScorecard, averageScore, aggregateRecentDefectsBySupplier, scoreIssueSummary } from "../lib/scorecard";
+import { averageScore, aggregateRecentDefectsBySupplier, scoreIssueSummary } from "../lib/scorecard";
+import { isUsableRecord } from "../lib/recordOptions";
+import { useScorecard } from "../useScorecard";
 import { Metric } from "../components/Metric";
 import { Panel } from "../components/Panel";
 import { EmptyState } from "../components/EmptyState";
@@ -14,6 +16,7 @@ import { AlertRow } from "../components/AlertRow";
 
 export function Dashboard() {
   const { data: appData } = useAppData();
+  const { rows: scorecardRows } = useScorecard();
   const activeItems = appData.items.filter((item) => item.recordState !== "Void");
   const activeSuppliers = appData.suppliers.filter((supplier) => supplier.recordState !== "Void");
   const [selectedItemId, setSelectedItemId] = useState(activeItems[0]?.id ?? "");
@@ -49,7 +52,7 @@ export function Dashboard() {
   const unassignedCapableSuppliers = selectedItem
     ? itemSupplierOptions.filter((supplier) => !selectedItemAssignments.some((assignment) => assignment.supplierId === supplier.id))
     : [];
-  const supplierScoreRows = activeSuppliers.map((supplier) => buildSupplierScorecard(appData, supplier));
+  const supplierScoreRows = (scorecardRows ?? []).filter((row) => isUsableRecord(row.supplier));
   const activeSupplierScoreRows = supplierScoreRows.filter((row) => activeSourceSupplierIds.has(row.supplier.id));
   const activeAverageSupplierScore = averageScore(activeSupplierScoreRows);
   const lowScoreSuppliers = supplierScoreRows.filter((row) => row.score < 55).sort((a, b) => a.score - b.score).slice(0, 4);
@@ -65,7 +68,7 @@ export function Dashboard() {
         <Metric label="Total Suppliers" value={activeSuppliers.length.toString()} sub="all non-deleted supplier records" />
         <Metric label="Active Suppliers" value={activeSupplierCount.toString()} sub="suppliers assigned as primary, secondary, or tertiary" />
         <Metric label="Supplier Average Lead Time" value={activeSupplierLeadTimeDays === undefined ? "-" : `${Math.round(activeSupplierLeadTimeDays)} days`} sub="average quoted lead time for active suppliers" />
-        <Metric label="Average Score" value={activeAverageSupplierScore.toString()} sub="average score for active suppliers only" />
+        <Metric label="Average Score" value={scorecardRows ? activeAverageSupplierScore.toString() : "-"} sub="average score for active suppliers only" />
       </div>
 
       <Panel title="Selected item price and coverage">

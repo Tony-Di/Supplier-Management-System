@@ -2,8 +2,9 @@ import { isUsableRecord } from "../lib/recordOptions";
 import { useAppData } from "../AppDataContext";
 import { useState, useEffect, useMemo, CSSProperties } from "react";
 import { type ScorecardRow, fetchScorecard, updateScoreWeights } from "../api";
+import { useScorecard } from "../useScorecard";
 import { type ScorecardSortKey } from "../uiTypes";
-import { buildSupplierScorecard, scorecardSortValue, sortedScoreCategories, scoreCategoryColor, scoreIssueSummary, scoreDonutSegments } from "../lib/scorecard";
+import { scorecardSortValue, sortedScoreCategories, scoreCategoryColor, scoreIssueSummary, scoreDonutSegments } from "../lib/scorecard";
 import { Panel } from "../components/Panel";
 import { FilterGroup } from "../components/FilterGroup";
 import { scorecardSortOptions } from "../constants";
@@ -11,36 +12,17 @@ import { EmptyState } from "../components/EmptyState";
 import { type ScoreWeights } from "../types";
 import { Metric } from "../components/Metric";
 import { CircleHelp } from "lucide-react";
+import { useSession } from "../SessionContext";
 
 export function Scorecard() {
   const { data: appData } = useAppData();
-  const [serverRows, setServerRows] = useState<ScorecardRow[] | null>(null);
-  const [scorecardError, setScorecardError] = useState("");
+  const { rows: serverRows, error: scorecardError } = useScorecard();
   const [itemFilter, setItemFilter] = useState("All");
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => appData.suppliers.map((supplier) => supplier.id));
   const [featuredSupplierId, setFeaturedSupplierId] = useState(appData.suppliers[0]?.id ?? "");
   const [sortBy, setSortBy] = useState<ScorecardSortKey>("Score");
 
-  useEffect(() => {
-    let isMounted = true;
-    setScorecardError("");
-    fetchScorecard()
-      .then((response) => {
-        if (isMounted) setServerRows(response.rows);
-      })
-      .catch((requestError) => {
-        if (isMounted) {
-          setServerRows(null);
-          setScorecardError(requestError instanceof Error ? requestError.message : "Unable to load backend scorecard.");
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [appData.suppliers.length, appData.quotes.length, appData.inspections.length, appData.incomingDefects.length]);
-
-  const fallbackRows: ScorecardRow[] = useMemo(() => appData.suppliers.map((supplier) => buildSupplierScorecard(appData, supplier)), [appData.suppliers.length, appData.quotes.length, appData.inspections.length, appData.incomingDefects.length]);
-  const allRows = useMemo(() => (serverRows ?? fallbackRows).filter((row) => isUsableRecord(row.supplier)), [serverRows, fallbackRows]);
+  const allRows = useMemo(() => (serverRows ?? []).filter((row) => isUsableRecord(row.supplier)), [serverRows]);
   useEffect(() => {
     const availableIds = allRows.map((row) => row.supplier.id);
     if (!featuredSupplierId && availableIds[0]) setFeaturedSupplierId(availableIds[0]);
@@ -64,7 +46,7 @@ export function Scorecard() {
 
   return (
     <section className="pageStack">
-      {scorecardError && <div className="notice errorNotice">Backend scorecard unavailable: {scorecardError}. Showing local fallback.</div>}
+      {scorecardError && <div className="notice errorNotice">Supplier scores are unavailable: {scorecardError}</div>}
       {featuredRow && (
         <Panel
           help="Scorecard compares suppliers with configurable KPI weights. Quality is one KPI with Sample Quality and Incoming Quality as detail lines."
@@ -215,6 +197,8 @@ export function ScoreDonut({ row }: { row: ScorecardRow }) {
 }
 
 export function ScoreSettings({ onSaved }: { onSaved: () => Promise<void> }) {
+  const { user } = useSession();
+  const canEdit = user?.role === "admin";
   const [weights, setWeights] = useState<ScoreWeights>({
     sampleQuality: 25,
     incomingQuality: 20,
@@ -280,18 +264,22 @@ export function ScoreSettings({ onSaved }: { onSaved: () => Promise<void> }) {
           <Metric label="Total Weight" value={total.toString()} sub={total === 100 ? "ready to save" : "must equal 100"} />
         </div>
         <div className="scoreSettingsGrid">
-          <WeightInput help="Uses QC sample pass/fail rounds. It is a Quality sub-weight, not a standalone KPI column." label="Sample Quality" onChange={(value) => updateWeight("sampleQuality", value)} value={weights.sampleQuality} />
-          <WeightInput help="Uses incoming rejected or defect quantity in the last 90 days: under 5 full score, under 10 about 75%, under 20 about 45%, 20+ about 15%." label="Incoming Quality" onChange={(value) => updateWeight("incomingQuality", value)} value={weights.incomingQuality} />
-          <WeightInput help="Improves with selected and shortlisted quote history for the supplier." label="Pricing" onChange={(value) => updateWeight("pricing", value)} value={weights.pricing} />
-          <WeightInput help="Currently uses quote activity and quoted lead time as the first response proxy." label="Responsiveness" onChange={(value) => updateWeight("responsiveness", value)} value={weights.responsiveness} />
-          <WeightInput help="Checks whether the supplier performs within its declared supply scope, without penalizing single-category specialists." label="Scope Fit" onChange={(value) => updateWeight("scopeFit", value)} value={weights.scopeFit} />
-          <WeightInput help="Scores quoted lead time. Shorter average lead time earns a higher score." label="Lead Time" onChange={(value) => updateWeight("setup", value)} value={weights.setup} />
+          <WeightInput readOnly={!canEdit} help="Uses QC sample pass/fail rounds. It is a Quality sub-weight, not a standalone KPI column." label="Sample Quality" onChange={(value) => updateWeight("sampleQuality", value)} value={weights.sampleQuality} />
+          <WeightInput readOnly={!canEdit} help="Uses incoming rejected or defect quantity in the last 90 days: under 5 full score, under 10 about 75%, under 20 about 45%, 20+ about 15%." label="Incoming Quality" onChange={(value) => updateWeight("incomingQuality", value)} value={weights.incomingQuality} />
+          <WeightInput readOnly={!canEdit} help="Improves with selected and shortlisted quote history for the supplier." label="Pricing" onChange={(value) => updateWeight("pricing", value)} value={weights.pricing} />
+          <WeightInput readOnly={!canEdit} help="Currently uses quote activity and quoted lead time as the first response proxy." label="Responsiveness" onChange={(value) => updateWeight("responsiveness", value)} value={weights.responsiveness} />
+          <WeightInput readOnly={!canEdit} help="Checks whether the supplier performs within its declared supply scope, without penalizing single-category specialists." label="Scope Fit" onChange={(value) => updateWeight("scopeFit", value)} value={weights.scopeFit} />
+          <WeightInput readOnly={!canEdit} help="Scores quoted lead time. Shorter average lead time earns a higher score." label="Lead Time" onChange={(value) => updateWeight("setup", value)} value={weights.setup} />
         </div>
         <div className="scoreSettingsFooter">
           <strong className={total === 100 ? "positive" : "negative"}>Total {total}</strong>
-          <button className="primaryButton" disabled={saving || total !== 100} onClick={save} type="button">
-            {saving ? "Saving..." : "Save KPI weights"}
-          </button>
+          {canEdit ? (
+            <button className="primaryButton" disabled={saving || total !== 100} onClick={save} type="button">
+              {saving ? "Saving..." : "Save KPI weights"}
+            </button>
+          ) : (
+            <span className="muted">Only admins can change KPI weights.</span>
+          )}
         </div>
       </Panel>
     </section>

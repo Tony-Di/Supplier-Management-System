@@ -52,7 +52,7 @@ Records. Each supports `GET` (list), `POST` (create), `PATCH /:id` (update), `DE
 - `/api/items` (also `POST /api/items/import`)
 - `/api/drawing-sets`
 - `/api/projects`
-- `/api/quotes`
+- `/api/quotes`: a price window (Effective From to Effective To) may not overlap another effective price for the same supplier and item, and Effective To may not fall before Effective From. A `PATCH` that changes Effective To must include `changeReason`, which is recorded in the audit trail.
 - `/api/inspections`
 - `/api/incoming-defects`
 - `/api/price-changes`
@@ -62,8 +62,8 @@ Other:
 
 - `GET/POST /api/source-assignments`
 - `GET /api/projects/:projectId/comparison`
-- `GET /api/scorecard`
-- `GET/PATCH /api/score-settings`
+- `GET /api/scorecard`: supplier scores calculated with the saved KPI weights; the frontend reads all scores from here
+- `GET /api/score-settings`
 
 Sign-in:
 
@@ -80,6 +80,7 @@ Admin only:
 - `PATCH /api/admin/users/:id/active`: `{ "active": boolean }`
 - `DELETE /api/admin/users/:id`
 - `GET /api/admin/audit-usage`: audit row count and table size
+- `PATCH /api/score-settings`: the six KPI weights, which must add up to 100
 
 Admins cannot deactivate or delete their own account, and the last active admin cannot be demoted, deactivated or deleted.
 

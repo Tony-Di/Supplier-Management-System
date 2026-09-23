@@ -2,6 +2,7 @@ import cors from "cors";
 import express, { type Express, type Request } from "express";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Quote } from "../src/types";
 import {
   buildComparison,
   buildPriceChangeFromPurchase,
@@ -47,6 +48,7 @@ import { requireAdmin, requireAuth, sessionMiddleware, verifyCsrf } from "./sess
 import { appendAuditEntry, listAuditEntries } from "./auditLog";
 import { pool } from "./db";
 import { setUploadHeaders, uploadFileType } from "./uploads";
+import { priceWindowError } from "./priceWindows";
 
 export function createApp(): Express {
   const app = express();
@@ -496,6 +498,7 @@ export function createApp(): Express {
     try {
       const parsed = quoteSchema.parse({ ...request.body, recordState: "Active" });
       validateQuoteLinks(parsed);
+      checkPriceWindow({ id: "", ...parsed });
       const quote = { id: nextId("q"), ...parsed };
       store.quotes.push(quote);
       assignPreviousQuote(quote);
@@ -524,15 +527,19 @@ export function createApp(): Express {
   });
   app.patch("/api/quotes/:id", (request, response, next) => {
     try {
+      // changeReason explains a changed Effective To in the audit trail; it is not stored on the quote.
+      const { changeReason, ...patch } = request.body ?? {};
+      const reason = typeof changeReason === "string" && changeReason.trim() ? changeReason.trim() : undefined;
       const before = cloneRecord(store.quotes.find((record) => record.id === request.params.id));
-      const quote = updateById(store.quotes, request.params.id, request.body, quoteSchema.parse);
+      if (before) checkPriceWindow({ ...quoteSchema.parse({ ...before, ...patch }), id: before.id }, before, reason);
+      const quote = updateById(store.quotes, request.params.id, patch, quoteSchema.parse);
       validateQuoteLinks(quote);
       assignPreviousQuote(quote);
       syncCaseFromQuote(quote);
       buildPriceChangeFromQuote(quote);
       closePreviousSelectedQuote(quote);
       syncReusableQuotesForProjects();
-      audit(request, editAction(before, quote), "Quote", quote.id, entityLabel("Quote", quote), before, quote, undefined, quote.projectId);
+      audit(request, editAction(before, quote), "Quote", quote.id, entityLabel("Quote", quote), before, quote, reason, quote.projectId);
       saveStore();
       response.json(quote);
     } catch (error) {
@@ -825,7 +832,7 @@ export function createApp(): Express {
     response.json(store.scoreWeights);
   });
 
-  app.patch("/api/score-settings", (request, response, next) => {
+  app.patch("/api/score-settings", requireAdmin, (request, response, next) => {
     try {
       const weights = scoreWeightsSchema.parse(request.body);
       const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
@@ -926,6 +933,15 @@ export function createApp(): Express {
 
   function isPlainRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function checkPriceWindow(quote: Quote, before?: Quote, changeReason?: string) {
+    const error = priceWindowError(quote, store.quotes, {
+      before,
+      changeReason,
+      describe: (conflict) => `the ${conflict.currency} ${conflict.unitPrice} quote ${conflict.id}`,
+    });
+    if (error) throw new ValidationError(error);
   }
 
   function entityLabel(entityType: string, record: unknown) {
