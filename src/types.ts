@@ -16,7 +16,6 @@ export type PackagingItemType =
   | "Strapping"
   | "Stretch Film";
 
-export type Role = "Purchasing" | "QC" | "Process" | "Manager" | "Admin";
 export type RecordState = "Draft" | "Active" | "Void";
 
 export interface RecordLifecycle {
@@ -259,9 +258,10 @@ export interface UploadedFileRecord {
 }
 
 export interface AuditLogRecord {
-  id: string;
+  id: number;
   timestamp: string;
-  actor: string;
+  actorUserId: number | null;
+  actorLabel: string;
   action: "Create" | "Edit" | "Status Change" | "Upload" | "Void" | "Delete" | "Approve" | "Import";
   entityType: string;
   entityId: string;

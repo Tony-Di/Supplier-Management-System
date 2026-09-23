@@ -2,6 +2,7 @@ import { useAppData } from "../AppDataContext";
 import type { AppData } from "../api";
 import type { HistoryHandler, Section } from "../uiTypes";
 import { LifecyclePill } from "./LifecyclePill";
+import { useSession } from "../SessionContext";
 
 type ArchiveKey = "suppliers" | "models" | "items" | "drawingSets" | "projects" | "quotes" | "priceChanges" | "purchasePrices" | "inspections" | "incomingDefects";
 const collections: Partial<Record<Section, Array<[ArchiveKey, string]>>> = {
@@ -19,6 +20,7 @@ function recordLabel(record: AppData[ArchiveKey][number]) {
 }
 
 export function VoidedRecords({ section, onHistory }: { section: Section; onHistory: HistoryHandler }) {
+  const { user } = useSession();
   const { data } = useAppData();
   const records = (collections[section] ?? []).flatMap(([key, entity]) =>
     data[key].filter((record) => record.recordState === "Void").map((record) => ({ record, entity })));
@@ -29,7 +31,7 @@ export function VoidedRecords({ section, onHistory }: { section: Section; onHist
     <div className="dataGrid">{records.map(({ record, entity }) => <article className="recordCard voidedRecord" key={`${entity}-${record.id}`}>
       <div className="recordHeader"><h3>{recordLabel(record)}</h3><LifecyclePill record={record} /></div>
       <p className="voidReason">{record.voidReason || "No void reason recorded."}</p>
-      <button className="ghostButton" type="button" onClick={() => onHistory(entity, record.id, recordLabel(record))}>View history</button>
+      {user?.role === "admin" && <button className="ghostButton" type="button" onClick={() => onHistory(entity, record.id, recordLabel(record))}>View history</button>}
     </article>)}</div>
   </details>;
 }

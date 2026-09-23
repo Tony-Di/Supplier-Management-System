@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: sourcing
+      POSTGRES_PASSWORD: sourcing
+      POSTGRES_DB: sourcing
+    ports:
+      - "5433:5432"
+    volumes:
+      - sourcing-pgdata:/var/lib/postgresql/data
+
+volumes:
+  sourcing-pgdata:

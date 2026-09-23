@@ -8,8 +8,20 @@ Stack:
 - Node.js
 - Express
 - Zod for request validation
+- PostgreSQL (`pg`) for users, sessions and the audit trail
+- `openid-client` for Microsoft Entra ID sign-in
 
-Storage is a JSON file prototype. Records are loaded from `data/store.json` on startup, starting empty when the file is missing (the seed arrays in `src/data.ts` are empty), and the whole store is written back after every change. Uploaded files are saved to `uploads/`. The store is shaped like the future database tables, so `server/store.ts` can later be replaced with PostgreSQL + Prisma without changing the frontend API contract much.
+Users, sessions (`connect-pg-simple`) and the audit trail are stored in Postgres; the schema is in `migrations/` and applied with `npm run migrate`.
+
+Business records are still a JSON file prototype. They are loaded from `data/store.json` on startup, starting empty when the file is missing (the seed arrays in `src/data.ts` are empty), and the whole store is written back after every change. Uploaded files are saved to `uploads/`. The store is shaped like the future database tables, so `server/store.ts` can later be replaced with Postgres tables without changing the frontend API contract much.
+
+## Authentication
+
+Every `/api` route except `/api/health` and the sign-in routes requires a session, and so does `/uploads`. Requests without one get `401` JSON rather than a redirect. Admin routes return `403` to other users.
+
+`POST`, `PATCH` and `DELETE` requests must send the session's CSRF token in an `X-CSRF-Token` header. The token is returned by `GET /api/auth/me`.
+
+Deactivating a user or changing their role takes effect on their next request: each change increments the user's `session_epoch`, and sessions carrying an older value are rejected.
 
 ## Main Chain
 
@@ -29,9 +41,8 @@ Supplier
 
 General:
 
-- `GET /api/health`
+- `GET /api/health`: no session required
 - `GET /api/bootstrap`: the full store, used by the frontend on load
-- `GET /api/audit-logs`
 - `GET/POST /api/files`: uploads are sent as base64 JSON
 
 Records. Each supports `GET` (list), `POST` (create), `PATCH /:id` (update), `DELETE /:id`, and `POST /:id/void`:
@@ -54,9 +65,27 @@ Other:
 - `GET /api/scorecard`
 - `GET/PATCH /api/score-settings`
 
+Sign-in:
+
+- `GET /api/auth/login`: redirects to Entra ID, or signs in the local account when `AUTH_MODE=dev`
+- `GET /api/auth/callback`: Entra redirect target; rate limited to 20 requests a minute per IP
+- `GET /api/auth/me`: the signed-in user and CSRF token, or `401`
+- `POST /api/auth/logout`
+
+Admin only:
+
+- `GET /api/audit-logs`: filter with `entityType`, `entityId`, `actorUserId` and `limit`
+- `GET /api/admin/users`
+- `PATCH /api/admin/users/:id/role`: `{ "role": "admin" | "user" }`
+- `PATCH /api/admin/users/:id/active`: `{ "active": boolean }`
+- `DELETE /api/admin/users/:id`
+- `GET /api/admin/audit-usage`: audit row count and table size
+
+Admins cannot deactivate or delete their own account, and the last active admin cannot be demoted, deactivated or deleted.
+
 ## Run
 
-Frontend and backend run as two TypeScript processes:
+Start Postgres and apply the migrations first (see the root README), then run the frontend and backend as two TypeScript processes:
 
 ```bash
 npm run dev:api

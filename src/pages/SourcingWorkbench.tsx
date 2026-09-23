@@ -1,5 +1,5 @@
 import { isUsableRecord } from "../lib/recordOptions";
-import { type SourceAssignment, type Quote, type SampleInspection } from "../types";
+import { type SourceAssignment, type Quote } from "../types";
 import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHandler } from "../uiTypes";
 import { useAppData } from "../AppDataContext";
 import { useState, useEffect } from "react";
@@ -10,7 +10,7 @@ import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { RecordMenu } from "../components/RecordMenu";
 import { canDeleteRecord } from "../lib/recordLifecycle";
 import { Field } from "../components/Field";
-import { caseSupplierIds, quoteHasCaseLink, quoteAppliesToProject, quoteCaseLabel, sourceRoleForQuote, isSelectedQuote, isSampleRequestedQuote, latestInspectionForQuote, qcQueueStatus, buildCaseProgressRows } from "../lib/sourcing";
+import { caseSupplierIds, quoteHasCaseLink, quoteAppliesToProject, quoteCaseLabel, sourceRoleForQuote, isSelectedQuote, isSampleRequestedQuote, qcQueueStatus, buildCaseProgressRows } from "../lib/sourcing";
 import { type AppData, type ComparisonRow, fetchComparison } from "../api";
 import { exportQuotes } from "../lib/exports";
 import { quoteStatusOptions } from "../constants";
@@ -476,7 +476,6 @@ export function Comparison({ projectId }: { projectId: string }) {
             {selectedRow.suppliers.map((cell, cellIndex) => {
               const offerQuotes = cell.quotes?.length ? cell.quotes : cell.quote ? [cell.quote] : [];
               const quote = offerQuotes.find(isSelectedQuote) ?? offerQuotes.find(isSampleRequestedQuote) ?? offerQuotes[0];
-              const inspection = quote ? latestInspectionForQuote(appData, quote.id) : cell.inspection;
               const supplier = cell.supplier;
               return (
                 <tr key={`single-${supplier?.id ?? quote?.supplierId ?? cellIndex}`}>
@@ -600,32 +599,6 @@ export function CaseQuoteWorkbench({
         })}
         </tbody>
       </table></div>
-    </div>
-  );
-}
-
-export function CaseProgressCell({ inScope = true, inspection, quote }: { inScope?: boolean; inspection?: SampleInspection; quote?: Quote }) {
-  const { data: appData } = useAppData();
-  if (!quote) {
-    return (
-      <div className="progressCell">
-        <StatusPill label={inScope ? "No quote" : "Not in scope"} />
-        <span className="muted">{inScope ? "Waiting for supplier response" : "Supplier capability does not include this item type"}</span>
-      </div>
-    );
-  }
-
-  const progressLabel = isSampleRequestedQuote(quote)
-    ? qcQueueStatus(appData, quote)
-    : inspection
-      ? `QC ${inspection.result}`
-      : quote.status;
-
-  return (
-    <div className="progressCell">
-      <StatusPill label={progressLabel} />
-      <span>{quote.quoteDate}</span>
-      <small>{quote.status}</small>
     </div>
   );
 }

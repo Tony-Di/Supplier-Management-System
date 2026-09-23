@@ -4,8 +4,10 @@ import { WorkflowActionsProvider } from "./WorkflowActionsContext";
 import { ErrorNotice } from "./components/ErrorNotice";
 import { VoidedRecords } from "./components/VoidedRecords";
 import { useState, useEffect, useMemo } from "react";
-import { type Section, type ProductsTab, type SourcingTab, type PricingTab, type QCTab, type ReportsTab, type EditTarget, type VoidTarget, type ViewTarget } from "./uiTypes";
-import { useAppData } from "./AppDataContext";
+import { type Section, type ProductsTab, type SourcingTab, type PricingTab, type QCTab, type ReportsTab, type AdminTab, type EditTarget, type VoidTarget, type ViewTarget } from "./uiTypes";
+import { useSession } from "./SessionContext";
+import { SignIn } from "./SignIn";
+import { AppDataProvider, useAppData } from "./AppDataContext";
 import { fallbackData } from "./appDefaults";
 import { type DeleteEndpoint, deleteRecord, voidRecord, updateRecord, upsertSourceAssignment } from "./api";
 import { markRecordVoid } from "./lib/recordLifecycle";
@@ -19,6 +21,8 @@ import { SourcingProjects, Quotes, Comparison } from "./pages/SourcingWorkbench"
 import { SampleInspections, IncomingDefects } from "./pages/QCInspections";
 import { PriceAnalytics, PriceChanges } from "./pages/Pricing";
 import { Scorecard, ScoreSettings } from "./pages/Reports";
+import { AdminUsers } from "./pages/AdminUsers";
+import { AuditLog } from "./pages/AuditLog";
 import { SupplierModal } from "./modals/SupplierModal";
 import { ItemModal } from "./modals/ItemModal";
 import { ModelModal } from "./modals/ModelModal";
@@ -36,12 +40,27 @@ import { HistoryModal } from "./modals/record/HistoryModal";
 import { RecordDetailModal } from "./modals/record/RecordDetailModal";
 
 export function App() {
+  const { user, loading: sessionLoading } = useSession();
+  const deactivated = new URLSearchParams(window.location.search).get("error") === "deactivated";
+  if (sessionLoading) return <div className="signInLoading">Loading…</div>;
+  if (!user) return <SignIn deactivated={deactivated} />;
+  return (
+    <AppDataProvider>
+      <Workbench />
+    </AppDataProvider>
+  );
+}
+
+function Workbench() {
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
   const [section, setSection] = useState<Section>("Dashboard");
   const [productsTab, setProductsTab] = useState<ProductsTab>("Models & Items");
   const [sourcingTab, setSourcingTab] = useState<SourcingTab>("Development Cases");
   const [pricingTab, setPricingTab] = useState<PricingTab>("Price Analytics");
   const [qcTab, setQcTab] = useState<QCTab>("Sample Inspections");
   const [reportsTab, setReportsTab] = useState<ReportsTab>("Scorecard");
+  const [adminTab, setAdminTab] = useState<AdminTab>("Users");
   const { data, setData, refresh: refreshData, loading, error } = useAppData();
   const recordOptions = useMemo(() => availableRecordOptions(data), [data]);
   const [actionError, setActionError] = useState("");
@@ -123,7 +142,7 @@ export function App() {
   }
 
   function openHistory(entityType: string, entityId: string, label: string) {
-    setHistoryTarget({ entityType, entityId, label });
+    if (isAdmin) setHistoryTarget({ entityType, entityId, label });
   }
 
   function openQc(quoteId: string, projectId?: string) {
@@ -164,11 +183,16 @@ export function App() {
         {section === "Reports" && (
           <SubTabs tabs={["Scorecard", "Score Settings"]} activeTab={reportsTab} onChange={(tab) => setReportsTab(tab as ReportsTab)} />
         )}
+        {section === "Admin" && isAdmin && (
+          <SubTabs tabs={["Users", "Audit log"]} activeTab={adminTab} onChange={(tab) => setAdminTab(tab as AdminTab)} />
+        )}
 
         {loading && <div className="notice">Loading backend data...</div>}
         <ErrorNotice message={error} title="Unable to refresh records" />
 
         {section === "Dashboard" && <Dashboard />}
+        {section === "Admin" && isAdmin && adminTab === "Users" && <AdminUsers />}
+        {section === "Admin" && isAdmin && adminTab === "Audit log" && <AuditLog />}
         {section === "Suppliers" && <Suppliers onAdd={() => setModal("supplier")} onDelete={handleDelete} onEdit={setEditTarget} onHistory={openHistory} onVoid={handleVoid} />}
         {section === "Products & Drawings" && productsTab === "Models & Items" && (
           <ModelsAndItems
@@ -368,7 +392,7 @@ export function App() {
             target={voidTarget}
           />
         )}
-        {historyTarget && (
+        {historyTarget && isAdmin && (
           <HistoryModal
             entityId={historyTarget.entityId}
             entityType={historyTarget.entityType}

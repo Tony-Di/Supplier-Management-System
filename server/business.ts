@@ -469,10 +469,6 @@ function isSelectedQuote(quote: Quote) {
   return quote.status === "Selected";
 }
 
-function isQcCandidateQuote(quote: Quote) {
-  return isSampleRequestedQuote(quote) || isSelectedQuote(quote);
-}
-
 function dayBefore(dateText: string) {
   const date = new Date(`${dateText}T00:00:00`);
   date.setDate(date.getDate() - 1);
@@ -507,10 +503,6 @@ export function buildPriceChangeFromPurchase(purchase: PurchasePriceRecord) {
     reason: "Other",
     status: "Pending",
   });
-}
-
-export function scoreSupplier(supplierId: string) {
-  return buildSupplierScorecard(supplierId)?.score ?? 0;
 }
 
 function buildSupplierScorecard(supplierId: string) {

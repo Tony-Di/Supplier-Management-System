@@ -10,7 +10,7 @@
     },
     {
       "id": "page-3",
-      "name": "Login directions"
+      "name": "Sign in"
     }
   ],
   "artboards": [
@@ -60,38 +60,11 @@
       "h": 1060
     },
     {
-      "file": "LoginDarkTerminal.dc.html",
-      "title": "A · Dark terminal",
+      "file": "LoginSignIn.dc.html",
+      "title": "Sign in",
       "page": "page-3",
       "x": 0,
       "y": 0,
-      "w": 1280,
-      "h": 840
-    },
-    {
-      "file": "LoginUtility.dc.html",
-      "title": "C · Utility panel",
-      "page": "page-3",
-      "x": 2800,
-      "y": 0,
-      "w": 1280,
-      "h": 840
-    },
-    {
-      "file": "LoginBlockCharcoal.dc.html",
-      "title": "B1 · Charcoal block, logo untouched",
-      "page": "page-3",
-      "x": 1400,
-      "y": 0,
-      "w": 1280,
-      "h": 840
-    },
-    {
-      "file": "LoginBlockKnockout.dc.html",
-      "title": "B2 · Red block, knockout logo",
-      "page": "page-3",
-      "x": 1400,
-      "y": 960,
       "w": 1280,
       "h": 840
     }
@@ -119,7 +92,7 @@
       "x": 0,
       "y": -150,
       "w": 900,
-      "text": "Three directions for the sign-in page, deliberately unlike the IT HelpDesk login (no image-left / form-right split, no rounded cards, no gray palette).\nB1 and B2 are the same layout solving the logo problem two ways: the white logo variant is built for dark backgrounds, so either the block goes dark (B1, mark untouched) or the mark is knocked out to pure white (B2, a derived asset marketing should approve)."
+      "text": "Sign-in follows the chosen direction: charcoal block, logo untouched, SEG red as the accent, no password form — authentication goes to the company's Entra ID tenant.\nMotion direction C is applied: three rails carry red light across the block at different speeds, like modules moving down a line, and the heading's letter-spacing settles on load. Everything stops under prefers-reduced-motion."
     }
   ],
   "launch": {

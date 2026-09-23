@@ -13,7 +13,6 @@ import {
   suppliers as seedSuppliers,
 } from "../src/data";
 import type {
-  AuditLogRecord,
   DrawingSet,
   Model,
   PackagingItem,
@@ -44,7 +43,6 @@ export interface Store {
   priceChanges: PriceChange[];
   purchasePrices: PurchasePriceRecord[];
   files: UploadedFileRecord[];
-  auditLogs: AuditLogRecord[];
   scoreWeights: ScoreWeights;
 }
 
@@ -62,7 +60,6 @@ const seedStore: Store = {
   priceChanges: structuredClone(seedPriceChanges),
   purchasePrices: structuredClone(seedPurchasePrices),
   files: [],
-  auditLogs: [],
   scoreWeights: defaultScoreWeights(),
 };
 
@@ -85,7 +82,6 @@ function normalizeStore(nextStore: Store): Store {
   nextStore.sourceAssignments ??= [];
   nextStore.purchasePrices ??= structuredClone(seedPurchasePrices);
   nextStore.files ??= [];
-  nextStore.auditLogs ??= [];
   nextStore.scoreWeights = normalizeScoreWeights(nextStore.scoreWeights);
   const markActive = (record: { recordState?: "Draft" | "Active" | "Void" }) => {
     record.recordState ??= "Active";
@@ -352,7 +348,6 @@ function initializeCounters() {
     ...store.priceChanges.map((record) => record.id),
     ...store.purchasePrices.map((record) => record.id),
     ...store.files.map((record) => record.id),
-    ...store.auditLogs.map((record) => record.id),
   ];
 
   for (const id of idGroups) {

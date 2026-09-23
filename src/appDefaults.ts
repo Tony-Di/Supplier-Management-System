@@ -15,5 +15,4 @@ export const fallbackData: AppData = {
   priceChanges: seedPriceChanges,
   purchasePrices: seedPurchasePrices,
   files: [],
-  auditLogs: [],
 };

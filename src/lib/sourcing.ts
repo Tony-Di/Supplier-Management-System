@@ -103,89 +103,12 @@ export function averageLeadTimeForActiveSourceSuppliers(appData: Pick<AppData, "
   return leadTimes.length === 0 ? undefined : leadTimes.reduce((sum, leadTime) => sum + leadTime, 0) / leadTimes.length;
 }
 
-export function supplierCaseProgress(appData: Pick<AppData, "inspections" | "items" | "projects" | "quoteCaseLinks" | "quotes" | "suppliers">, project: AppData["projects"][number], supplierId: string, visibleItemIds = project.itemIds) {
-  const supplier = appData.suppliers.find((candidate) => candidate.id === supplierId);
-  const inScopeItemIds = visibleItemIds.filter((itemId) => {
-    const item = itemById(appData, itemId);
-    return !item || !supplier || supplier.capableItems.includes(item.type);
-  });
-  const supplierQuotes = appData.quotes.filter(
-    (quote) => quoteAppliesToProject(appData, quote, project.id)
-      && quote.supplierId === supplierId
-      && visibleItemIds.includes(quote.itemId)
-      && quote.recordState !== "Void",
-  );
-  const quotedItemIds = new Set(supplierQuotes.map((quote) => quote.itemId));
-  const sampleRequestedQuotes = supplierQuotes.filter(isSampleRequestedQuote);
-  const selectedQuotes = supplierQuotes.filter(isSelectedQuote);
-  const selectedCount = selectedQuotes.length;
-  const pendingQc = sampleRequestedQuotes.filter((value) => isQuoteInQcQueue(appData, value)).length;
-  const passedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(appData, quote.id)?.result === "Pass").length;
-  const failedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(appData, quote.id)?.result === "Fail").length;
-
-  return {
-    lastUpdate: latestActivityDate(supplierQuotes, sampleRequestedQuotes.flatMap((quote) => inspectionsForQuote(appData, quote.id))),
-    qcLabel: sampleRequestedQuotes.length === 0
-      ? "No sample requested"
-      : pendingQc > 0
-        ? `${pendingQc} QC pending`
-        : failedQc > 0
-          ? "Re-sample required"
-          : passedQc === sampleRequestedQuotes.length
-            ? "QC pass"
-            : "QC in review",
-    quoteLabel: supplierQuotes.length === 0
-      ? "No quote"
-      : quotedItemIds.size < inScopeItemIds.length
-        ? `${quotedItemIds.size}/${inScopeItemIds.length} quoted`
-        : selectedCount > 0
-          ? `${selectedCount} selected`
-          : "Quote received",
-    scopeCount: inScopeItemIds.length,
-    selectedCount,
-  };
-}
-
-export function itemCaseProgress(appData: Pick<AppData, "inspections" | "items" | "projects" | "quoteCaseLinks" | "quotes" | "suppliers">, project: AppData["projects"][number], itemId: string, supplierIds: string[]) {
-  const item = itemById(appData, itemId);
-  const inScopeSupplierIds = supplierIds.filter((supplierId) => {
-    const supplier = appData.suppliers.find((candidate) => candidate.id === supplierId);
-    return !item || !supplier || supplier.capableItems.includes(item.type);
-  });
-  const itemQuotes = appData.quotes.filter((quote) => quoteAppliesToProject(appData, quote, project.id) && quote.itemId === itemId && quote.recordState !== "Void");
-  const sampleRequestedQuotes = itemQuotes.filter(isSampleRequestedQuote);
-  const selectedQuotes = itemQuotes.filter(isSelectedQuote);
-  const selectedQuote = selectedQuotes[0];
-  const pendingQc = sampleRequestedQuotes.filter((value) => isQuoteInQcQueue(appData, value)).length;
-  const passedQc = sampleRequestedQuotes.filter((quote) => latestInspectionForQuote(appData, quote.id)?.result === "Pass").length;
-
-  return {
-    inScopeCount: inScopeSupplierIds.length,
-    lastUpdate: latestActivityDate(itemQuotes, sampleRequestedQuotes.flatMap((quote) => inspectionsForQuote(appData, quote.id))),
-    qcLabel: sampleRequestedQuotes.length === 0
-      ? "No sample requested"
-      : pendingQc > 0
-        ? `${pendingQc} QC pending`
-        : passedQc > 0
-          ? "QC pass"
-          : "QC in review",
-    quoteCount: new Set(itemQuotes.map((quote) => quote.supplierId)).size,
-    selectedSupplier: selectedQuote ? supplierName(appData, selectedQuote.supplierId) : "-",
-  };
-}
-
 export function latestActivityDate(activityQuotes: Quote[], activityInspections: SampleInspection[]) {
   const dates = [
     ...activityQuotes.map((quote) => quote.effectiveFrom ?? quote.quoteDate),
     ...activityInspections.flatMap((inspection) => [inspection.sampleReceivedDate, inspection.inspectionDate ?? ""]),
   ].filter(Boolean);
   return dates.sort((a, b) => b.localeCompare(a))[0] ?? "-";
-}
-
-export function latestProjectQuote(appData: Pick<AppData, "items" | "projects" | "quoteCaseLinks" | "quotes">, projectId: string, supplierId: string, itemId: string) {
-  return appData.quotes
-    .filter((quote) => quoteAppliesToProject(appData, quote, projectId) && quote.supplierId === supplierId && quote.itemId === itemId && quote.recordState !== "Void")
-    .sort((a, b) => b.quoteDate.localeCompare(a.quoteDate))[0];
 }
 
 export function quoteAppliesToProject(appData: Pick<AppData, "items" | "projects" | "quoteCaseLinks">, quote: Quote, projectId: string) {
@@ -271,10 +194,6 @@ export function isSelectedQuote(quote: Quote) {
   return quote.status === "Selected";
 }
 
-export function isQcCandidateQuote(quote: Quote) {
-  return isSampleRequestedQuote(quote) || isSelectedQuote(quote);
-}
-
 export function isQuoteInQcQueue(appData: Pick<AppData, "inspections">, quote: Quote) {
   const latestInspection = latestInspectionForQuote(appData, quote.id);
   if (!latestInspection) return true;
@@ -314,8 +233,4 @@ export function caseTypeForReason(reason: AppData["projects"][number]["caseReaso
 
 export function nextInspectionRoundForQuote(appData: Pick<AppData, "inspections">, quoteId: string) {
   return (latestInspectionForQuote(appData, quoteId)?.sampleRound ?? 0) + 1;
-}
-
-export function drawingItemForQuote(appData: Pick<AppData, "drawingSets">, quote: Quote) {
-  return appData.drawingSets.find((set) => set.id === quote.drawingSetId)?.drawingItems.find((drawingItem) => drawingItem.id === quote.drawingItemId);
 }

@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #FFFFFF; color: #1E1E1E; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.45; }
+    a { color: #E00700; text-decoration: none; }
+    a:hover { color: #B51B16; }
+    .kan { font-family: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+    @keyframes travel { from { transform: translateX(-120%); } to { transform: translateX(520%); } }
+    @keyframes tick { 0%, 92%, 100% { opacity: 0.28; } 94% { opacity: 0.85; } }
+    @keyframes settle { from { opacity: 0; letter-spacing: 0.30em; } to { opacity: 1; letter-spacing: 0.01em; } }
+    .settle { animation: settle 900ms cubic-bezier(0.22,0.61,0.36,1) 120ms both; }
+    .grid { animation: tick 6s steps(1, end) infinite; }
+    /* No visible track — only the light that passes over it, in the gaps between content. */
+    .rail { position: absolute; left: 0; right: 0; height: 1px; overflow: hidden; }
+    .rail.r1 { top: 17%; } .rail.r2 { top: 69%; } .rail.r3 { top: 85%; }
+    .rail span { position: absolute; top: 0; left: 0; height: 1px; width: 220px; opacity: 0.5;
+      background: linear-gradient(90deg, rgba(224,7,0,0) 0%, rgba(224,7,0,0.75) 50%, rgba(224,7,0,0) 100%); }
+    .rail.r1 span { animation: travel 5.5s linear infinite; }
+    .rail.r2 span { animation: travel 7.5s linear 1.2s infinite; }
+    .rail.r3 span { animation: travel 6.5s linear 2.6s infinite; }
+    @media (prefers-reduced-motion: reduce) { .settle,.grid,.rail span { animation: none; } .rail { display: none; } }
+  </style>
+</helmet>
+
+<div style="min-height: 840px; display: grid; grid-template-columns: 1.15fr 1fr;">
+
+  <!-- solid brand block -->
+  <div style="background: #141414; color: #FFFFFF; padding: 60px 64px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+    <div class="rail r1"><span></span></div>
+    <div class="rail r2"><span></span></div>
+    <div class="rail r3"><span></span></div>
+    <svg class="grid" width="520" height="520" viewBox="0 0 520 520" style="position: absolute; right: -150px; bottom: -130px; opacity: 0.28;">
+      <g fill="none" stroke="#E00700" stroke-width="2">
+        <rect x="60" y="120" width="400" height="280"></rect>
+        <path d="M60 190h400M60 260h400M60 330h400"></path>
+        <path d="M160 120v280M260 120v280M360 120v280"></path>
+      </g>
+    </svg>
+
+    <img src="seg-logo-white.svg" alt="SEG Solar" style="display: block; width: 190px; height: 32px; position: relative;">
+
+    <div style="position: relative;">
+      <h1 class="kan settle" style="margin: 0; font-size: 54px; font-weight: 600; line-height: 1.02; letter-spacing: 0.01em; text-transform: uppercase;">Global<br>Sourcing</h1>
+      <div style="width: 72px; height: 4px; background: #E00700; margin: 26px 0 22px;"></div>
+      <p style="margin: 0; font-size: 15px; max-width: 360px; color: #B8B8B8;">Packaging supplier development, quoting, sample QC and pricing for solar module production.</p>
+    </div>
+
+    <div class="kan" style="position: relative; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6E6E6E;">Internal system · Authorized users only</div>
+  </div>
+
+  <!-- form side -->
+  <div style="display: flex; align-items: center; justify-content: center; padding: 60px;">
+    <div style="width: 340px;">
+      <h2 class="kan" style="margin: 0 0 8px; font-size: 26px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;">Sign in</h2>
+      <p style="margin: 0 0 30px; color: #666666; font-size: 13px;">Use the SEG account you sign in to Outlook with.</p>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 11px; height: 52px; border: 1px solid #1E1E1E; background: #FFFFFF;">
+        <svg width="19" height="19" viewBox="0 0 23 23" aria-hidden="true">
+          <rect x="1" y="1" width="10" height="10" fill="#F25022"></rect>
+          <rect x="12" y="1" width="10" height="10" fill="#7FBA00"></rect>
+          <rect x="1" y="12" width="10" height="10" fill="#00A4EF"></rect>
+          <rect x="12" y="12" width="10" height="10" fill="#FFB900"></rect>
+        </svg>
+        <span class="kan" style="font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;">Sign in with your SEG account</span>
+      </div>
+
+      <div style="margin-top: 26px; padding-top: 20px; border-top: 1px solid #E6E8EB;">
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999999" stroke-width="1.8" style="flex: 0 0 auto; margin-top: 1px;"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
+          <p style="margin: 0; color: #666666; font-size: 12px;">No separate password for this system. Access follows your Microsoft account — if it is disabled, so is this.</p>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; border: 1px solid #E8B4B1; border-left: 3px solid #E00700; background: #FDF3F2; padding: 12px 14px;">
+        <div style="font-size: 12px; font-weight: 700; color: #B51B16;">Access turned off</div>
+        <div style="color: #7A3230; font-size: 12px; margin-top: 3px;">This account has been deactivated. Contact the sourcing system administrator.</div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

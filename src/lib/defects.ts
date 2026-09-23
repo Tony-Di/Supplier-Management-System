@@ -1,18 +1,4 @@
 import { type IncomingDefectRecord } from "../types";
-import { isWithinRecentDays } from "./score";
-
-export function sumDefectQty(records: IncomingDefectRecord[], days?: number) {
-  return records
-    .filter((record) => !days || isWithinRecentDays(record.defectDate, days))
-    .reduce((sum, record) => sum + record.defectQty, 0);
-}
-
-export function sumReturnedDefectQty(records: IncomingDefectRecord[], days?: number) {
-  return records
-    .filter((record) => record.materialReturned)
-    .filter((record) => !days || isWithinRecentDays(record.returnDate ?? record.defectDate, days))
-    .reduce((sum, record) => sum + record.defectQty, 0);
-}
 
 export function incomingDefectAcceptedReplacementQty(defect: Pick<IncomingDefectRecord, "replacementReceipts">) {
   return (defect.replacementReceipts ?? [])

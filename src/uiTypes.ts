@@ -8,7 +8,10 @@ export type Section =
   | "Sourcing Workbench"
   | "Pricing"
   | "QC Inspections"
-  | "Reports";
+  | "Reports"
+  | "Admin";
+
+export type AdminTab = "Users" | "Audit log";
 
 export type ProductsTab = "Models & Items" | "Packaging Sets";
 

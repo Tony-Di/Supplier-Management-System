@@ -1,8 +1,7 @@
 import { type ScorecardRow, type AppData } from "../api";
 import { type ScorecardSortKey } from "../uiTypes";
 import { isWithinRecentDays, scoreIncomingQuality, scoreLeadTime, scorePaymentTerms, paymentTermDays } from "./score";
-import { type Quote, type SampleInspection, type Supplier, type ScoreWeights } from "../types";
-import { supplierName } from "./lookups";
+import { type Quote, type Supplier, type ScoreWeights } from "../types";
 import { isSelectedQuote } from "./sourcing";
 import { parseLeadTimeDays } from "../leadTime";
 import { clamp } from "./format";
@@ -10,15 +9,6 @@ import { clamp } from "./format";
 export function averageScore(rows: ScorecardRow[]) {
   if (rows.length === 0) return 0;
   return Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length);
-}
-
-export function bestScore(rows: ScorecardRow[]) {
-  return rows.reduce((best, row) => Math.max(best, row.score), 0);
-}
-
-export function bestSupplierName(rows: ScorecardRow[]) {
-  const best = [...rows].sort((a, b) => b.score - a.score)[0];
-  return best ? best.supplier.name : "no visible suppliers";
 }
 
 export function scorecardSortValue(row: ScorecardRow, sortBy: ScorecardSortKey) {
@@ -56,21 +46,6 @@ export function scoreIssueSummary(appData: Pick<AppData, "incomingDefects">, row
   return issues.slice(0, 3).join(", ");
 }
 
-export function averageCategoryScore(rows: ScorecardRow[], key: ScorecardRow["categories"][number]["key"]) {
-  if (rows.length === 0) return "0/0";
-  const totals = rows.reduce(
-    (sum, row) => {
-      const category = row.categories.find((candidate) => candidate.key === key);
-      return {
-        score: sum.score + (category?.score ?? 0),
-        max: sum.max + (category?.max ?? 0),
-      };
-    },
-    { score: 0, max: 0 },
-  );
-  return `${Math.round(totals.score / rows.length)}/${Math.round(totals.max / rows.length)}`;
-}
-
 export function aggregateRecentDefectsBySupplier(appData: Pick<AppData, "incomingDefects">, days: number) {
   const map = new Map<string, number>();
   for (const defect of appData.incomingDefects.filter((record) => record.recordState !== "Void" && isWithinRecentDays(record.defectDate, days))) {
@@ -104,19 +79,6 @@ export function scoreCategoryColor(key: ScorecardRow["categories"][number]["key"
     setup: "#6A4C93",
   };
   return colors[key];
-}
-
-export function recommendSupplier(appData: Pick<AppData, "suppliers">, candidateQuotes: Quote[], candidateInspections: SampleInspection[]) {
-  const passSupplierIds = new Set(
-    candidateInspections.filter((inspection) => inspection.result === "Pass").map((inspection) => inspection.supplierId),
-  );
-  const candidates = [...candidateQuotes].sort((a, b) => {
-    const aPass = passSupplierIds.has(a.supplierId) ? 0 : 1;
-    const bPass = passSupplierIds.has(b.supplierId) ? 0 : 1;
-    return aPass - bPass || a.unitPrice - b.unitPrice;
-  });
-
-  return candidates[0] ? supplierName(appData, candidates[0].supplierId) : "Need quote";
 }
 
 export function supplierScore(appData: Pick<AppData, "incomingDefects" | "inspections" | "items" | "quotes" | "suppliers">, supplierId: string) {

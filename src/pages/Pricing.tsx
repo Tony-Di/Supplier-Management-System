@@ -2,7 +2,7 @@ import { useAppData } from "../AppDataContext";
 import { isPublishedRecord, canDeleteRecord } from "../lib/recordLifecycle";
 import { useState } from "react";
 import { isSelectedQuote } from "../lib/sourcing";
-import { supplierName, itemCode, modelName, priceChangeReference, quoteLabel } from "../lib/lookups";
+import { supplierName, itemCode, modelName, priceChangeReference } from "../lib/lookups";
 import { buildQuotePriceChartRows } from "../lib/priceCharts";
 import { Panel } from "../components/Panel";
 import { FilterGroup } from "../components/FilterGroup";
@@ -14,7 +14,6 @@ import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHand
 import { StatusPill } from "../components/StatusPill";
 import { LifecyclePill } from "../components/LifecyclePill";
 import { RecordMenu } from "../components/RecordMenu";
-import { type Quote } from "../types";
 
 export function PriceAnalytics() {
   const { data: appData } = useAppData();
@@ -210,101 +209,6 @@ export function PriceChanges({
                 </tr>
               );
             })}
-          </tbody>
-        </table></div>
-      </Panel>
-    </section>
-  );
-}
-
-export function QuoteTrend() {
-  const { data: appData } = useAppData();
-  const groups = Array.from(
-    appData.quotes.reduce((map, quote) => {
-      const key = `${quote.supplierId}::${quote.itemId}`;
-      const current = map.get(key) ?? [];
-      current.push(quote);
-      map.set(key, current);
-      return map;
-    }, new Map<string, Quote[]>()),
-  ).map(([key, groupQuotes]) => {
-    const [supplierId, itemId] = key.split("::");
-    const sortedQuotes = [...groupQuotes].sort((a, b) => a.quoteDate.localeCompare(b.quoteDate));
-    const prices = sortedQuotes.map((quote) => quote.unitPrice);
-    const relatedChanges = appData.priceChanges.filter((change) => change.supplierId === supplierId && change.itemId === itemId);
-    return {
-      supplierId,
-      itemId,
-      firstQuote: sortedQuotes[0],
-      latestQuote: sortedQuotes[sortedQuotes.length - 1],
-      minPrice: Math.min(...prices),
-      maxPrice: Math.max(...prices),
-      quoteCount: sortedQuotes.length,
-      relatedChanges,
-    };
-  });
-
-  return (
-    <section className="pageStack">
-      <Panel title="Supplier + item quote trend">
-        <div className="tableViewport"><table>
-          <thead>
-            <tr>
-              <th>Supplier</th>
-              <th>Item</th>
-              <th>Quotes</th>
-              <th>First Quote</th>
-              <th>Latest Quote</th>
-              <th>Lowest</th>
-              <th>Highest</th>
-              <th>Price Changes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((group) => (
-              <tr key={`${group.supplierId}-${group.itemId}`}>
-                <td>{supplierName(appData, group.supplierId)}</td>
-                <td>{itemCode(appData, group.itemId)}</td>
-                <td>{group.quoteCount}</td>
-                <td>{group.firstQuote.quoteDate} - {formatMoney(group.firstQuote.unitPrice)}</td>
-                <td>{group.latestQuote.quoteDate} - {formatMoney(group.latestQuote.unitPrice)}</td>
-                <td>{formatMoney(group.minPrice)}</td>
-                <td>{formatMoney(group.maxPrice)}</td>
-                <td>{group.relatedChanges.length}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-      </Panel>
-      <Panel title="Quote history">
-        <div className="tableViewport"><table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Supplier</th>
-              <th>Item</th>
-              <th>Model</th>
-              <th>Type</th>
-              <th>Reason</th>
-              <th>Unit Price</th>
-              <th>Previous Quote</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...appData.quotes]
-              .sort((a, b) => b.quoteDate.localeCompare(a.quoteDate))
-              .map((quote) => (
-                <tr key={quote.id}>
-                  <td>{quote.quoteDate}</td>
-                  <td>{supplierName(appData, quote.supplierId)}</td>
-                  <td>{itemCode(appData, quote.itemId)}</td>
-                  <td>{modelName(appData, quote.modelId)}</td>
-                  <td>{quote.quoteType}</td>
-                  <td>{quote.quoteReason}</td>
-                  <td>{formatMoney(quote.unitPrice)}</td>
-                  <td>{quoteLabel(appData, quote.previousQuoteId)}</td>
-                </tr>
-              ))}
           </tbody>
         </table></div>
       </Panel>
