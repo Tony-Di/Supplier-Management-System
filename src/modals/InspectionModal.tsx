@@ -6,6 +6,7 @@ import { activeDrawingSetsForModel, itemCode, drawingFileLabel } from "../lib/lo
 import { caseSupplierIds, nextInspectionRoundForQuote, defaultDispositionForResult } from "../lib/sourcing";
 import { type SampleInspection } from "../types";
 import { uploadMultipleFormFiles } from "../lib/uploads";
+import { uploadAccept } from "../constants";
 import { formatMoney } from "../lib/format";
 
 export function InspectionModal({
@@ -178,7 +179,7 @@ export function InspectionModal({
           )}
           <label>
             Problem Photos
-            <input multiple name="photoFiles" type="file" />
+            <input multiple name="photoFiles" type="file" accept={uploadAccept} />
           </label>
           <label>
             Signed Date

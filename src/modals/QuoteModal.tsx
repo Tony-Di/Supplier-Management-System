@@ -6,7 +6,7 @@ import { type Quote } from "../types";
 import { activeDrawingSetsForModel, itemById } from "../lib/lookups";
 import { todayDateString } from "../lib/format";
 import { uploadOptionalFormFile } from "../lib/uploads";
-import { quoteStatusOptions } from "../constants";
+import { quoteStatusOptions, uploadAccept } from "../constants";
 
 export function QuoteModal({
   data,
@@ -180,7 +180,7 @@ export function QuoteModal({
           </label>
           <label>
             Quote Attachment
-            <input name="attachmentFile" type="file" />
+            <input name="attachmentFile" type="file" accept={uploadAccept} />
           </label>
         </div>
         <label className="fullWidthLabel">

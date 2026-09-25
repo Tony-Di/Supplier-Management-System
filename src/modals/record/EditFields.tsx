@@ -190,6 +190,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <label>Lead Time<input name="leadTime" defaultValue={record.leadTime} required /></label>
         <label>Effective From<input name="effectiveFrom" defaultValue={record.effectiveFrom ?? record.quoteDate} type="date" required /></label>
         <label>Effective To<input name="effectiveTo" defaultValue={record.effectiveTo ?? ""} type="date" /></label>
+        <label>Reason for changing Effective To<input name="changeReason" placeholder="Required only when Effective To changes" /></label>
         <label>Extra Cost Type<select name="extraCostType" defaultValue={record.extraCostType ?? "None"}>{["None", "Freight", "Sample", "Tooling", "Packaging Test", "Other"].map((value) => <option key={value}>{value}</option>)}</select></label>
         <label>Extra Cost Amount<input min="0" name="extraCostAmount" defaultValue={record.extraCostAmount ?? 0} step="0.001" type="number" /></label>
         <label>Status<select name="status" defaultValue={record.status}>{quoteStatusOptions.map((value) => <option key={value}>{value}</option>)}</select></label>

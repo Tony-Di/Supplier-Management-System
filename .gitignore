@@ -15,6 +15,7 @@ uploads/
 .env
 .env.*
 !.env.example
+deploy.env
 
 # Logs
 *.log

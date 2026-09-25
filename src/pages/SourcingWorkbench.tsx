@@ -19,7 +19,7 @@ import { StatusPill } from "../components/StatusPill";
 import { formatMoney } from "../lib/format";
 import { QuoteStatusSelect } from "../components/QuoteStatusSelect";
 import { QuoteValueStack } from "../components/QuoteValueStack";
-import { supplierScore } from "../lib/scorecard";
+import { useScorecard } from "../useScorecard";
 import { QuoteMini } from "../components/QuoteMini";
 import { SourceRoleSelect } from "../components/SourceRoleSelect";
 
@@ -365,6 +365,7 @@ export function Comparison({ projectId }: { projectId: string }) {
   const [selectedItemId, setSelectedItemId] = useState(selectedProject?.itemIds[0] ?? "");
   const [serverRows, setServerRows] = useState<ComparisonRow[] | null>(null);
   const [comparisonError, setComparisonError] = useState("");
+  const { rows: scorecardRows } = useScorecard();
 
   useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
@@ -487,7 +488,7 @@ export function Comparison({ projectId }: { projectId: string }) {
                   <td>{offerQuotes.length ? <QuoteValueStack quotes={offerQuotes} field="extraCost" /> : "-"}</td>
                   <td>{supplier?.paymentTerms || "-"}</td>
                   <td>{quote ? qcQueueStatus(appData, quote) : "-"}</td>
-                  <td>{supplier ? supplierScore(appData, supplier.id) : "-"}</td>
+                  <td>{scorecardRows?.find((row) => row.supplier.id === supplier?.id)?.score ?? "-"}</td>
                 </tr>
               );
             })}

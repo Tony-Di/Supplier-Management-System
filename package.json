@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "dev:frontend": "vite --host 127.0.0.1",
     "dev:api": "tsx --env-file-if-exists=.env server/index.ts",
+    "start": "tsx server/index.ts",
     "migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
     "admin": "tsx --env-file-if-exists=.env scripts/admin.ts",
     "typecheck:api": "tsc -p tsconfig.server.json --noEmit",
