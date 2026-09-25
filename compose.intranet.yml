@@ -1,0 +1,48 @@
+# Intranet deployment: Postgres plus the app on one host.
+#   cp deploy.env.example deploy.env   # then fill it in
+#   docker compose -f compose.intranet.yml --env-file deploy.env up -d --build
+# See docs/deployment.md.
+
+name: sourcing-workbench
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sourcing
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy.env}
+      POSTGRES_DB: sourcing
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sourcing -d sourcing"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://sourcing:${POSTGRES_PASSWORD}@postgres:5432/sourcing
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in deploy.env}
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN in deploy.env}
+      NODE_ENV: ${NODE_ENV:-development}
+      AUTH_MODE: ${AUTH_MODE:-dev}
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
+      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-}
+    ports:
+      - "${HOST_PORT:-8080}:5174"
+    volumes:
+      - app-data:/app/data
+      - app-uploads:/app/uploads
+
+volumes:
+  pgdata:
+  app-data:
+  app-uploads:

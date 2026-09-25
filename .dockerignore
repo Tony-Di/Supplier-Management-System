@@ -1,0 +1,13 @@
+.git
+node_modules
+dist
+data
+uploads
+.env
+.env.*
+deploy.env
+*.tsbuildinfo
+*.docx
+design
+docs
+.superpowers

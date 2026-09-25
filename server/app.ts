@@ -49,6 +49,7 @@ import { appendAuditEntry, listAuditEntries } from "./auditLog";
 import { pool } from "./db";
 import { setUploadHeaders, uploadFileType } from "./uploads";
 import { priceWindowError } from "./priceWindows";
+import { serveFrontend } from "./frontend";
 
 export function createApp(): Express {
   const app = express();
@@ -1274,6 +1275,7 @@ export function createApp(): Express {
     ]);
   }
 
+  serveFrontend(app, join(process.cwd(), "dist"));
   app.use(errorHandler);
 
   return app;

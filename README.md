@@ -126,6 +126,8 @@ migrations/     Plain SQL migrations applied by npm run migrate
 scripts/        Migration, admin promotion and audit import scripts
 ```
 
+See [docs/deployment.md](docs/deployment.md) to run it on an intranet server with Docker.
+
 See [server/README.md](server/README.md) for the API reference.
 
 See [docs/frontend-implementation.md](docs/frontend-implementation.md) for the frontend refactor, validation and remaining business-rule differences.
