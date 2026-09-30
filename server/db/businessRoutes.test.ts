@@ -183,3 +183,41 @@ test("a deleted record's ID is not issued again", async () => {
     assert.deepEqual([first.id, second.id], ["sup-1001", "sup-1002"]);
   });
 });
+
+test("a reference to a missing file is refused with 400 and nothing is stored", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const before = await snapshotTables(pool);
+    const response = await send(app, session, "POST", "/api/suppliers", { name: "Legacy Paper", w9FileId: "file-9999" });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).message, /refers to a record that does not exist/);
+    assert.deepEqual(await snapshotTables(pool), before);
+  });
+});
+
+test("an impossible date is refused with 400", async () => {
+  await withTestApp(async ({ createApp }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { quote } = await seedSourcingCase(app, session);
+    const response = await send(app, session, "PATCH", `/api/quotes/${quote.id}`, { effectiveTo: "2026-02-30", changeReason: "Typo test" });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).message, "A date is not valid.");
+  });
+});
+
+test("a purchase price that a price change refers to cannot be deleted", async () => {
+  await withTestApp(async ({ createApp }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { supplier, model, item } = await seedSourcingCase(app, session);
+    const purchase = { supplierId: supplier.id, modelId: model.id, itemId: item.id, poNumber: "PO-1", orderDate: "2026-03-01", unitPrice: 10, quantity: 100 };
+    const first = await expectJson(send(app, session, "POST", "/api/purchase-prices", purchase), 201);
+    await expectJson(send(app, session, "POST", "/api/purchase-prices", { ...purchase, poNumber: "PO-2", orderDate: "2026-04-01", unitPrice: 11 }), 201);
+
+    const response = await send(app, session, "DELETE", `/api/purchase-prices/${first.id}`);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).message, "Cannot delete purchase price: linked to price changes.");
+  });
+});

@@ -58,6 +58,7 @@ import {
   ensureNoItemLinks,
   ensureNoModelLinks,
   ensureNoProjectLinks,
+  ensureNoPurchasePriceLinks,
   ensureNoQuoteLinks,
   ensureNoSupplierLinks,
   ensureSourceAssignmentLinks,
@@ -641,6 +642,7 @@ export function createApp(): Express {
     return ok({ ok: true });
   }));
   app.delete("/api/purchase-prices/:id", write((ctx, request) => {
+    ensureNoPurchasePriceLinks(ctx.store, request.params.id);
     deleteById(ctx.store.purchasePrices, request.params.id, "Purchase price");
     return ok({ ok: true });
   }));

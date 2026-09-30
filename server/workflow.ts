@@ -420,3 +420,9 @@ export function reconcile(ctx: BusinessContext) {
   syncQuoteStatusesFromPassedInspections(ctx);
   reconcileQuotePriceChanges(ctx);
 }
+
+export function ensureNoPurchasePriceLinks(store: Store, id: string) {
+  blockDelete("purchase price", [
+    store.priceChanges.some((change) => change.sourcePurchasePriceId === id || change.previousPurchasePriceId === id) ? "price changes" : "",
+  ]);
+}

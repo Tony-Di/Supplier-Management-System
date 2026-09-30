@@ -11,6 +11,9 @@ const packagingItemTypes = [
   "Stretch Film",
 ] as const;
 
+// Calendar days as date inputs send them; the database stores them as date.
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date.");
+
 const lifecycleSchema = {
   recordState: z.enum(["Draft", "Active", "Void"]).default("Draft"),
   voidReason: z.string().optional(),
@@ -60,7 +63,7 @@ export const drawingSetSchema = z.object({
   name: z.string().min(1),
   revision: z.string().min(1),
   status: z.enum(["Draft", "Active", "Superseded", "Obsolete"]).default("Draft"),
-  effectiveDate: z.string().min(1),
+  effectiveDate: isoDate,
   maintainedBy: z.string().default("Process Engineering"),
   packageFileId: z.string().optional(),
   packageFileName: z.string().optional(),
@@ -103,8 +106,8 @@ export const projectSchema = z.object({
   supplierIds: z.array(z.string()).default([]),
   itemIds: z.array(z.string()).default([]),
   owner: z.string().default("Purchasing"),
-  openDate: z.string().min(1),
-  targetCloseDate: z.string().optional(),
+  openDate: isoDate,
+  targetCloseDate: isoDate.optional(),
 });
 
 export const quoteSchema = z.object({
@@ -118,10 +121,10 @@ export const quoteSchema = z.object({
   itemId: z.string().min(1),
   drawingSetId: z.string().min(1),
   drawingItemId: z.string().min(1),
-  quoteDate: z.string().min(1),
-  effectiveFrom: z.string().min(1),
-  effectiveTo: z.string().optional(),
-  validUntil: z.string().optional(),
+  quoteDate: isoDate,
+  effectiveFrom: isoDate,
+  effectiveTo: isoDate.optional(),
+  validUntil: isoDate.optional(),
   currency: z.literal("USD").default("USD"),
   uom: z.string().default("pcs"),
   unitPrice: z.number().nonnegative(),
@@ -142,7 +145,7 @@ export const sourceAssignmentSchema = z.object({
   supplierId: z.string().min(1),
   sourceQuoteId: z.string().optional(),
   role: z.enum(["Primary", "Secondary", "Tertiary", "Backup"]),
-  effectiveFrom: z.string().min(1),
+  effectiveFrom: isoDate,
   notes: z.string().default(""),
 });
 
@@ -156,15 +159,15 @@ export const inspectionSchema = z.object({
   itemId: z.string().min(1),
   drawingItemId: z.string().min(1),
   sampleRound: z.number().int().positive().default(1),
-  sampleReceivedDate: z.string().min(1),
-  inspectionDate: z.string().optional(),
+  sampleReceivedDate: isoDate,
+  inspectionDate: isoDate.optional(),
   inspector: z.string().optional(),
   result: z.enum(["Pass", "Fail", "Conditional", "Not Submitted"]).default("Not Submitted"),
   disposition: z.enum(["Pending", "Accepted", "Re-sample Required", "Conditional Approval", "No Further Action"]).default("Pending"),
   problemPhotos: z.number().int().nonnegative().default(0),
   photoFileIds: z.array(z.string()).default([]),
   notes: z.string().default(""),
-  signedDate: z.string().optional(),
+  signedDate: isoDate.optional(),
 });
 
 export const incomingDefectSchema = z
@@ -176,7 +179,7 @@ export const incomingDefectSchema = z
     poNumber: z.string().optional(),
     poQty: z.number().int().nonnegative().optional(),
     defectType: z.enum(["Damage", "Dimension", "Quantity Shortage", "Material", "Labeling", "Other"]).default("Other"),
-    defectDate: z.string().min(1),
+    defectDate: isoDate,
     defectQty: z.number().int().nonnegative(),
     receivedQty: z.number().int().nonnegative().optional(),
     defectAction: z.enum(["Request Replacement", "Request Credit"]).default("Request Replacement"),
@@ -184,16 +187,16 @@ export const incomingDefectSchema = z
     replacementReceipts: z
       .array(
         z.object({
-          receivedDate: z.string().min(1),
+          receivedDate: isoDate,
           receivedQty: z.number().int().nonnegative(),
           result: z.enum(["Accepted", "Rejected"]),
         }),
       )
       .default([]),
     actionCompleted: z.boolean().default(false),
-    actionCompletedDate: z.string().optional(),
+    actionCompletedDate: isoDate.optional(),
     materialReturned: z.boolean().default(false),
-    returnDate: z.string().optional(),
+    returnDate: isoDate.optional(),
     notes: z.string().default(""),
     photoFileIds: z.array(z.string()).default([]),
     attachmentFileIds: z.array(z.string()).default([]),
@@ -258,7 +261,7 @@ export const priceChangeSchema = z.object({
   oldPrice: z.number().nonnegative(),
   newPrice: z.number().nonnegative(),
   currency: z.literal("USD").default("USD"),
-  effectiveDate: z.string().min(1),
+  effectiveDate: isoDate,
   reason: z.enum(["Material", "Freight", "Labor", "Negotiated", "Model Change", "Drawing Change", "Requote", "Change Work Order", "Other"]),
   status: z.enum(["Pending", "Approved", "Rejected"]).default("Pending"),
 });
@@ -269,7 +272,7 @@ export const purchasePriceSchema = z.object({
   modelId: z.string().min(1),
   itemId: z.string().min(1),
   poNumber: z.string().min(1),
-  orderDate: z.string().min(1),
+  orderDate: isoDate,
   unitPrice: z.number().nonnegative(),
   quantity: z.number().nonnegative(),
   currency: z.literal("USD").default("USD"),
