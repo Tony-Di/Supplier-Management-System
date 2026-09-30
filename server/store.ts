@@ -28,23 +28,9 @@ import type {
   Supplier,
   UploadedFileRecord,
 } from "../src/types";
+import { defaultScoreWeights, type Store } from "./storeShape";
 
-export interface Store {
-  suppliers: Supplier[];
-  models: Model[];
-  items: PackagingItem[];
-  drawingSets: DrawingSet[];
-  projects: SourcingProject[];
-  quotes: Quote[];
-  quoteCaseLinks: QuoteCaseLink[];
-  sourceAssignments: SourceAssignment[];
-  inspections: SampleInspection[];
-  incomingDefects: IncomingDefectRecord[];
-  priceChanges: PriceChange[];
-  purchasePrices: PurchasePriceRecord[];
-  files: UploadedFileRecord[];
-  scoreWeights: ScoreWeights;
-}
+export type { Store };
 
 const seedStore: Store = {
   suppliers: structuredClone(seedSuppliers),
@@ -313,16 +299,6 @@ function isDefectActionComplete(defect: IncomingDefectRecord) {
   return defect.receivedQty + acceptedReplacementQty >= defect.poQty;
 }
 
-function defaultScoreWeights(): ScoreWeights {
-  return {
-    sampleQuality: 25,
-    incomingQuality: 20,
-    pricing: 20,
-    responsiveness: 15,
-    scopeFit: 10,
-    setup: 10,
-  };
-}
 
 function normalizeScoreWeights(weights: ScoreWeights | undefined): ScoreWeights {
   return { ...defaultScoreWeights(), ...(weights ?? {}) };
