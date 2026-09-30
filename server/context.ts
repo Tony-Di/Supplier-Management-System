@@ -32,7 +32,6 @@ export function createContext(
   store: Store,
   counters: Map<string, number>,
   user: User | undefined,
-  onAudit?: (entry: AuditEntry) => void,
 ): RequestContext {
   const initialCounters = new Map(counters);
   const auditEntries: AuditEntry[] = [];
@@ -47,9 +46,7 @@ export function createContext(
       return `${prefix}-${next}`;
     },
     audit(action, entityType, entityId, entityLabel, before, after, reason, linkedRecordId, source) {
-      const entry = buildAuditEntry(user, action, entityType, entityId, entityLabel, before, after, reason, linkedRecordId, source);
-      if (onAudit) onAudit(entry);
-      else auditEntries.push(entry);
+      auditEntries.push(buildAuditEntry(user, action, entityType, entityId, entityLabel, before, after, reason, linkedRecordId, source));
     },
     addFileContent(fileId, content) {
       fileContents.set(fileId, content);

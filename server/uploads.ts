@@ -1,5 +1,4 @@
 import { extname } from "node:path";
-import type { Response } from "express";
 
 /**
  * Uploaded files are served from the app's own origin, so a stored HTML or SVG
@@ -41,14 +40,6 @@ export function uploadFileType(fileName: string): { extension: string; mimeType:
     );
   }
   return { extension, mimeType };
-}
-
-/** `setHeaders` hook for the static handler that serves `/uploads`. */
-export function setUploadHeaders(response: Response, filePath: string): void {
-  response.setHeader("X-Content-Type-Options", "nosniff");
-  if (!INLINE_EXTENSIONS.has(extname(filePath).toLowerCase())) {
-    response.setHeader("Content-Disposition", "attachment");
-  }
 }
 
 /** Where the frontend links to a stored file: its ID plus the lower-cased extension of its name. */

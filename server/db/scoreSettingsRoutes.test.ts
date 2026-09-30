@@ -4,8 +4,6 @@ import type { Express } from "express";
 
 import { withTestApp } from "../testDb";
 
-// Only the refused change is exercised: an accepted one would rewrite the
-// weights in the real data/store.json, which withTestApp does not isolate.
 async function call(app: Express, path: string, init?: RequestInit & { cookie?: string }) {
   const server = app.listen(0);
   const { port } = server.address() as { port: number };
@@ -39,6 +37,28 @@ test("a non-admin can read the score weights but not change them", async () => {
       body: JSON.stringify({ ...weights, sampleQuality: weights.sampleQuality + 5, pricing: weights.pricing - 5 }),
     });
     assert.equal(change.status, 403);
+    assert.deepEqual(await (await call(app, "/api/score-settings", { cookie })).json(), weights);
+  });
+});
+
+test("an admin's new weights are stored", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const login = await call(app, "/api/auth/login");
+    const cookie = login.headers.get("set-cookie") ?? "";
+    const me = await (await call(app, "/api/auth/me", { cookie })).json();
+    await pool.query("UPDATE users SET role = 'admin' WHERE id = $1", [me.id]);
+    const weights = { sampleQuality: 30, incomingQuality: 20, pricing: 20, responsiveness: 10, scopeFit: 10, setup: 10 };
+
+    const change = await call(app, "/api/score-settings", {
+      method: "PATCH",
+      cookie,
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": me.csrfToken },
+      body: JSON.stringify(weights),
+    });
+    assert.equal(change.status, 200);
+    const { rows } = await pool.query("SELECT sample_quality, responsiveness FROM score_weights");
+    assert.deepEqual(rows, [{ sample_quality: 30, responsiveness: 10 }]);
     assert.deepEqual(await (await call(app, "/api/score-settings", { cookie })).json(), weights);
   });
 });

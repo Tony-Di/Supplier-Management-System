@@ -16,15 +16,10 @@ test("an untouched counter is not reported as changed", () => {
   assert.deepEqual(createContext(emptyStore(), new Map([["sup", 1004]]), undefined).changedCounters(), []);
 });
 
-test("audit entries are collected, or handed over as they happen when asked", () => {
+test("audit entries are collected for the save", () => {
   const ctx = createContext(emptyStore(), new Map(), undefined);
   ctx.audit("Create", "Model", "model-1001", "BTA");
-  assert.equal(ctx.auditEntries.length, 1);
-
-  const handedOver: string[] = [];
-  const immediate = createContext(emptyStore(), new Map(), undefined, (entry) => handedOver.push(entry.entityId));
-  immediate.audit("Create", "Model", "model-1002", "BTC");
-  assert.deepEqual([handedOver, immediate.auditEntries.length], [["model-1002"], 0]);
+  assert.deepEqual(ctx.auditEntries.map((entry) => entry.entityId), ["model-1001"]);
 });
 
 test("file contents are kept for the save", () => {

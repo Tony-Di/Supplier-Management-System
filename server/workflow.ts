@@ -4,6 +4,7 @@ import {
   assignPreviousQuote,
   buildPriceChangeFromQuote,
   closePreviousSelectedQuote,
+  reconcileQuotePriceChanges,
   syncCaseFromQuote,
   syncReusableQuotesForProject,
   syncReusableQuotesForProjects,
@@ -11,6 +12,7 @@ import {
 } from "./business";
 import type { BusinessContext } from "./context";
 import { ValidationError } from "./errors";
+import { mergePatch } from "./patch";
 import { priceWindowError } from "./priceWindows";
 import { latestInspection, qcAllowsSourceRole } from "./rules";
 import type { Store } from "./storeShape";
@@ -373,4 +375,48 @@ export function ensureNoQuoteLinks(store: Store, id: string) {
     store.purchasePrices.some((purchase) => purchase.linkedQuoteId === id) ? "purchase prices" : "",
     store.sourceAssignments.some((assignment) => assignment.sourceQuoteId === id) ? "source assignments" : "",
   ]);
+}
+
+export function deleteById<T extends { id: string }>(records: T[], id: string, label: string) {
+  const index = records.findIndex((record) => record.id === id);
+  if (index === -1) throw new ValidationError(`${label} not found: ${id}`);
+  records.splice(index, 1);
+}
+
+/** Replaces a record with the edit laid over it, validated by `parse`. A null in the patch clears that field. */
+export function updateById<T extends { id: string }>(
+  records: T[],
+  id: string,
+  patch: unknown,
+  parse: (value: unknown) => Omit<T, "id">,
+) {
+  const index = records.findIndex((record) => record.id === id);
+  if (index === -1) throw new ValidationError(`Record not found: ${id}`);
+  records[index] = { id, ...parse({ ...mergePatch(records[index], patch), id }) } as T;
+  return records[index];
+}
+
+export function voidById<T extends { id: string; recordState?: "Draft" | "Active" | "Void"; voidReason?: string }>(
+  records: T[],
+  id: string,
+  reason?: string,
+) {
+  const record = records.find((candidate) => candidate.id === id);
+  if (!record) throw new ValidationError(`Record not found: ${id}`);
+  record.recordState = "Void";
+  record.voidReason = String(reason ?? "").trim() || "Entered in error";
+}
+
+/**
+ * The passes that keep derived records consistent: packaging-set coverage,
+ * case items, reusable quotes, quotes selected by a passed inspection, and
+ * price changes. Every write runs them before it commits, so reads never need to.
+ */
+export function reconcile(ctx: BusinessContext) {
+  const modelIds = ctx.store.models.map((model) => model.id);
+  syncActivePackagingSetItems(ctx, modelIds, "Auto sync");
+  syncActiveCasesForModels(ctx, modelIds, "Auto sync");
+  syncReusableQuotesForProjects(ctx);
+  syncQuoteStatusesFromPassedInspections(ctx);
+  reconcileQuotePriceChanges(ctx);
 }

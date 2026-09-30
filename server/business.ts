@@ -305,11 +305,9 @@ export function validatePurchasePriceLinks(store: Store, record: { supplierId: s
   }
 }
 
-export function buildComparison(ctx: BusinessContext, projectId: string) {
-  const { store } = ctx;
+export function buildComparison(store: Store, projectId: string) {
   const project = findProject(store, projectId);
   if (!project) throw new ValidationError(`Project not found: ${projectId}`);
-  syncReusableQuotesForProject(ctx, project);
   const projectQuoteIds = new Set(
     store.quoteCaseLinks
       .filter((link) => link.projectId === projectId && link.recordState !== "Void")

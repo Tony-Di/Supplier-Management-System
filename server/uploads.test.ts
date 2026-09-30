@@ -1,18 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Response } from "express";
 
-import { UploadRejectedError, setUploadHeaders, uploadFileType, downloadHeaders, fileIdFromStoredName, storagePath } from "./uploads";
-
-function fakeResponse() {
-  const headers: Record<string, string> = {};
-  const response = {
-    setHeader(name: string, value: string) {
-      headers[name.toLowerCase()] = value;
-    },
-  };
-  return { response: response as unknown as Response, headers };
-}
+import { UploadRejectedError, uploadFileType, downloadHeaders, fileIdFromStoredName, storagePath } from "./uploads";
 
 test("an accepted file keeps a lowercase extension and a type chosen by the server", () => {
   assert.deepEqual(uploadFileType("Crate drawing.PDF"), { extension: ".pdf", mimeType: "application/pdf" });
@@ -38,28 +27,6 @@ test("a rejected upload names the file and reports a 400", () => {
     () => uploadFileType("setup.exe"),
     (error: UploadRejectedError) => error.status === 400 && error.message.includes("setup.exe"),
   );
-});
-
-test("every stored file is served without content sniffing", () => {
-  const { response, headers } = fakeResponse();
-  setUploadHeaders(response, "/srv/uploads/file-1.pdf");
-  assert.equal(headers["x-content-type-options"], "nosniff");
-});
-
-test("PDFs and photos open in the browser", () => {
-  for (const path of ["/srv/uploads/file-1.pdf", "/srv/uploads/file-2.JPG", "/srv/uploads/file-3.png"]) {
-    const { response, headers } = fakeResponse();
-    setUploadHeaders(response, path);
-    assert.equal(headers["content-disposition"], undefined, path);
-  }
-});
-
-test("anything else is sent as a download, including files stored before the allowlist", () => {
-  for (const path of ["/srv/uploads/file-4.xlsx", "/srv/uploads/file-5.html", "/srv/uploads/file-6"]) {
-    const { response, headers } = fakeResponse();
-    setUploadHeaders(response, path);
-    assert.equal(headers["content-disposition"], "attachment", path);
-  }
 });
 
 test("a stored file's path keeps its ID and a lower-case extension", () => {
