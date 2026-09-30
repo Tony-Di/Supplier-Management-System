@@ -12,10 +12,10 @@ export async function query<T = Record<string, unknown>>(text: string, params: u
   return result.rows as T[];
 }
 
-export async function transaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+export async function transaction<T>(fn: (client: PoolClient) => Promise<T>, begin = "BEGIN"): Promise<T> {
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
+    await client.query(begin);
     const value = await fn(client);
     await client.query("COMMIT");
     return value;

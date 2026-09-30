@@ -3,7 +3,7 @@ import type { Request, RequestHandler } from "express";
 
 import { appendAuditEntry } from "./auditLog";
 import { createContext, type RequestContext } from "./context";
-import { pool, transaction } from "./db";
+import { transaction } from "./db";
 import { diffStore } from "./storeDiff";
 import { loadCounters, loadStore, saveChanges, saveCounters, saveScoreWeights } from "./storeRepository";
 import type { Store } from "./storeShape";
@@ -54,17 +54,7 @@ export function read(handler: (store: Store, request: Request) => unknown): Requ
   return async (request, response, next) => {
     let body: unknown;
     try {
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-        body = handler(await loadStore(client), request);
-        await client.query("COMMIT");
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
-      }
+      body = await transaction(async (client) => handler(await loadStore(client), request), "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
     } catch (error) {
       next(error);
       return;
