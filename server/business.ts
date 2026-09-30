@@ -1,35 +1,27 @@
 import type { IncomingDefectRecord, PurchasePriceRecord, Quote, QuoteCaseLink, SampleInspection, SourcingProject } from "../src/types";
 import { parseLeadTimeDays } from "../src/leadTime";
+import type { BusinessContext } from "./context";
+import { ValidationError } from "./errors";
+import { assertReferences, findDrawingItem, findDrawingSet, findItem, findModel, findProject, findSupplier } from "./lookups";
 import { isUsableRecord } from "./rules";
 import { findPreviousEffectiveQuote, isEffectivePriceQuote } from "./priceWindows";
 import { paymentTermDays, scoreIncomingQuality, scoreLeadTime, scorePaymentTerms, scoreResponsiveness, scoreScopeFit } from "./scoring";
-import {
-  assertReferences,
-  findDrawingItem,
-  findDrawingSet,
-  findItem,
-  findModel,
-  nextId,
-  findProject,
-  findSupplier,
-  store,
-  ValidationError,
-} from "./store";
+import type { Store } from "./storeShape";
 
-export function validateProjectLinks(project: {
+export function validateProjectLinks(store: Store, project: {
   modelIds: string[];
   drawingSetId: string;
   supplierIds: string[];
   itemIds: string[];
 }) {
-  assertReferences(project.modelIds, findModel, "Model");
-  assertReferences(project.supplierIds, findSupplier, "Supplier");
-  assertReferences(project.itemIds, findItem, "Item");
-  project.modelIds.forEach((modelId) => assertNotVoided(findModel(modelId), "Model"));
-  project.supplierIds.forEach((supplierId) => assertNotVoided(findSupplier(supplierId), "Supplier"));
-  project.itemIds.forEach((itemId) => assertNotVoided(findItem(itemId), "Item"));
+  assertReferences(project.modelIds, (id) => findModel(store, id), "Model");
+  assertReferences(project.supplierIds, (id) => findSupplier(store, id), "Supplier");
+  assertReferences(project.itemIds, (id) => findItem(store, id), "Item");
+  project.modelIds.forEach((modelId) => assertNotVoided(findModel(store, modelId), "Model"));
+  project.supplierIds.forEach((supplierId) => assertNotVoided(findSupplier(store, supplierId), "Supplier"));
+  project.itemIds.forEach((itemId) => assertNotVoided(findItem(store, itemId), "Item"));
 
-  const drawingSet = findDrawingSet(project.drawingSetId);
+  const drawingSet = findDrawingSet(store, project.drawingSetId);
   if (!drawingSet) throw new ValidationError(`Drawing set not found: ${project.drawingSetId}`);
   ensureActiveDrawingSet(drawingSet);
 
@@ -44,30 +36,30 @@ export function validateProjectLinks(project: {
   }
 }
 
-export function validateDrawingSetLinks(drawingSet: { modelId: string; drawingItems: { itemId: string }[] }) {
-  if (!findModel(drawingSet.modelId)) throw new ValidationError(`Model not found: ${drawingSet.modelId}`);
+export function validateDrawingSetLinks(store: Store, drawingSet: { modelId: string; drawingItems: { itemId: string }[] }) {
+  if (!findModel(store, drawingSet.modelId)) throw new ValidationError(`Model not found: ${drawingSet.modelId}`);
   assertReferences(
     drawingSet.drawingItems.map((drawingItem) => drawingItem.itemId),
-    findItem,
+    (id) => findItem(store, id),
     "Item",
   );
 }
 
-export function validateQuoteLinks(quote: Omit<Quote, "id">) {
-  const supplier = findSupplier(quote.supplierId);
+export function validateQuoteLinks(store: Store, quote: Omit<Quote, "id">) {
+  const supplier = findSupplier(store, quote.supplierId);
   if (!supplier) throw new ValidationError(`Supplier not found: ${quote.supplierId}`);
   assertNotVoided(supplier, "Supplier");
-  const model = findModel(quote.modelId);
+  const model = findModel(store, quote.modelId);
   if (!model) throw new ValidationError(`Model not found: ${quote.modelId}`);
   assertNotVoided(model, "Model");
-  const item = findItem(quote.itemId);
+  const item = findItem(store, quote.itemId);
   if (!item) throw new ValidationError(`Item not found: ${quote.itemId}`);
   assertNotVoided(item, "Item");
   if (!supplier.capableItems.includes(item.type)) throw new ValidationError("Supplier is not capable for the selected item type.");
-  const drawingSet = findDrawingSet(quote.drawingSetId);
+  const drawingSet = findDrawingSet(store, quote.drawingSetId);
   if (!drawingSet) throw new ValidationError(`Drawing set not found: ${quote.drawingSetId}`);
   ensureActiveDrawingSet(drawingSet);
-  const drawingItem = findDrawingItem(quote.drawingSetId, quote.drawingItemId);
+  const drawingItem = findDrawingItem(store, quote.drawingSetId, quote.drawingItemId);
   if (!drawingItem) {
     throw new ValidationError("Drawing item must belong to the selected drawing set.");
   }
@@ -84,7 +76,7 @@ export function validateQuoteLinks(quote: Omit<Quote, "id">) {
     }
   }
   if (quote.projectId) {
-    const project = findProject(quote.projectId);
+    const project = findProject(store, quote.projectId);
     if (!project) throw new ValidationError(`Case not found: ${quote.projectId}`);
     if (!project.modelIds.includes(quote.modelId)) {
       throw new ValidationError("Model must be included in the case before case-linked quoting.");
@@ -92,25 +84,27 @@ export function validateQuoteLinks(quote: Omit<Quote, "id">) {
   }
 }
 
-export function syncCaseFromQuote(quote: Quote) {
+export function syncCaseFromQuote(ctx: BusinessContext, quote: Quote) {
+  const { store } = ctx;
   if (!quote.projectId) return;
-  const project = findProject(quote.projectId);
+  const project = findProject(store, quote.projectId);
   if (!project) return;
   if (!project.supplierIds.includes(quote.supplierId)) project.supplierIds.push(quote.supplierId);
   if (!project.itemIds.includes(quote.itemId)) project.itemIds.push(quote.itemId);
-  upsertQuoteCaseLink(quote, project, "Origin Case");
-  syncReusableQuotesForProjects();
+  upsertQuoteCaseLink(ctx, quote, project, "Origin Case");
+  syncReusableQuotesForProjects(ctx);
 }
 
-export function syncReusableQuotesForProjects(projects = store.projects) {
+export function syncReusableQuotesForProjects(ctx: BusinessContext, projects = ctx.store.projects) {
   let changed = false;
   for (const project of projects) {
-    changed = syncReusableQuotesForProject(project) || changed;
+    changed = syncReusableQuotesForProject(ctx, project) || changed;
   }
   return changed;
 }
 
-export function syncReusableQuotesForProject(project: SourcingProject) {
+export function syncReusableQuotesForProject(ctx: BusinessContext, project: SourcingProject) {
+  const { store } = ctx;
   let changed = false;
   const linkedSupplierIds = new Set(project.supplierIds);
   const projectItemIds = new Set(project.itemIds);
@@ -120,18 +114,19 @@ export function syncReusableQuotesForProject(project: SourcingProject) {
     if (quote.recordState === "Void") continue;
     if (!linkedSupplierIds.has(quote.supplierId)) continue;
     if (!projectItemIds.has(quote.itemId)) continue;
-    if (!projectModelIds.has(quote.modelId) && !findItem(quote.itemId)?.usedForModels.some((modelId) => projectModelIds.has(modelId))) continue;
+    if (!projectModelIds.has(quote.modelId) && !findItem(store, quote.itemId)?.usedForModels.some((modelId) => projectModelIds.has(modelId))) continue;
     if (!quoteIsEffectiveForProject(quote, project)) continue;
-    changed = Boolean(upsertQuoteCaseLink(quote, project, quote.projectId === project.id ? "Origin Case" : "Reused Existing Quote")) || changed;
+    changed = Boolean(upsertQuoteCaseLink(ctx, quote, project, quote.projectId === project.id ? "Origin Case" : "Reused Existing Quote")) || changed;
   }
   return changed;
 }
 
-function upsertQuoteCaseLink(quote: Quote, project: SourcingProject, linkType: "Origin Case" | "Reused Existing Quote") {
+function upsertQuoteCaseLink(ctx: BusinessContext, quote: Quote, project: SourcingProject, linkType: "Origin Case" | "Reused Existing Quote") {
+  const { store } = ctx;
   const existing = store.quoteCaseLinks.find(
     (link) => link.recordState !== "Void" && link.quoteId === quote.id && link.projectId === project.id,
   );
-  const sampleRequirement = sampleRequirementForQuoteInProject(quote, project);
+  const sampleRequirement = sampleRequirementForQuoteInProject(store, quote, project);
 
   if (existing) {
     const before = JSON.stringify(existing);
@@ -144,7 +139,7 @@ function upsertQuoteCaseLink(quote: Quote, project: SourcingProject, linkType: "
   }
 
   const link = {
-    id: nextId("ql"),
+    id: ctx.nextId("ql"),
     quoteId: quote.id,
     projectId: project.id,
     supplierId: quote.supplierId,
@@ -164,9 +159,9 @@ function quoteIsEffectiveForProject(quote: Quote, project: SourcingProject) {
   return startDate <= projectDate && (!quote.effectiveTo || quote.effectiveTo >= projectDate);
 }
 
-function sampleRequirementForQuoteInProject(quote: Quote, project: SourcingProject): QuoteCaseLink["sampleRequirement"] {
+function sampleRequirementForQuoteInProject(store: Store, quote: Quote, project: SourcingProject): QuoteCaseLink["sampleRequirement"] {
   if (quote.status === "Sample Requested") return "Sample Requested";
-  const activeProjectDrawingSet = findDrawingSet(project.drawingSetId);
+  const activeProjectDrawingSet = findDrawingSet(store, project.drawingSetId);
   const passedInspection = store.inspections
     .filter((inspection) =>
       inspection.recordState !== "Void" &&
@@ -192,16 +187,16 @@ function ensureActiveDrawingSet(drawingSet: { status?: string; recordState?: str
   }
 }
 
-export function validateInspectionLinks(inspection: Omit<SampleInspection, "id">) {
-  validateQuoteLikeLinks(inspection);
+export function validateInspectionLinks(store: Store, inspection: Omit<SampleInspection, "id">) {
+  validateQuoteLikeLinks(store, inspection);
 }
 
-export function validateIncomingDefectLinks(record: { supplierId: string; modelId?: string; itemId: string }) {
-  if (!findSupplier(record.supplierId)) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
-  if (!findItem(record.itemId)) throw new ValidationError(`Item not found: ${record.itemId}`);
-  if (record.modelId && !findModel(record.modelId)) throw new ValidationError(`Model not found: ${record.modelId}`);
-  assertNotVoided(findSupplier(record.supplierId), "Supplier");
-  assertNotVoided(findItem(record.itemId), "Item");
+export function validateIncomingDefectLinks(store: Store, record: { supplierId: string; modelId?: string; itemId: string }) {
+  if (!findSupplier(store, record.supplierId)) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
+  if (!findItem(store, record.itemId)) throw new ValidationError(`Item not found: ${record.itemId}`);
+  if (record.modelId && !findModel(store, record.modelId)) throw new ValidationError(`Model not found: ${record.modelId}`);
+  assertNotVoided(findSupplier(store, record.supplierId), "Supplier");
+  assertNotVoided(findItem(store, record.itemId), "Item");
 }
 
 export function normalizeIncomingDefectCompletion(defect: Omit<IncomingDefectRecord, "id"> | IncomingDefectRecord) {
@@ -222,7 +217,7 @@ export function normalizeIncomingDefectCompletion(defect: Omit<IncomingDefectRec
   defect.actionCompletedDate = defect.actionCompleted ? latestAcceptedReceipt?.receivedDate ?? defect.actionCompletedDate ?? defect.returnDate ?? defect.defectDate : undefined;
 }
 
-function validateQuoteLikeLinks(record: {
+function validateQuoteLikeLinks(store: Store, record: {
   supplierId: string;
   projectId?: string;
   relatedQuoteId?: string;
@@ -231,19 +226,19 @@ function validateQuoteLikeLinks(record: {
   drawingSetId: string;
   drawingItemId: string;
 }) {
-  const supplier = findSupplier(record.supplierId);
+  const supplier = findSupplier(store, record.supplierId);
   if (!supplier) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
   assertNotVoided(supplier, "Supplier");
-  const model = findModel(record.modelId);
+  const model = findModel(store, record.modelId);
   if (!model) throw new ValidationError(`Model not found: ${record.modelId}`);
   assertNotVoided(model, "Model");
-  const item = findItem(record.itemId);
+  const item = findItem(store, record.itemId);
   if (!item) throw new ValidationError(`Item not found: ${record.itemId}`);
   assertNotVoided(item, "Item");
-  const drawingSet = findDrawingSet(record.drawingSetId);
+  const drawingSet = findDrawingSet(store, record.drawingSetId);
   if (!drawingSet) throw new ValidationError(`Drawing set not found: ${record.drawingSetId}`);
   ensureActiveDrawingSet(drawingSet);
-  const drawingItem = findDrawingItem(record.drawingSetId, record.drawingItemId);
+  const drawingItem = findDrawingItem(store, record.drawingSetId, record.drawingItemId);
   if (!drawingItem) {
     throw new ValidationError("Drawing item must belong to the selected drawing set.");
   }
@@ -258,7 +253,7 @@ function validateQuoteLikeLinks(record: {
     }
   }
   if (record.projectId) {
-    const project = findProject(record.projectId);
+    const project = findProject(store, record.projectId);
     if (!project) throw new ValidationError(`Case not found: ${record.projectId}`);
     if (!project.supplierIds.includes(record.supplierId)) {
       throw new ValidationError("Supplier must be part of the case before case-linked sample inspection.");
@@ -269,7 +264,7 @@ function validateQuoteLikeLinks(record: {
   }
 }
 
-export function validatePriceChangeLinks(record: {
+export function validatePriceChangeLinks(store: Store, record: {
   supplierId: string;
   modelId: string;
   itemId: string;
@@ -278,9 +273,9 @@ export function validatePriceChangeLinks(record: {
   sourcePurchasePriceId?: string;
   previousPurchasePriceId?: string;
 }) {
-  if (!findSupplier(record.supplierId)) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
-  if (!findModel(record.modelId)) throw new ValidationError(`Model not found: ${record.modelId}`);
-  if (!findItem(record.itemId)) throw new ValidationError(`Item not found: ${record.itemId}`);
+  if (!findSupplier(store, record.supplierId)) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
+  if (!findModel(store, record.modelId)) throw new ValidationError(`Model not found: ${record.modelId}`);
+  if (!findItem(store, record.itemId)) throw new ValidationError(`Item not found: ${record.itemId}`);
   for (const quoteId of [record.sourceQuoteId, record.previousQuoteId].filter(Boolean)) {
     const quote = store.quotes.find((candidate) => candidate.id === quoteId);
     if (!quote) throw new ValidationError(`Linked quote not found: ${quoteId}`);
@@ -297,10 +292,10 @@ export function validatePriceChangeLinks(record: {
   }
 }
 
-export function validatePurchasePriceLinks(record: { supplierId: string; modelId: string; itemId: string; linkedQuoteId?: string }) {
-  if (!findSupplier(record.supplierId)) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
-  if (!findModel(record.modelId)) throw new ValidationError(`Model not found: ${record.modelId}`);
-  if (!findItem(record.itemId)) throw new ValidationError(`Item not found: ${record.itemId}`);
+export function validatePurchasePriceLinks(store: Store, record: { supplierId: string; modelId: string; itemId: string; linkedQuoteId?: string }) {
+  if (!findSupplier(store, record.supplierId)) throw new ValidationError(`Supplier not found: ${record.supplierId}`);
+  if (!findModel(store, record.modelId)) throw new ValidationError(`Model not found: ${record.modelId}`);
+  if (!findItem(store, record.itemId)) throw new ValidationError(`Item not found: ${record.itemId}`);
   if (record.linkedQuoteId) {
     const quote = store.quotes.find((candidate) => candidate.id === record.linkedQuoteId);
     if (!quote) throw new ValidationError(`Linked quote not found: ${record.linkedQuoteId}`);
@@ -310,10 +305,11 @@ export function validatePurchasePriceLinks(record: { supplierId: string; modelId
   }
 }
 
-export function buildComparison(projectId: string) {
-  const project = findProject(projectId);
+export function buildComparison(ctx: BusinessContext, projectId: string) {
+  const { store } = ctx;
+  const project = findProject(store, projectId);
   if (!project) throw new ValidationError(`Project not found: ${projectId}`);
-  syncReusableQuotesForProject(project);
+  syncReusableQuotesForProject(ctx, project);
   const projectQuoteIds = new Set(
     store.quoteCaseLinks
       .filter((link) => link.projectId === projectId && link.recordState !== "Void")
@@ -329,7 +325,7 @@ export function buildComparison(projectId: string) {
     );
 
     return {
-      item: findItem(itemId),
+      item: findItem(store, itemId),
       suppliers: supplierIds.map((supplierId) => {
         const supplierQuotes = itemQuotes
           .filter((candidate) => candidate.supplierId === supplierId)
@@ -337,7 +333,7 @@ export function buildComparison(projectId: string) {
         const quote = supplierQuotes.find(isSelectedQuote) ?? supplierQuotes.find(isSampleRequestedQuote) ?? supplierQuotes[0];
         const inspection = itemInspections.find((candidate) => candidate.supplierId === supplierId);
         return {
-          supplier: findSupplier(supplierId),
+          supplier: findSupplier(store, supplierId),
           quote,
           quotes: supplierQuotes,
           inspection,
@@ -348,7 +344,8 @@ export function buildComparison(projectId: string) {
   });
 }
 
-export function buildPriceChangeFromQuote(quote: Quote) {
+export function buildPriceChangeFromQuote(ctx: BusinessContext, quote: Quote) {
+  const { store } = ctx;
   if (!isEffectivePriceQuote(quote)) return;
 
   const previousQuote = findPreviousEffectiveQuote(quote, store.quotes);
@@ -382,7 +379,7 @@ export function buildPriceChangeFromQuote(quote: Quote) {
   }
 
   store.priceChanges.push({
-    id: nextId("pc"),
+    id: ctx.nextId("pc"),
     supplierId: quote.supplierId,
     modelId: quote.modelId,
     itemId: quote.itemId,
@@ -398,7 +395,8 @@ export function buildPriceChangeFromQuote(quote: Quote) {
   });
 }
 
-export function reconcileQuotePriceChanges() {
+export function reconcileQuotePriceChanges(ctx: BusinessContext) {
+  const { store } = ctx;
   let changed = false;
   const effectiveQuotes = [...store.quotes]
     .filter((quote) => quote.recordState !== "Void" && isEffectivePriceQuote(quote))
@@ -408,22 +406,22 @@ export function reconcileQuotePriceChanges() {
     const beforeQuote = JSON.stringify(quote);
     const beforePriceChangeCount = store.priceChanges.length;
     const beforePriceChanges = JSON.stringify(store.priceChanges);
-    assignPreviousQuote(quote);
-    buildPriceChangeFromQuote(quote);
-    closePreviousSelectedQuote(quote);
+    assignPreviousQuote(store, quote);
+    buildPriceChangeFromQuote(ctx, quote);
+    closePreviousSelectedQuote(store, quote);
     changed = changed || beforeQuote !== JSON.stringify(quote) || beforePriceChangeCount !== store.priceChanges.length || beforePriceChanges !== JSON.stringify(store.priceChanges);
   }
 
   return changed;
 }
 
-export function assignPreviousQuote(quote: Quote) {
+export function assignPreviousQuote(store: Store, quote: Quote) {
   if (quote.previousQuoteId) return;
   const previousQuote = findPreviousEffectiveQuote(quote, store.quotes);
   if (previousQuote) quote.previousQuoteId = previousQuote.id;
 }
 
-export function closePreviousSelectedQuote(quote: Quote) {
+export function closePreviousSelectedQuote(store: Store, quote: Quote) {
   if (!isEffectivePriceQuote(quote)) return;
 
   const previousQuote = findPreviousEffectiveQuote(quote, store.quotes);
@@ -447,7 +445,8 @@ function dayBefore(dateText: string) {
   return date.toISOString().slice(0, 10);
 }
 
-export function buildPriceChangeFromPurchase(purchase: PurchasePriceRecord) {
+export function buildPriceChangeFromPurchase(ctx: BusinessContext, purchase: PurchasePriceRecord) {
+  const { store } = ctx;
   const previousPurchase = [...store.purchasePrices]
     .reverse()
     .find(
@@ -461,7 +460,7 @@ export function buildPriceChangeFromPurchase(purchase: PurchasePriceRecord) {
   if (!previousPurchase || previousPurchase.unitPrice === purchase.unitPrice) return;
 
   store.priceChanges.push({
-    id: nextId("pc"),
+    id: ctx.nextId("pc"),
     supplierId: purchase.supplierId,
     modelId: purchase.modelId,
     itemId: purchase.itemId,
@@ -477,8 +476,8 @@ export function buildPriceChangeFromPurchase(purchase: PurchasePriceRecord) {
   });
 }
 
-function buildSupplierScorecard(supplierId: string) {
-  const supplier = findSupplier(supplierId);
+function buildSupplierScorecard(store: Store, supplierId: string) {
+  const supplier = findSupplier(store, supplierId);
   if (!supplier) return undefined;
 
   const supplierQuotes = store.quotes.filter((quote) => quote.supplierId === supplierId && quote.recordState !== "Void");
@@ -496,13 +495,13 @@ function buildSupplierScorecard(supplierId: string) {
   const declaredTypes = supplier.capableItems.length;
   const quotedDeclaredTypes = new Set(
     supplierQuotes
-      .map((quote) => findItem(quote.itemId)?.type)
+      .map((quote) => findItem(store, quote.itemId)?.type)
       .filter((type) => type && supplier.capableItems.includes(type)),
   ).size;
   const passedDeclaredTypes = new Set(
     supplierInspections
       .filter((inspection) => inspection.result === "Pass")
-      .map((inspection) => findItem(inspection.itemId)?.type)
+      .map((inspection) => findItem(store, inspection.itemId)?.type)
       .filter((type) => type && supplier.capableItems.includes(type)),
   ).size;
   const numericLeadTimes = supplierQuotes
@@ -515,7 +514,7 @@ function buildSupplierScorecard(supplierId: string) {
     reviewedSamples === 0
       ? 0
       : clamp(Math.round((pass / reviewedSamples) * (store.scoreWeights.sampleQuality - 5) + conditional * 2 - fail * 3 + (pass > 0 ? 5 : 0)), 0, store.scoreWeights.sampleQuality);
-  const pricingScore = scorePricingCompetitiveness(supplierQuotes, store.scoreWeights.pricing, supplier.paymentTerms);
+  const pricingScore = scorePricingCompetitiveness(store, supplierQuotes, store.scoreWeights.pricing, supplier.paymentTerms);
   const responsivenessScore = scoreResponsiveness(
     { quoteCount: supplierQuotes.length, averageLeadTime, selectedQuotes },
     store.scoreWeights.responsiveness,
@@ -559,7 +558,7 @@ function buildSupplierScorecard(supplierId: string) {
         label: "Pricing",
         score: pricingScore,
         max: store.scoreWeights.pricing,
-        detail: pricingDetail(supplierQuotes, supplier.paymentTerms),
+        detail: pricingDetail(store, supplierQuotes, supplier.paymentTerms),
       },
       {
         key: "responsiveness",
@@ -596,11 +595,11 @@ function buildSupplierScorecard(supplierId: string) {
   };
 }
 
-export function buildScorecard() {
+export function buildScorecard(store: Store) {
   return {
     weights: store.scoreWeights,
     rows: store.suppliers.flatMap((supplier) => {
-      const row = buildSupplierScorecard(supplier.id);
+      const row = buildSupplierScorecard(store, supplier.id);
       return row ? [row] : [];
     }),
   };
@@ -610,16 +609,16 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function scorePricingCompetitiveness(supplierQuotes: Quote[], max: number, paymentTerms = "") {
+function scorePricingCompetitiveness(store: Store, supplierQuotes: Quote[], max: number, paymentTerms = "") {
   if (supplierQuotes.length === 0) return 0;
-  const quoteScores = supplierQuotes.map((quote) => quotePriceCompetitiveness(quote));
+  const quoteScores = supplierQuotes.map((quote) => quotePriceCompetitiveness(store, quote));
   const averagePercent = quoteScores.reduce((sum, score) => sum + score, 0) / quoteScores.length;
   const priceMax = Math.round(max * 0.85);
   const termsMax = max - priceMax;
   return Math.round(priceMax * averagePercent) + scorePaymentTerms(paymentTerms, termsMax);
 }
 
-function quotePriceCompetitiveness(quote: Quote): number {
+function quotePriceCompetitiveness(store: Store, quote: Quote): number {
   const groupQuotes = store.quotes.filter(
     (candidate) =>
       candidate.recordState !== "Void" &&
@@ -636,10 +635,10 @@ function quotePriceCompetitiveness(quote: Quote): number {
   return 0.3;
 }
 
-function pricingDetail(supplierQuotes: Quote[], paymentTerms = "") {
+function pricingDetail(store: Store, supplierQuotes: Quote[], paymentTerms = "") {
   if (supplierQuotes.length === 0) return "No quote for price comparison";
   const selectedCount = supplierQuotes.filter(isSelectedQuote).length;
-  const averagePercent = Math.round((supplierQuotes.reduce((sum, quote) => sum + quotePriceCompetitiveness(quote), 0) / supplierQuotes.length) * 100);
+  const averagePercent = Math.round((supplierQuotes.reduce((sum, quote) => sum + quotePriceCompetitiveness(store, quote), 0) / supplierQuotes.length) * 100);
   const termsDays = paymentTermDays(paymentTerms);
   const termsLabel = termsDays === undefined ? "payment terms not set" : `Net ${termsDays} payment terms`;
   return `${averagePercent}% price competitiveness, ${termsLabel}, ${selectedCount} selected quote${selectedCount === 1 ? "" : "s"}`;

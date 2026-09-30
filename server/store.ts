@@ -53,7 +53,7 @@ const storePath = resolve(process.cwd(), "data", "store.json");
 
 export const store: Store = loadStore();
 
-const counters = new Map<string, number>();
+export const counters = new Map<string, number>();
 
 initializeCounters();
 
@@ -338,39 +338,4 @@ export function nextId(prefix: string) {
   const next = (counters.get(prefix) ?? 1000) + 1;
   counters.set(prefix, next);
   return `${prefix}-${next}`;
-}
-
-export function findSupplier(id: string) {
-  return store.suppliers.find((supplier) => supplier.id === id);
-}
-
-export function findModel(id: string) {
-  return store.models.find((model) => model.id === id);
-}
-
-export function findItem(id: string) {
-  return store.items.find((item) => item.id === id);
-}
-
-export function findDrawingSet(id: string) {
-  return store.drawingSets.find((drawingSet) => drawingSet.id === id);
-}
-
-export function findDrawingItem(drawingSetId: string, drawingItemId: string) {
-  return findDrawingSet(drawingSetId)?.drawingItems.find((drawingItem) => drawingItem.id === drawingItemId);
-}
-
-export function findProject(id: string) {
-  return store.projects.find((project) => project.id === id);
-}
-
-export function assertReferences(ids: string[], finder: (id: string) => unknown, label: string) {
-  const missing = ids.filter((id) => !finder(id));
-  if (missing.length > 0) {
-    throw new ValidationError(`${label} not found: ${missing.join(", ")}`);
-  }
-}
-
-export class ValidationError extends Error {
-  status = 400;
 }
