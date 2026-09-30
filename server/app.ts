@@ -49,6 +49,7 @@ import { appendAuditEntry, listAuditEntries } from "./auditLog";
 import { pool } from "./db";
 import { setUploadHeaders, uploadFileType } from "./uploads";
 import { priceWindowError } from "./priceWindows";
+import { mergePatch } from "./patch";
 import { serveFrontend } from "./frontend";
 
 export function createApp(): Express {
@@ -401,8 +402,7 @@ export function createApp(): Express {
         ? request.body.drawingItems
         : current.drawingItems;
       const parsed = drawingSetSchema.parse({
-        ...current,
-        ...request.body,
+        ...mergePatch(current, request.body),
         drawingItems: requestedDrawingItems.map(({ itemId, revision, status, drawingSource, fileName, fileId }: Record<string, unknown>) => ({
           itemId,
           revision: String(revision ?? current.revision),
@@ -532,7 +532,7 @@ export function createApp(): Express {
       const { changeReason, ...patch } = request.body ?? {};
       const reason = typeof changeReason === "string" && changeReason.trim() ? changeReason.trim() : undefined;
       const before = cloneRecord(store.quotes.find((record) => record.id === request.params.id));
-      if (before) checkPriceWindow({ ...quoteSchema.parse({ ...before, ...patch }), id: before.id }, before, reason);
+      if (before) checkPriceWindow({ ...quoteSchema.parse(mergePatch(before, patch)), id: before.id }, before, reason);
       const quote = updateById(store.quotes, request.params.id, patch, quoteSchema.parse);
       validateQuoteLinks(quote);
       assignPreviousQuote(quote);
@@ -1173,12 +1173,12 @@ export function createApp(): Express {
   function updateById<T extends { id: string }>(
     records: T[],
     id: string,
-    patch: Partial<T>,
+    patch: unknown,
     parse: (value: unknown) => Omit<T, "id">,
   ) {
     const index = records.findIndex((record) => record.id === id);
     if (index === -1) throw new ValidationError(`Record not found: ${id}`);
-    const nextRecord = { ...records[index], ...patch, id };
+    const nextRecord = { ...mergePatch(records[index], patch), id };
     records[index] = { id, ...parse(nextRecord) } as T;
     saveStore();
     return records[index];
