@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Response } from "express";
 
-import { UploadRejectedError, setUploadHeaders, uploadFileType } from "./uploads";
+import { UploadRejectedError, setUploadHeaders, uploadFileType, downloadHeaders, fileIdFromStoredName, storagePath } from "./uploads";
 
 function fakeResponse() {
   const headers: Record<string, string> = {};
@@ -60,4 +60,44 @@ test("anything else is sent as a download, including files stored before the all
     setUploadHeaders(response, path);
     assert.equal(headers["content-disposition"], "attachment", path);
   }
+});
+
+test("a stored file's path keeps its ID and a lower-case extension", () => {
+  assert.equal(storagePath("file-1004", "Crate drawing.PDF"), "uploads/file-1004.pdf");
+  assert.equal(storagePath("file-1002", "IMG_0042.JPG"), "uploads/file-1002.jpg");
+});
+
+test("a download path names a file ID", () => {
+  assert.equal(fileIdFromStoredName("file-1004.pdf"), "file-1004");
+  assert.equal(fileIdFromStoredName("file-1004"), undefined);
+  assert.equal(fileIdFromStoredName("../data/store.json"), undefined);
+  assert.equal(fileIdFromStoredName("sup-1001.pdf"), undefined);
+});
+
+test("PDFs and photos download inline, everything else as an attachment", () => {
+  assert.match(downloadHeaders({ fileName: "drawing.pdf", mimeType: "application/pdf" })["Content-Disposition"], /^inline; /);
+  assert.match(downloadHeaders({ fileName: "IMG_0042.JPG", mimeType: "image/jpeg" })["Content-Disposition"], /^inline; /);
+  assert.match(downloadHeaders({ fileName: "quote.xlsx", mimeType: "application/vnd.ms-excel" })["Content-Disposition"], /^attachment; /);
+  assert.match(downloadHeaders({ fileName: "prices.csv", mimeType: "text/csv" })["Content-Disposition"], /^attachment; /);
+});
+
+test("a download is saved under its original name", () => {
+  assert.equal(
+    downloadHeaders({ fileName: "W9 2026.pdf", mimeType: "application/pdf" })["Content-Disposition"],
+    `inline; filename="W9 2026.pdf"; filename*=UTF-8''W9%202026.pdf`,
+  );
+});
+
+test("a non-ASCII or quoted name survives in the UTF-8 parameter", () => {
+  const chinese = downloadHeaders({ fileName: "报价单.pdf", mimeType: "application/pdf" })["Content-Disposition"];
+  assert.equal(chinese, `inline; filename="___.pdf"; filename*=UTF-8''${encodeURIComponent("报价单")}.pdf`);
+  const quoted = downloadHeaders({ fileName: `O'Neil "final".pdf`, mimeType: "application/pdf" })["Content-Disposition"];
+  assert.equal(quoted, `inline; filename="O'Neil _final_.pdf"; filename*=UTF-8''O%27Neil%20%22final%22.pdf`);
+});
+
+test("a download is typed by the server, never sniffed, and cached privately", () => {
+  const headers = downloadHeaders({ fileName: "drawing.pdf", mimeType: "application/pdf" });
+  assert.equal(headers["Content-Type"], "application/pdf");
+  assert.equal(headers["X-Content-Type-Options"], "nosniff");
+  assert.equal(headers["Cache-Control"], "private, max-age=31536000, immutable");
 });

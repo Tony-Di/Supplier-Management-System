@@ -50,3 +50,36 @@ export function setUploadHeaders(response: Response, filePath: string): void {
     response.setHeader("Content-Disposition", "attachment");
   }
 }
+
+/** Where the frontend links to a stored file: its ID plus the lower-cased extension of its name. */
+export function storagePath(id: string, fileName: string): string {
+  return `uploads/${id}${extname(fileName).toLowerCase()}`;
+}
+
+/** The file ID in a download path's last segment, such as `file-1004` for `file-1004.pdf`. */
+export function fileIdFromStoredName(name: string): string | undefined {
+  return /^(file-\d+)\.[a-z0-9]+$/.exec(name)?.[1];
+}
+
+/**
+ * Headers for sending a stored file. The type comes from the server's own
+ * list, PDFs and images open in the browser, and anything else downloads.
+ * Content never changes under an ID and IDs are never reused, so the browser
+ * may keep its copy.
+ */
+export function downloadHeaders(file: { fileName: string; mimeType: string }): Record<string, string> {
+  const disposition = INLINE_EXTENSIONS.has(extname(file.fileName).toLowerCase()) ? "inline" : "attachment";
+  return {
+    "Content-Type": file.mimeType,
+    "X-Content-Type-Options": "nosniff",
+    "Content-Disposition": `${disposition}; ${fileNameParameters(file.fileName)}`,
+    "Cache-Control": "private, max-age=31536000, immutable",
+  };
+}
+
+// RFC 6266: an ASCII fallback for old clients, then the exact name as UTF-8 (RFC 5987).
+function fileNameParameters(fileName: string) {
+  const fallback = fileName.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  const encoded = encodeURIComponent(fileName).replace(/['()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `filename="${fallback}"; filename*=UTF-8''${encoded}`;
+}
