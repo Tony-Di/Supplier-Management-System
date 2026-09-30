@@ -55,7 +55,9 @@ has no rows. No business data exists in production yet.
 2. Each write request is atomic: its business changes, ID counters and audit
    entries commit together or not at all.
 3. Read requests do not write.
-4. The HTTP API is unchanged. The frontend is not modified.
+4. The HTTP API is unchanged, except that `null` in a `PATCH` body now clears a
+   field (see "Clearing fields in edits"). The frontend changes only in the
+   edit form's patch builder.
 5. Business rules behave as they do today, except for the changes listed under
    "Behaviour changes".
 6. Database integration tests are fully isolated in the test database.
@@ -259,6 +261,39 @@ from `buildComparison`, since every write has already run them.
 - **Loading.** The store loads file metadata only. Content is read by the
   download route alone.
 
+## Clearing fields in edits
+
+Added to this work at the user's request.
+
+**Fault.** The edit form (`buildEditPatch` in
+`src/modals/record/editHelpers.ts`) marks an emptied field as `undefined`.
+`JSON.stringify` drops such keys, the server merges the patch over the stored
+record, and the old value stays. Affected:
+
+- optional dates: a case's Target Close Date, an inspection's Signed Date, a
+  quote's Effective To, a defect's Return Date;
+- a supplier's ERP Vendor ID, a defect's PO Qty and Received Qty;
+- values the form clears on purpose: a quote's `validUntil` when its effective
+  date is edited, and a defect's `replacementQty` when its action becomes
+  Request Credit. The second makes that switch impossible: the kept quantity
+  fails the schema rule "Replacement quantity should only be used for Request
+  Replacement", so the edit is rejected with 400.
+
+**Fix.** `null` in a `PATCH` body means "remove this field", as in JSON Merge
+Patch.
+
+- Server: one merge function builds the edited record — the stored record, the
+  patch's keys laid over it, and every key whose patch value is `null`
+  removed — before schema validation. `updateById`, the price window check in
+  `PATCH /api/quotes` and the merge in `PATCH /api/drawing-sets` use it. Only
+  top-level fields are affected; arrays are still replaced whole. A `null` for
+  a required field fails validation with 400. `POST` bodies are unchanged.
+- Frontend: a field that is in the form and left empty is sent as `null`; a
+  field that is not in the form is not sent, so hidden fields keep their
+  values. The deliberate clears (`validUntil`, `replacementQty`,
+  `actionCompletedDate`) send `null`. The defect completion check still
+  receives `undefined` for empty quantities.
+
 ## Behaviour changes
 
 1. A rejected edit changes nothing (fixes problem 1).
@@ -277,6 +312,8 @@ from `buildComparison`, since every write has already run them.
    records as Active, so only the revision renumbering is visible to users.
 8. Downloaded files are saved under their original names.
 9. Malformed dates are rejected with 400.
+10. Emptying a field in an edit form clears it, and a defect can be switched
+    from Request Replacement to Request Credit.
 
 ## Testing
 
@@ -291,6 +328,11 @@ Offline (`npm test`):
   reissued.
 - Download headers: inline and attachment types, non-ASCII and quoted file
   names.
+- Patch merge: `null` removes a field, other values replace it, absent keys
+  keep it, arrays are replaced whole.
+- `buildEditPatch`: an emptied field in the form becomes `null`, a field not in
+  the form is absent, and switching a defect to Request Credit sends
+  `replacementQty: null`.
 
 Database (`npm run test:db`, all through `withTestApp` against the test
 database):
@@ -302,6 +344,10 @@ database):
 - Upload then download returns the same bytes, type and file name.
 - `GET /api/bootstrap` changes no table and writes no audit entry.
 - A failed write leaves no audit entry.
+- `PATCH /api/quotes` with `effectiveTo: null` and a change reason clears the
+  stored Effective To.
+- `PATCH /api/incoming-defects` switching Request Replacement to Request
+  Credit with `replacementQty: null` succeeds and clears the quantity.
 - The three existing test files that avoid success paths
   (`uploadRoutes`, `auditActor`, `scoreSettingsRoutes`) gain their success
   cases.
@@ -342,9 +388,4 @@ files; confirm the quote becomes Selected and the price change appears.
   the volume removal step.
 - `docs/frontend-implementation.md`: remove the note that bootstrap
   reconciliation writes to the store.
-
-## Observed, out of scope
-
-- Clearing an optional field in an edit form does not clear it: the form sends
-  `undefined`, JSON drops the key, and the server keeps the old value. This
-  affects, for example, a quote's Effective To. Unchanged by this work.
+- `server/README.md`: document that `null` in a `PATCH` body clears a field.
