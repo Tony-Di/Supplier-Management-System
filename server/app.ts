@@ -358,8 +358,9 @@ export function createApp(): Express {
   }));
   app.patch("/api/drawing-sets/:id", write((ctx, request) => {
     const { store } = ctx;
-    const current = store.drawingSets.find((record) => record.id === request.params.id);
-    if (!current) throw new ValidationError(`Record not found: ${request.params.id}`);
+    const index = store.drawingSets.findIndex((record) => record.id === request.params.id);
+    if (index === -1) throw new ValidationError(`Record not found: ${request.params.id}`);
+    const current = store.drawingSets[index];
     const before = cloneRecord(current);
     const requestedDrawingItems = Array.isArray(request.body?.drawingItems)
       ? request.body.drawingItems
@@ -382,10 +383,9 @@ export function createApp(): Express {
         ...drawingItem,
       };
     });
-    const drawingSet = Object.assign(current, {
-      ...parsed,
-      drawingItems: nextDrawingItems,
-    });
+    // Replaced, not assigned onto: Object.assign would keep a field the patch cleared with null.
+    const drawingSet = { id: current.id, ...parsed, drawingItems: nextDrawingItems };
+    store.drawingSets[index] = drawingSet;
     validateDrawingSetLinks(store, drawingSet);
     ctx.audit(editAction(before, drawingSet), "DrawingSet", drawingSet.id, drawingSet.name, before, drawingSet);
     return ok(drawingSet);

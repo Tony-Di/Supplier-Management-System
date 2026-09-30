@@ -145,6 +145,18 @@ test("editing a packaging set to drop an item a quote uses still saves", async (
   });
 });
 
+test("an edit can clear a packaging set's package file name", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { drawingSet } = await seedSourcingCase(app, session);
+    await expectJson(send(app, session, "PATCH", `/api/drawing-sets/${drawingSet.id}`, { packageFileName: "BTA packaging.pdf" }), 200);
+    await expectJson(send(app, session, "PATCH", `/api/drawing-sets/${drawingSet.id}`, { packageFileName: null }), 200);
+    const { rows } = await pool.query("SELECT package_file_name FROM drawing_sets WHERE id = $1", [drawingSet.id]);
+    assert.deepEqual(rows, [{ package_file_name: null }]);
+  });
+});
+
 test("deleting an unused packaging set deletes its items and nothing else", async () => {
   await withTestApp(async ({ createApp, pool }) => {
     const app = createApp();
