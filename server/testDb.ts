@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { mkdtempSync } from "node:fs";
 import { after } from "node:test";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Pool, type PoolClient } from "pg";
 import type { Express } from "express";
 
@@ -85,6 +88,10 @@ export async function withTestApp(fn: (context: TestAppContext) => Promise<void>
   if (!connectionString) throw new Error("DATABASE_URL_TEST is not set. Run npm test for the offline suite.");
 
   process.env.DATABASE_URL = connectionString;
+
+  // Run the app from an empty directory, so nothing it resolves against the
+  // working directory (data/, uploads/, dist/) can reach the developer's files.
+  process.chdir(mkdtempSync(join(tmpdir(), "sourcing-test-")));
 
   const { pool } = await import("./db");
   appPool = pool;

@@ -1,3 +1,4 @@
+import "./pgTypes";
 import { Pool, type PoolClient } from "pg";
 
 import { getConfig } from "./config";
