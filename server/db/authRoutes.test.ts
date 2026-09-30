@@ -62,7 +62,7 @@ test("GET /api/health is reachable without a session while /api/bootstrap is not
       ok: true,
       service: "global-sourcing-api",
       language: "TypeScript",
-      storage: "json-file prototype",
+      storage: "postgres",
     });
 
     const bootstrap = await call(app, "/api/bootstrap");

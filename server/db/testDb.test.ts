@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { Pool } from "pg";
 
 import { runMigrations } from "../../scripts/migrate";
-import { resetTestDatabase } from "../testDb";
+import { resetTestDatabase, withTestApp } from "../testDb";
 
 // withTestApp redirects DATABASE_URL to DATABASE_URL_TEST and truncates the
 // public schema of that database between tests (server/app.ts does not exist
@@ -37,4 +39,12 @@ test("resetTestDatabase truncates application tables between test runs", async (
     client.release();
     await pool.end();
   }
+});
+
+test("withTestApp runs the app outside the working tree", async () => {
+  const workingTree = process.cwd();
+  await withTestApp(async () => {
+    assert.notEqual(process.cwd(), workingTree);
+    assert.equal(existsSync(join(process.cwd(), "package.json")), false);
+  });
 });

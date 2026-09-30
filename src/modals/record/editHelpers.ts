@@ -9,26 +9,26 @@ import { supplierName, itemCode } from "../../lib/lookups";
 export function buildEditPatch(target: EditTarget, form: FormData) {
   const patch: Record<string, unknown> = {
     recordState: String(form.get("recordState") ?? target.record.recordState ?? "Active"),
-    voidReason: String(form.get("voidReason") ?? "") || undefined,
   };
   const setString = (name: string) => {
     if (form.has(name)) patch[name] = String(form.get(name) ?? "");
   };
+  // null, not undefined: JSON drops undefined, and the server keeps a field it never receives.
   const setOptionalString = (name: string) => {
-    if (form.has(name)) patch[name] = String(form.get(name) ?? "") || undefined;
+    if (form.has(name)) patch[name] = String(form.get(name) ?? "") || null;
   };
   const setNumber = (name: string) => {
     if (form.has(name)) patch[name] = Number(form.get(name) ?? 0);
   };
 
-  for (const field of ["name", "status", "type", "uom", "erpVendorId", "country", "primaryContact", "email", "phone", "paymentTerms", "region", "notes", "itemCode", "itemName", "productFamily", "revision", "effectiveDate", "effectiveFrom", "moq", "leadTime", "extraCostType", "owner", "result", "disposition", "inspector", "reason", "caseReason", "poNumber", "orderDate", "buyer", "sourceType", "sampleReceivedDate", "defectDate", "defectType", "defectAction", "maintainedBy"]) {
+  for (const field of ["name", "status", "type", "uom", "country", "primaryContact", "email", "phone", "paymentTerms", "region", "notes", "itemCode", "itemName", "productFamily", "revision", "effectiveDate", "effectiveFrom", "moq", "leadTime", "extraCostType", "owner", "result", "disposition", "inspector", "reason", "caseReason", "poNumber", "orderDate", "buyer", "sourceType", "sampleReceivedDate", "defectDate", "defectType", "defectAction", "maintainedBy"]) {
     setString(field);
   }
-  for (const field of ["targetCloseDate", "signedDate", "effectiveTo", "returnDate"]) setOptionalString(field);
+  for (const field of ["voidReason", "erpVendorId", "targetCloseDate", "signedDate", "effectiveTo", "returnDate"]) setOptionalString(field);
   for (const field of ["unitPrice", "extraCostAmount", "problemPhotos", "sampleRound", "oldPrice", "newPrice", "quantity", "defectQty"]) setNumber(field);
   if (target.endpoint === "quotes" && form.has("effectiveFrom")) {
     patch.quoteDate = String(form.get("effectiveFrom") ?? "");
-    patch.validUntil = undefined;
+    patch.validUntil = null;
   }
   if (target.endpoint === "quotes") {
     const changeReason = String(form.get("changeReason") ?? "").trim();
@@ -47,7 +47,6 @@ export function buildEditPatch(target: EditTarget, form: FormData) {
   if (target.endpoint === "suppliers") {
     patch.hasW9 = String(form.get("hasW9") ?? "false") === "true";
     patch.hasPaymentInfo = String(form.get("hasPaymentInfo") ?? "false") === "true";
-    patch.erpVendorId = String(form.get("erpVendorId") ?? "") || undefined;
     patch.capableItems = JSON.parse(String(form.get("capableItemsJson") ?? "[]")) as PackagingItemType[];
   }
   if (target.endpoint === "items") {
@@ -58,23 +57,25 @@ export function buildEditPatch(target: EditTarget, form: FormData) {
   }
   if (target.endpoint === "incoming-defects") {
     const replacementReceipts = JSON.parse(String(form.get("replacementReceiptsJson") ?? "[]")) as NonNullable<IncomingDefectRecord["replacementReceipts"]>;
-    patch.poQty = String(form.get("poQty") ?? "") ? Number(form.get("poQty")) : undefined;
-    patch.receivedQty = String(form.get("receivedQty") ?? "") ? Number(form.get("receivedQty")) : undefined;
+    const optionalNumber = (name: string) => (String(form.get(name) ?? "") ? Number(form.get(name)) : undefined);
+    const defectAction = patch.defectAction as IncomingDefectRecord["defectAction"];
+    const poQty = optionalNumber("poQty");
+    const receivedQty = optionalNumber("receivedQty");
+    const replacementQty = defectAction === "Request Replacement" ? Number(form.get("replacementQty") ?? form.get("defectQty") ?? 0) : undefined;
+    patch.poQty = poQty ?? null;
+    patch.receivedQty = receivedQty ?? null;
     patch.materialReturned = String(form.get("materialReturned") ?? "false") === "true";
     patch.replacementReceipts = replacementReceipts;
-    patch.replacementQty =
-      patch.defectAction === "Request Replacement"
-        ? Number(form.get("replacementQty") ?? form.get("defectQty") ?? 0)
-        : undefined;
+    patch.replacementQty = replacementQty ?? null;
     patch.actionCompleted = isIncomingDefectComplete({
-      defectAction: patch.defectAction as IncomingDefectRecord["defectAction"],
+      defectAction,
       defectQty: Number(patch.defectQty ?? 0),
-      poQty: patch.poQty as number | undefined,
-      receivedQty: patch.receivedQty as number | undefined,
-      replacementQty: patch.replacementQty as number | undefined,
+      poQty,
+      receivedQty,
+      replacementQty,
       replacementReceipts,
     });
-    patch.actionCompletedDate = patch.actionCompleted ? String(form.get("returnDate") ?? "") || todayDateString() : undefined;
+    patch.actionCompletedDate = patch.actionCompleted ? String(form.get("returnDate") ?? "") || todayDateString() : null;
     if (patch.materialReturned && !patch.returnDate) throw new Error("Return date is required when defect material has been returned.");
   }
   return patch;

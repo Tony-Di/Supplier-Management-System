@@ -38,11 +38,6 @@ services:
       ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-}
     ports:
       - "${HOST_PORT:-8080}:5174"
-    volumes:
-      - app-data:/app/data
-      - app-uploads:/app/uploads
 
 volumes:
   pgdata:
-  app-data:
-  app-uploads:

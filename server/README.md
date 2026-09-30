@@ -8,12 +8,12 @@ Stack:
 - Node.js
 - Express
 - Zod for request validation
-- PostgreSQL (`pg`) for users, sessions and the audit trail
+- PostgreSQL (`pg`) for all data
 - `openid-client` for Microsoft Entra ID sign-in
 
-Users, sessions (`connect-pg-simple`) and the audit trail are stored in Postgres; the schema is in `migrations/` and applied with `npm run migrate`.
+All data is stored in Postgres; the schema is in `migrations/` and applied with `npm run migrate` (and on every start of the Docker image). Each business record type has its own table, and uploaded files are stored in `files`.
 
-Business records are still a JSON file prototype. They are loaded from `data/store.json` on startup, starting empty when the file is missing (the seed arrays in `src/data.ts` are empty), and the whole store is written back after every change. Uploaded files are saved to `uploads/`. The store is shaped like the future database tables, so `server/store.ts` can later be replaced with Postgres tables without changing the frontend API contract much.
+A write request is one transaction: it loads the business data, applies the change and the sync passes, then saves the changed rows, the ID counters and the audit entries together, so a rejected request changes nothing. Writes take an advisory lock and run one at a time. Reads use a read-only snapshot and never write.
 
 ## Authentication
 
@@ -43,9 +43,11 @@ General:
 
 - `GET /api/health`: no session required
 - `GET /api/bootstrap`: the full store, used by the frontend on load
-- `GET/POST /api/files`: uploads are sent as base64 JSON. Only the types in `server/uploads.ts` are accepted (PDF, common image, Excel, CSV and Word files); the stored extension and MIME type are set by the server. `/uploads` sends `X-Content-Type-Options: nosniff`, and anything other than a PDF or image is served as a download.
+- `GET/POST /api/files`: uploads are sent as base64 JSON (the request limit is 10 MB). Only the types in `server/uploads.ts` are accepted (PDF, common image, Excel, CSV and Word files), and the server sets the MIME type. `GET /uploads/<id>.<ext>` returns the file with `X-Content-Type-Options: nosniff`: PDFs and images open in the browser, anything else downloads, under the original file name.
 
-Records. Each supports `GET` (list), `POST` (create), `PATCH /:id` (update), `DELETE /:id`, and `POST /:id/void`:
+Records. Each supports `GET` (list), `POST` (create), `PATCH /:id` (update), `DELETE /:id`, and `POST /:id/void`.
+
+A `PATCH` sets only the fields in its body; a field sent as `null` is cleared. Dates are `YYYY-MM-DD`. A record that other records refer to cannot be deleted.
 
 - `/api/suppliers`
 - `/api/models`

@@ -7,7 +7,7 @@ dist/
 vite.config.js
 vite.config.d.ts
 
-# Runtime data (server re-seeds store.json when missing)
+# Business data and uploads from before the move to Postgres
 data/
 uploads/
 

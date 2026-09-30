@@ -9,7 +9,7 @@ See `Supplier Management Demo Workflow and IT Implementation Guide.docx` for the
 - Frontend: React 19, TypeScript, Vite, Recharts, lucide-react (`src/`)
 - Backend: Node.js, Express, Zod, run with `tsx` (`server/`)
 - Sign-in: Microsoft Entra ID (OpenID Connect via `openid-client`) with server-side sessions
-- Storage: PostgreSQL for users, sessions and the audit trail; a JSON file prototype (`data/store.json`) for business records; local file uploads (`uploads/`)
+- Storage: PostgreSQL for everything — business records, uploaded files, users, sessions and the audit trail
 
 ## Getting Started
 
@@ -87,11 +87,9 @@ docker compose -f compose.dev.yml exec postgres createdb -U sourcing sourcing_te
 
 ## Data
 
-Users, sessions and the audit trail live in Postgres. Business records still live in `data/store.json`; moving them into Postgres is planned separately.
+Everything is stored in Postgres, uploaded file contents included; `npm run migrate` creates the tables and a new database starts with no records. Each write request is one transaction, so a rejected change leaves nothing behind.
 
-`data/` and `uploads/` are runtime data and are not committed. The seed arrays in `src/data.ts` are empty, so a fresh clone starts with no records; the API writes `data/store.json` as soon as any data changes. Delete `data/store.json` (and `uploads/`) to start over from an empty system.
-
-Stores created before the audit trail moved to Postgres keep their old entries in `data/store.json`. Copy them across once with `npx tsx --env-file=.env scripts/import-audit-logs.ts`; the script refuses to run a second time.
+`data/` and `uploads/` held business records and files before they moved to Postgres. The app no longer reads them; delete them if they are still in your checkout.
 
 ## Project Layout
 
@@ -120,10 +118,13 @@ server/
   users.ts      User repository and admin guards
   auditLog.ts   Audit trail repository
   schemas.ts    Zod request schemas
+  unitOfWork.ts Read and write wrappers: one transaction per write
+  context.ts    What business rules work through during a request
+  workflow.ts   Route helpers and the sync passes run after every write
   business.ts   Validation, comparison, scorecard, and sync rules
-  store.ts      JSON file store, seed data, ID counters
+  store*.ts     Store shape, table mapping, change detection and Postgres access
 migrations/     Plain SQL migrations applied by npm run migrate
-scripts/        Migration, admin promotion and audit import scripts
+scripts/        Migration, admin promotion and write-time measurement scripts
 ```
 
 See [docs/deployment.md](docs/deployment.md) to run it on an intranet server with Docker.
