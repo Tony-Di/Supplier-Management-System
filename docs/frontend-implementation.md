@@ -32,6 +32,5 @@ No backend code, API contracts, dependencies or package lockfile were changed. T
 - Some Reports refresh dependencies use collection lengths, which can miss edits that do not change the number of records.
 - `scoreIssueSummary` can describe a zero-weight quality category as lacking QC passes even when passes exist.
 - The existing CSV parser does not fully parse quoted comma-containing cells.
-- Bootstrap reconciliation can write to the JSON store on the backend. All smoke testing was performed on a copy to keep the original data untouched.
 
 These are pre-existing behavior differences; resolving them requires a separate scope and, for score consistency, agreement on the authoritative scoring path.

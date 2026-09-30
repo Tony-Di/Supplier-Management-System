@@ -4,15 +4,14 @@ The workbench runs as two containers on one host, defined in `compose.intranet.y
 
 | Container | Purpose | Data volume |
 | --- | --- | --- |
-| `postgres` | Users, sessions and the audit trail | `pgdata` |
-| `app` | The API, which also serves the built frontend | `app-data` (`store.json`, the business records), `app-uploads` (uploaded files) |
+| `postgres` | All data: business records, uploaded files, users, sessions and the audit trail | `pgdata` |
+| `app` | The API, which also serves the built frontend | none |
 
 The app listens on `HOST_PORT` (default 8080). On every start it applies pending migrations, so a new release needs no separate migration step. Postgres is not published to the host.
 
 ## Requirements
 
 - Docker with Compose v2 (`docker compose version`).
-- Only one `app` container may run: business records are held in its memory and written to `store.json`.
 
 If the server cannot reach Docker Hub and the npm registry, build on a machine that can and copy the images across:
 
@@ -20,8 +19,7 @@ If the server cannot reach Docker Hub and the npm registry, build on a machine t
 # On the connected machine, from the repository
 docker compose -f compose.intranet.yml --env-file deploy.env build
 docker pull postgres:17
-docker pull alpine   # used by the backup commands
-docker save sourcing-workbench-app postgres:17 alpine | gzip > sourcing-images.tar.gz
+docker save sourcing-workbench-app postgres:17 | gzip > sourcing-images.tar.gz
 
 # On the server
 docker load < sourcing-images.tar.gz
@@ -79,29 +77,37 @@ git pull
 docker compose -f compose.intranet.yml --env-file deploy.env up -d --build
 ```
 
-Data is kept in the volumes, and pending migrations run when the app starts.
+Data is kept in the `pgdata` volume, and pending migrations run when the app starts.
+
+### Upgrading from a release that stored business data in files
+
+Earlier releases kept business records and uploads in two more volumes. This release does not read them. After upgrading, check they are empty, then remove them:
+
+```bash
+docker run --rm -v sourcing-workbench_app-data:/data -v sourcing-workbench_app-uploads:/uploads alpine ls -A /data /uploads
+docker volume rm sourcing-workbench_app-data sourcing-workbench_app-uploads
+```
+
+If the listing shows files, stop and keep the volumes: their records would need importing, which this release does not do.
 
 ## Backups
 
-All three volumes need backing up. Schedule these with cron on the host:
+The database holds everything, uploaded files included. Schedule this with cron on the host:
 
 ```bash
 cd /path/to/Supplier-Management-System
-stamp=$(date +%F)
-docker compose -f compose.intranet.yml --env-file deploy.env exec -T postgres pg_dump -U sourcing sourcing | gzip > backup-db-$stamp.sql.gz
-docker run --rm -v sourcing-workbench_app-data:/data -v "$PWD":/backup alpine tar czf /backup/backup-data-$stamp.tar.gz -C /data .
-docker run --rm -v sourcing-workbench_app-uploads:/uploads -v "$PWD":/backup alpine tar czf /backup/backup-uploads-$stamp.tar.gz -C /uploads .
+docker compose -f compose.intranet.yml --env-file deploy.env exec -T postgres pg_dump -U sourcing sourcing | gzip > backup-db-$(date +%F).sql.gz
 ```
 
-To restore, stop the app, replace the database with the dump, and unpack the archives into the volumes. On a new host, run `up -d postgres` first so the database container exists.
+Uploaded PDFs and images are already compressed, so the dump grows by roughly the size of the files uploaded.
+
+To restore, stop the app, replace the database with the dump, and start again. On a new host, run `up -d postgres` first so the database container exists.
 
 ```bash
 docker compose -f compose.intranet.yml --env-file deploy.env stop app
 docker compose -f compose.intranet.yml --env-file deploy.env exec -T postgres dropdb -U sourcing sourcing
 docker compose -f compose.intranet.yml --env-file deploy.env exec -T postgres createdb -U sourcing sourcing
 gunzip -c backup-db-<date>.sql.gz | docker compose -f compose.intranet.yml --env-file deploy.env exec -T postgres psql -q -U sourcing sourcing
-docker run --rm -v sourcing-workbench_app-data:/data -v "$PWD":/backup alpine sh -c "rm -rf /data/* && tar xzf /backup/backup-data-<date>.tar.gz -C /data"
-docker run --rm -v sourcing-workbench_app-uploads:/uploads -v "$PWD":/backup alpine sh -c "rm -rf /uploads/* && tar xzf /backup/backup-uploads-<date>.tar.gz -C /uploads"
 docker compose -f compose.intranet.yml --env-file deploy.env up -d
 ```
 
