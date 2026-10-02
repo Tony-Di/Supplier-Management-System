@@ -1,4 +1,6 @@
-// Times quote edits against a large synthetic data set in the TEST database:
+// Times quote edits against a large synthetic data set in the TEST database,
+// with a price history (passed samples select their quotes, and a third of the
+// quotes are Requotes) so the price-change passes have work to do:
 //   npx tsx --env-file-if-exists=.env scripts/measure-write-time.ts
 // It empties the business tables of DATABASE_URL_TEST first. The budget is a
 // median of 200 ms per edit.
@@ -21,6 +23,12 @@ const { emptyStore } = await import("../server/storeShape");
 const { createApp } = await import("../server/app");
 
 const pad = (value: number) => String(value).padStart(4, "0");
+
+function addDays(dateText: string, days: number) {
+  const date = new Date(`${dateText}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
 
 function syntheticStore(): Store {
   const store = emptyStore();
@@ -61,8 +69,8 @@ function syntheticStore(): Store {
     const id = `q-${1001 + q}`;
     const supplierId = project.supplierIds[q % project.supplierIds.length];
     store.quotes.push({
-      id, recordState: "Active", supplierId, projectId: project.id, quoteType: "Case-linked", quoteReason: "New Quote", modelId: project.modelIds[0],
-      itemId: drawingItem.itemId, drawingSetId: drawingSet.id, drawingItemId: drawingItem.id, quoteDate: "2026-02-01", effectiveFrom: "2026-02-01",
+      id, recordState: "Active", supplierId, projectId: project.id, quoteType: "Case-linked", quoteReason: q % 3 === 1 ? "Requote" : "New Quote", modelId: project.modelIds[0],
+      itemId: drawingItem.itemId, drawingSetId: drawingSet.id, drawingItemId: drawingItem.id, quoteDate: "2026-02-01", effectiveFrom: addDays("2026-02-01", Math.floor(q / 100) * 3 + (q % 3)),
       currency: "USD", uom: "pcs", unitPrice: 10 + (q % 7), moq: "100", leadTime: `${7 + (q % 21)} days`, extraCostType: "None", extraCostAmount: 0,
       status: "Received", notes: "",
     });
@@ -76,7 +84,7 @@ function syntheticStore(): Store {
     store.inspections.push({
       id: `ins-${1001 + n}`, recordState: "Active", supplierId: quote.supplierId, projectId: quote.projectId, relatedQuoteId: quote.id, modelId: quote.modelId,
       drawingSetId: quote.drawingSetId, itemId: quote.itemId, drawingItemId: quote.drawingItemId, sampleRound: 1, sampleReceivedDate: "2026-02-15",
-      result: "Fail", disposition: "Re-sample Required", problemPhotos: 0, photoFileIds: [], notes: "",
+      result: n % 3 === 0 ? "Pass" : "Fail", disposition: n % 3 === 0 ? "Accepted" : "Re-sample Required", problemPhotos: 0, photoFileIds: [], notes: "",
     });
   }
   for (let c = 0; c < 500; c += 1) {

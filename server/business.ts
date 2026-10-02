@@ -395,22 +395,15 @@ export function buildPriceChangeFromQuote(ctx: BusinessContext, quote: Quote) {
 
 export function reconcileQuotePriceChanges(ctx: BusinessContext) {
   const { store } = ctx;
-  let changed = false;
   const effectiveQuotes = [...store.quotes]
     .filter((quote) => quote.recordState !== "Void" && isEffectivePriceQuote(quote))
     .sort((a, b) => (a.effectiveFrom ?? a.quoteDate).localeCompare(b.effectiveFrom ?? b.quoteDate));
 
   for (const quote of effectiveQuotes) {
-    const beforeQuote = JSON.stringify(quote);
-    const beforePriceChangeCount = store.priceChanges.length;
-    const beforePriceChanges = JSON.stringify(store.priceChanges);
     assignPreviousQuote(store, quote);
     buildPriceChangeFromQuote(ctx, quote);
     closePreviousSelectedQuote(store, quote);
-    changed = changed || beforeQuote !== JSON.stringify(quote) || beforePriceChangeCount !== store.priceChanges.length || beforePriceChanges !== JSON.stringify(store.priceChanges);
   }
-
-  return changed;
 }
 
 export function assignPreviousQuote(store: Store, quote: Quote) {
