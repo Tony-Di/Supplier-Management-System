@@ -3,7 +3,7 @@ import { type AppData, createDrawingSet } from "../api";
 import { useAppData } from "../AppDataContext";
 import { useState, FormEvent } from "react";
 import { isPublishedRecord } from "../lib/recordLifecycle";
-import { nextPackagingSetRevision, buildDrawingRowsFromModelItems } from "../lib/import";
+import { nextPackagingSetRevision, buildDrawingRowsFromModelItems, packagingSetNameFromFileName } from "../lib/import";
 import { uploadOptionalFormFile } from "../lib/uploads";
 import { uploadAccept } from "../constants";
 import { modelName } from "../lib/lookups";
@@ -22,6 +22,9 @@ export function DrawingSetModal({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [modelId, setModelId] = useState(data.models[0]?.id ?? "");
+  const [name, setName] = useState("");
+  // The name follows the chosen PDF until the user types their own.
+  const [nameFromFile, setNameFromFile] = useState("");
   const modelItems = data.items.filter((item) => isPublishedRecord(item) && item.usedForModels.includes(modelId));
   const nextRevision = nextPackagingSetRevision(data.drawingSets, modelId);
   const drawingRows = buildDrawingRowsFromModelItems(modelItems, nextRevision);
@@ -51,7 +54,7 @@ export function DrawingSetModal({
       await createDrawingSet({
         recordState: "Active",
         modelId,
-        name: String(form.get("name") ?? ""),
+        name,
         revision: drawingSetRevision,
         status: "Active",
         effectiveDate: String(form.get("effectiveDate") ?? ""),
@@ -93,7 +96,7 @@ export function DrawingSetModal({
           </label>
           <label>
             Packaging Set Name
-            <input name="name" required placeholder="SEG-620-BTC_BG_210R" />
+            <input name="name" required placeholder="SEG-620-BTC_BG_210R" value={name} onChange={(event) => setName(event.target.value)} />
           </label>
           <label>
             Effective Date
@@ -106,7 +109,19 @@ export function DrawingSetModal({
         </div>
         <label className="fullWidthLabel">
           Package PDF
-          <input name="drawingPackageFile" required type="file" accept={uploadAccept} />
+          <input
+            name="drawingPackageFile"
+            required
+            type="file"
+            accept={uploadAccept}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file || (name && name !== nameFromFile)) return;
+              const fileName = packagingSetNameFromFileName(file.name);
+              setName(fileName);
+              setNameFromFile(fileName);
+            }}
+          />
         </label>
         <div className="notice modalNotice">
           This packaging set will cover all {modelItems.length} active item{modelItems.length === 1 ? "" : "s"} currently linked to {modelName(appData, modelId)}.

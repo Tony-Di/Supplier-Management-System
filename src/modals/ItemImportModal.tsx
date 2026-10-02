@@ -1,8 +1,10 @@
 import { ErrorNotice } from "../components/ErrorNotice";
 import { type AppData, importItems } from "../api";
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useMemo, FormEvent } from "react";
 import { parseItemImportRows } from "../lib/import";
 import { Panel } from "../components/Panel";
+import { packagingItemOptions } from "../constants";
+import type { PackagingItemType } from "../types";
 
 export function ItemImportModal({
   models,
@@ -15,17 +17,9 @@ export function ItemImportModal({
 }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [preview, setPreview] = useState<ReturnType<typeof parseItemImportRows>>([]);
   const [rawText, setRawText] = useState("Item Code\tDescription\tType\tUsed for\n");
-
-  function updatePreview(value: string) {
-    setRawText(value);
-    setPreview(parseItemImportRows(value));
-  }
-
-  useEffect(() => {
-    setPreview(parseItemImportRows(rawText));
-  }, []);
+  const preview = useMemo(() => parseItemImportRows(rawText, models), [rawText, models]);
+  const invalidCount = preview.filter((row) => row.errors.length > 0).length;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,10 +27,14 @@ export function ItemImportModal({
     setFormError("");
 
     try {
-      const rows = parseItemImportRows(rawText);
-      if (rows.length === 0) throw new Error("No import rows found.");
+      if (preview.length === 0) throw new Error("No import rows found.");
       const result = await importItems({
-        rows,
+        rows: preview.map(({ itemCode, description, type, usedFor }) => ({
+          itemCode,
+          description,
+          type: type as PackagingItemType,
+          usedFor,
+        })),
       });
       window.alert([
         "Item import summary",
@@ -60,15 +58,23 @@ export function ItemImportModal({
           <div>
             <h2>Import items</h2>
             <p>Paste Excel columns: Item Code, Description, Type, Used for. Use comma or semicolon to link one item to multiple models. Existing Item Codes are skipped.</p>
+            <p>Type must be one of: {packagingItemOptions.join(", ")}.</p>
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
         <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <label className="fullWidthLabel">
           Excel rows
-          <textarea onChange={(event) => updatePreview(event.target.value)} rows={8} value={rawText} />
+          <textarea onChange={(event) => setRawText(event.target.value)} rows={8} value={rawText} />
         </label>
-        <Panel title="Import preview">
+        <Panel
+          title="Import preview"
+          actions={preview.length > 0 && (
+            <span className={invalidCount > 0 ? "importSummaryInvalid" : "muted"}>
+              {invalidCount > 0 ? `${preview.length} rows · ${invalidCount} need fixing` : `${preview.length} rows ready`}
+            </span>
+          )}
+        >
           <table>
             <thead>
               <tr>
@@ -76,15 +82,17 @@ export function ItemImportModal({
                 <th>Description</th>
                 <th>Type</th>
                 <th>Used For</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {preview.map((row) => (
-                <tr key={`${row.itemCode}-${row.description}`}>
+              {preview.map((row, index) => (
+                <tr className={row.errors.length > 0 ? "importRowInvalid" : undefined} key={index}>
                   <td>{row.itemCode}</td>
                   <td>{row.description}</td>
                   <td>{row.type}</td>
                   <td>{row.usedFor.join(", ")}</td>
+                  <td>{row.errors.length > 0 ? row.errors.join("; ") : "Ready"}</td>
                 </tr>
               ))}
             </tbody>
@@ -93,7 +101,7 @@ export function ItemImportModal({
         </Panel>
         <div className="modalActions">
           <button className="ghostButton" onClick={onClose} type="button">Cancel</button>
-          <button className="primaryButton" disabled={saving || preview.length === 0} type="submit">
+          <button className="primaryButton" disabled={saving || preview.length === 0 || invalidCount > 0} type="submit">
             {saving ? "Importing..." : "Import items"}
           </button>
         </div>

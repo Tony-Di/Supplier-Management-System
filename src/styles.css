@@ -1486,6 +1486,16 @@ background: #F2F3F5; border: 1px dashed #B8B8B8; color: #666666;
   color: var(--muted);
 }
 
+.importRowInvalid td {
+  background: #FDF3F2;
+  color: #7A3230;
+}
+
+.importSummaryInvalid {
+  color: var(--seg-red);
+  font-weight: 700;
+}
+
 .positive {
   color: var(--seg-red-dark);
   font-weight: 800;
