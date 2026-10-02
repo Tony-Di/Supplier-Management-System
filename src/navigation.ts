@@ -6,8 +6,8 @@ export const navItems: { section: Section; icon: typeof LayoutDashboard }[] = [
   { section: "Suppliers", icon: UserRound },
   { section: "Products & Drawings", icon: PackageSearch },
   { section: "Sourcing Workbench", icon: FolderKanban },
-  { section: "Pricing", icon: LineChart },
   { section: "QC Inspections", icon: ClipboardCheck },
+  { section: "Pricing", icon: LineChart },
   { section: "Reports", icon: Gauge },
   { section: "Admin", icon: ShieldCheck },
 ];
