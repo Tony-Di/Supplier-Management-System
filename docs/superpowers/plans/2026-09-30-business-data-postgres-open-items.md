@@ -10,6 +10,12 @@ branch. Tasks 1–11 are committed; the drawing-set `null` fix is `0189082`.
 
 ### 1. Write time grows with the price history (Task 11)
 
+**Done 2026-10-02** (`fix/price-reconcile-write-time`): steps 1 and 2 below.
+`reconcileQuotePriceChanges` no longer computes the unused flag, and the
+measurement seeds the Pass-and-Requote data described in step 2. On the dev
+machine a quote edit went from a 1,158 ms median to 135 ms, so step 3 is not
+needed for now.
+
 `scripts/measure-write-time.ts` seeds no effective price quote: every quote is
 `Received` / `New Quote` and every inspection fails. `reconcileQuotePriceChanges`
 therefore never loops, and the 70 ms result measures only the fixed cost of a
