@@ -6,6 +6,7 @@ import { RecordMenu } from "../components/RecordMenu";
 import { canDeleteRecord } from "../lib/recordLifecycle";
 import { Field } from "../components/Field";
 import { supplierLocation } from "../lib/lookups";
+import { formatSupplierSince } from "../lib/format";
 import { TagRow } from "../components/TagRow";
 import { DocumentCheck } from "../components/DocumentCheck";
 import { useEffect, useState } from "react";
@@ -85,6 +86,7 @@ export function Suppliers({
               <Field label="Email" value={supplier.email} />
               <Field label="Phone" value={supplier.phone} />
               <Field label="Payment Terms" value={supplier.paymentTerms || "Not set"} />
+              <Field label="Since" value={formatSupplierSince(supplier.supplierSince)} />
             </div>
             <div className="capabilityBlock"><span>Capable item types</span><TagRow tags={supplier.capableItems} /></div>
             <div className="documentChecks">

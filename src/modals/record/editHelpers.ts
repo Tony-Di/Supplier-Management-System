@@ -24,7 +24,7 @@ export function buildEditPatch(target: EditTarget, form: FormData) {
   for (const field of ["name", "status", "type", "uom", "country", "primaryContact", "email", "phone", "paymentTerms", "region", "notes", "itemCode", "itemName", "productFamily", "revision", "effectiveDate", "effectiveFrom", "moq", "leadTime", "extraCostType", "owner", "result", "disposition", "inspector", "reason", "caseReason", "poNumber", "orderDate", "buyer", "sourceType", "sampleReceivedDate", "defectDate", "defectType", "defectAction", "maintainedBy"]) {
     setString(field);
   }
-  for (const field of ["voidReason", "erpVendorId", "targetCloseDate", "signedDate", "effectiveTo", "returnDate"]) setOptionalString(field);
+  for (const field of ["voidReason", "erpVendorId", "supplierSince", "targetCloseDate", "signedDate", "effectiveTo", "returnDate"]) setOptionalString(field);
   for (const field of ["unitPrice", "extraCostAmount", "problemPhotos", "sampleRound", "oldPrice", "newPrice", "quantity", "defectQty"]) setNumber(field);
   if (target.endpoint === "quotes" && form.has("effectiveFrom")) {
     patch.quoteDate = String(form.get("effectiveFrom") ?? "");

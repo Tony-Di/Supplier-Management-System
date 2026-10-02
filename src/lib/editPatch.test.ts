@@ -45,6 +45,14 @@ test("an emptied ERP vendor ID is sent as null", () => {
   assert.equal(patch.erpVendorId, null);
 });
 
+test("a supplier's Since date is sent as entered, and as null once emptied", () => {
+  const supplier = { id: "sup-1", recordState: "Active", capableItems: [] } as unknown as Supplier;
+  const edit = (supplierSince: string) =>
+    buildEditPatch({ endpoint: "suppliers", record: supplier }, editForm({ supplierSince, capableItemsJson: "[]" })).supplierSince;
+  assert.equal(edit("2025-12-06"), "2025-12-06");
+  assert.equal(edit(""), null);
+});
+
 test("switching a defect to Request Credit clears its replacement quantity", () => {
   const defect = { id: "def-1", recordState: "Active", defectAction: "Request Replacement", defectQty: 5, replacementQty: 5 } as unknown as IncomingDefectRecord;
   const patch = buildEditPatch(

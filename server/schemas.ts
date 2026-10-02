@@ -37,6 +37,7 @@ export const supplierSchema = z.object({
   w9FileId: z.string().optional(),
   paymentInfoFileId: z.string().optional(),
   notes: z.string().default(""),
+  supplierSince: isoDate.optional(),
 });
 
 export const modelSchema = z.object({

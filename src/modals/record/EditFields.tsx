@@ -7,6 +7,7 @@ import { type PackagingItemType } from "../../types";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
 import { packagingItemOptions, quoteStatusOptions } from "../../constants";
 import { isPublishedRecord } from "../../lib/recordLifecycle";
+import { localDateString } from "../../lib/format";
 import { modelName, activeDrawingSetsForModel, itemById } from "../../lib/lookups";
 import { InspectionEditFields } from "./InspectionEditFields";
 import { IncomingDefectEditFields } from "./IncomingDefectEditFields";
@@ -30,6 +31,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <label>Payment Terms<input name="paymentTerms" defaultValue={record.paymentTerms} placeholder="Net 30, Net 45..." /></label>
         <label>W-9<select name="hasW9" defaultValue={record.hasW9 ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
         <label>Payment Info<select name="hasPaymentInfo" defaultValue={record.hasPaymentInfo ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
+        <label>Since<input name="supplierSince" type="date" defaultValue={record.supplierSince ?? ""} max={localDateString()} /></label>
         <input name="capableItemsJson" type="hidden" value={JSON.stringify(capableItems)} />
         <div className="formSection fullSpan">
           <MultiSelectDropdown
