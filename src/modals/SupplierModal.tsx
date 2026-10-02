@@ -6,6 +6,7 @@ import { uploadOptionalFormFile } from "../lib/uploads";
 import { createSupplier } from "../api";
 import { MultiSelectDropdown } from "../components/MultiSelectDropdown";
 import { packagingItemOptions, uploadAccept } from "../constants";
+import { localDateString } from "../lib/format";
 
 export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
   const { data: appData } = useAppData();
@@ -40,6 +41,7 @@ export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onC
         w9FileId: w9Upload?.id,
         paymentInfoFileId: paymentInfoUpload?.id,
         notes: String(form.get("notes") ?? ""),
+        supplierSince: String(form.get("supplierSince") ?? "") || undefined,
       });
       await onCreated();
     } catch (requestError) {
@@ -103,6 +105,10 @@ export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onC
           <label>
             Payment Terms
             <input name="paymentTerms" placeholder="Net 30, Net 45..." />
+          </label>
+          <label>
+            Since
+            <input name="supplierSince" type="date" max={localDateString()} />
           </label>
         </div>
 

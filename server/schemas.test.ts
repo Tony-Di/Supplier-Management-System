@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { incomingDefectSchema, quoteSchema } from "./schemas";
+import { incomingDefectSchema, quoteSchema, supplierSchema } from "./schemas";
 
 const quote = {
   supplierId: "sup-1001",
@@ -28,4 +28,10 @@ test("replacement receipt dates are checked too", () => {
   assert.equal(incomingDefectSchema.safeParse(defect).success, true);
   const receipts = [{ receivedDate: "April 10", receivedQty: 5, result: "Accepted" }];
   assert.equal(incomingDefectSchema.safeParse({ ...defect, replacementReceipts: receipts }).success, false);
+});
+
+test("a supplier's Since date is optional and written as YYYY-MM-DD", () => {
+  assert.equal(supplierSchema.parse({ name: "Woodridge" }).supplierSince, undefined);
+  assert.equal(supplierSchema.parse({ name: "Woodridge", supplierSince: "2025-12-06" }).supplierSince, "2025-12-06");
+  assert.equal(supplierSchema.safeParse({ name: "Woodridge", supplierSince: "12/06/2025" }).success, false);
 });

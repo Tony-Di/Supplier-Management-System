@@ -41,6 +41,7 @@ export interface Supplier extends RecordLifecycle {
   w9FileId?: string;
   paymentInfoFileId?: string;
   notes: string;
+  supplierSince?: string;
 }
 
 export interface Model extends RecordLifecycle {

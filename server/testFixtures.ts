@@ -51,6 +51,7 @@ export function sampleStore(): Store {
         w9FileId: "file-1001",
         paymentInfoFileId: "file-1001",
         notes: "Preferred for pallets",
+        supplierSince: "2025-12-06",
       },
       {
         id: "sup-1002",

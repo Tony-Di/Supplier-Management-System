@@ -25,6 +25,22 @@ export function todayDateString() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Today in the viewer's time zone, as a date input writes it.
+export function localDateString(now = new Date()) {
+  return [now.getFullYear(), now.getMonth() + 1, now.getDate()].map((part) => String(part).padStart(2, "0")).join("-");
+}
+
+// Whole calendar days in the viewer's time zone. Both days are taken as UTC
+// midnights so a daylight-saving change cannot shorten a day.
+export function formatSupplierSince(dateText: string | undefined, today = new Date()) {
+  if (!dateText) return "";
+  const [year, month, day] = dateText.split("-").map(Number);
+  const since = Date.UTC(year, month - 1, day);
+  const days = Math.round((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - since) / 86_400_000);
+  const date = new Date(since).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return `${days} ${days === 1 ? "day" : "days"} (${date})`;
+}
+
 export function formatAuditDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",

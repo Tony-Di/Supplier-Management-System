@@ -55,6 +55,19 @@ test("passing an inspection stores the quote as Selected with its price change",
   });
 });
 
+test("a supplier's Since date is stored and an edit can clear it", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const supplier = await expectJson(send(app, session, "POST", "/api/suppliers", { name: "Woodridge", supplierSince: "2025-12-06" }), 201);
+    const select = () => pool.query("SELECT supplier_since FROM suppliers WHERE id = $1", [supplier.id]);
+    assert.deepEqual((await select()).rows, [{ supplier_since: "2025-12-06" }]);
+
+    await expectJson(send(app, session, "PATCH", `/api/suppliers/${supplier.id}`, { supplierSince: null }), 200);
+    assert.deepEqual((await select()).rows, [{ supplier_since: null }]);
+  });
+});
+
 test("two edits to one record at the same time both take effect", async () => {
   await withTestApp(async ({ createApp, pool }) => {
     const app = createApp();

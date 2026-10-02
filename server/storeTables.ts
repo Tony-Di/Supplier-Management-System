@@ -28,6 +28,7 @@ export const TABLES = {
     fields: [
       "id", ...lifecycle, "name", "erpVendorId", "status", "type", "country", "region", "capableItems", "primaryContact",
       "email", "phone", "paymentTerms", "hasW9", "hasPaymentInfo", "w9FileId", "paymentInfoFileId", "notes",
+      "supplierSince",
     ],
   },
   models: { table: "models", fields: ["id", ...lifecycle, "name", "productFamily", "status", "notes"] },
