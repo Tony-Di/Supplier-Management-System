@@ -79,6 +79,23 @@ docker compose -f compose.intranet.yml --env-file deploy.env up -d --build
 
 Data is kept in the `pgdata` volume, and pending migrations run when the app starts.
 
+### Before deploying the quote selection rules (migration 006)
+
+Migration 006 makes every effective `Requote` and `Change Work Order` quote Selected, so prices do not change. Before updating, list the ones it will change and check them with purchasing:
+
+```bash
+docker compose -f compose.intranet.yml --env-file deploy.env exec -T postgres psql -U sourcing sourcing -c "
+SELECT id, supplier_id, item_id, status, quote_reason, unit_price, effective_from
+FROM quotes
+WHERE coalesce(record_state, 'Active') <> 'Void'
+  AND quote_reason IN ('Requote', 'Change Work Order')
+  AND status <> 'Selected';"
+```
+
+A quote listed as `Not Selected` or `Expired` takes effect today only because of its reason, and will become Selected. Change its status first if that is not wanted.
+
+`PREVIOUS_ORDER_SELECTION` in `deploy.env` (default `on`) lets buyers select a quote without a sample by confirming earlier orders. Set it to `off` once ERP purchase history is in the system, then run `up -d` again.
+
 ### Upgrading from a release that stored business data in files
 
 Earlier releases kept business records and uploads in two more volumes. This release does not read them. After upgrading, check they are empty, then remove them:

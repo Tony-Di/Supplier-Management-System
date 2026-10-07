@@ -131,9 +131,12 @@ role." Existing assignments are kept.
 
 ### R6 — Conditional is a failed round (D5)
 
-- `qcAllowsSourceRole`, `sampleRequirementForQuoteInProject` and the Case
-  Progress label stop treating Conditional as a pass.
+- `sampleRequirementForQuoteInProject` and the Case Progress label stop treating
+  Conditional as a pass. `qcAllowsSourceRole` and `latestInspection` go with R5.
 - `defaultDispositionForResult("Conditional")` becomes `Re-sample Required`.
+- For a failed or conditional round the inspection forms offer Re-sample
+  Required or No Further Action (the only way QC closes a sample, R2);
+  Conditional Approval is no longer offered.
 - `buildSupplierScorecard` drops the `+ conditional * 2` term. Conditional still
   counts as a reviewed sample.
 

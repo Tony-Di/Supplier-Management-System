@@ -54,15 +54,17 @@ A `PATCH` sets only the fields in its body; a field sent as `null` is cleared. D
 - `/api/items` (also `POST /api/items/import`)
 - `/api/drawing-sets`
 - `/api/projects`
-- `/api/quotes`: a price window (Effective From to Effective To) may not overlap another effective price for the same supplier and item, and Effective To may not fall before Effective From. A `PATCH` that changes Effective To must include `changeReason`, which is recorded in the audit trail.
-- `/api/inspections`
+- `/api/quotes`: `status` is one of `Received`, `Sample Requested`, `Selected`, `No Further Action` and `Expired`. Only a Selected quote's price takes effect; a price window (Effective From to Effective To) may not overlap another effective price for the same supplier and item, and Effective To may not fall before Effective From. A `PATCH` that changes Effective To must include `changeReason`, which is recorded in the audit trail.
+  - Setting `Selected` by hand needs a supplier that passed QC or had a Selected quote for the item. Otherwise the request must send `statusBasis: "Previous Orders"` (optional `statusReference`, the PO number), the supplier must have a Since date, and `PREVIOUS_ORDER_SELECTION` must not be `off`; anything else is refused with `400` "Request a sample first".
+  - `statusBasis` records why a quote holds its status (`QC Pass`, `QC Closed Fail`, `Existing Supplier`, `Previous Orders`, `Migration`); the server sets it, apart from the Previous Orders request above. `closedByQuoteId` names the quote whose selection closed this price, and is set by the server only.
+- `/api/inspections`: the sync passes move the related quote. A pass selects a `Sample Requested` quote, and a failed or conditional round with disposition `No Further Action` ends it with `No Further Action`. Voiding or changing that inspection puts the quote back to `Sample Requested`; a status the buyer set is never changed.
 - `/api/incoming-defects`
 - `/api/price-changes`
 - `/api/purchase-prices`
 
 Other:
 
-- `GET/POST /api/source-assignments`
+- `GET/POST /api/source-assignments`: the source quote must be Selected
 - `GET /api/projects/:projectId/comparison`
 - `GET /api/scorecard`: supplier scores calculated with the saved KPI weights; the frontend reads all scores from here
 - `GET /api/score-settings`
@@ -71,7 +73,7 @@ Sign-in:
 
 - `GET /api/auth/login`: redirects to Entra ID, or signs in the local account when `AUTH_MODE=dev`
 - `GET /api/auth/callback`: Entra redirect target; rate limited to 20 requests a minute per IP
-- `GET /api/auth/me`: the signed-in user and CSRF token, or `401`
+- `GET /api/auth/me`: the signed-in user, CSRF token and `features.previousOrderSelection`, or `401`
 - `POST /api/auth/logout`
 
 Admin only:
