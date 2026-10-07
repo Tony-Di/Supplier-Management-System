@@ -10,7 +10,7 @@ import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { RecordMenu } from "../components/RecordMenu";
 import { canDeleteRecord } from "../lib/recordLifecycle";
 import { Field } from "../components/Field";
-import { caseSupplierIds, quoteHasCaseLink, quoteAppliesToProject, quoteCaseLabel, sourceRoleForQuote, isSelectedQuote, isSampleRequestedQuote, qcQueueStatus, buildCaseProgressRows } from "../lib/sourcing";
+import { caseSupplierIds, quoteHasCaseLink, quoteAppliesToProject, quoteCaseLabel, sourceRoleForQuote, isSelectedQuote, isSampleRequestedQuote, qcProgress, buildCaseProgressRows } from "../lib/sourcing";
 import { type AppData, type ComparisonRow, fetchComparison } from "../api";
 import { exportQuotes } from "../lib/exports";
 import { quoteStatusOptions } from "../constants";
@@ -487,7 +487,7 @@ export function Comparison({ projectId }: { projectId: string }) {
                   <td>{offerQuotes.length ? <QuoteValueStack quotes={offerQuotes} field="leadTime" /> : "-"}</td>
                   <td>{offerQuotes.length ? <QuoteValueStack quotes={offerQuotes} field="extraCost" /> : "-"}</td>
                   <td>{supplier?.paymentTerms || "-"}</td>
-                  <td>{quote ? qcQueueStatus(appData, quote) : "-"}</td>
+                  <td>{quote ? <StatusPill {...qcProgress(appData, quote)} /> : "-"}</td>
                   <td>{scorecardRows?.find((row) => row.supplier.id === supplier?.id)?.score ?? "-"}</td>
                 </tr>
               );
@@ -575,7 +575,7 @@ export function CaseQuoteWorkbench({
                     <span className="muted">{row.inScope ? "No quote" : "Not in supplier scope"}</span>
                   )}
                 </td>
-                <td><StatusPill label={row.qcLabel} /></td>
+                <td><StatusPill {...row.qc} /></td>
                 <td>
                   <SourceRoleSelect
                     quoteId={row.quote?.id}

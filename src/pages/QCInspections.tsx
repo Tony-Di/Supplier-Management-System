@@ -3,7 +3,7 @@ import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHand
 import { type SampleInspection, type IncomingDefectRecord } from "../types";
 import { useAppData } from "../AppDataContext";
 import { useState } from "react";
-import { isSampleRequestedQuote, isQuoteInQcQueue, latestInspectionForQuote, qcQueueStatus, qcQueueActionLabel } from "../lib/sourcing";
+import { isQuoteInQcQueue, latestInspectionForQuote, qcProgress, qcQueueActionLabel } from "../lib/sourcing";
 import { TableToolbar } from "../components/TableToolbar";
 import { Panel } from "../components/Panel";
 import { EmptyState } from "../components/EmptyState";
@@ -41,8 +41,7 @@ export function SampleInspections({
   const [supplierFilter, setSupplierFilter] = useState("All");
   const [itemFilter, setItemFilter] = useState("All");
   const [resultFilter, setResultFilter] = useState<"All" | SampleInspection["result"]>("All");
-  const sampleRequestedQuotes = appData.quotes.filter((quote) => isSampleRequestedQuote(quote) && quote.recordState !== "Void");
-  const queueQuotes = sampleRequestedQuotes.filter((quote) => isQuoteInQcQueue(appData, quote));
+  const queueQuotes = appData.quotes.filter(isQuoteInQcQueue);
   const visibleInspections = appData.inspections
     .filter((inspection) => inspection.recordState !== "Void")
     .filter((inspection) => sourceFilter === "All" || (sourceFilter === "Standalone" ? !inspection.relatedQuoteId : Boolean(inspection.relatedQuoteId)))
@@ -88,7 +87,7 @@ export function SampleInspections({
                   <td>{formatMoney(quote.unitPrice)} / {quote.effectiveFrom ?? quote.quoteDate}</td>
                   <td>{drawingSetName(appData, quote.drawingSetId)}</td>
                   <td>Round {nextRound}</td>
-                  <td><StatusPill label={qcQueueStatus(appData, quote)} /></td>
+                  <td><StatusPill {...qcProgress(appData, quote)} /></td>
                   <td>
                     {latestInspection?.result === "Not Submitted" ? (
                       <button className="ghostButton" onClick={() => onEdit({ endpoint: "inspections", record: latestInspection })} type="button">Complete inspection</button>

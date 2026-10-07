@@ -771,7 +771,6 @@ font-size: 12px; line-height: 1.4; overflow-wrap: anywhere;
 }
 
 .statusPill.sample-stage,
-.statusPill.under-review,
 .statusPill.conditional,
 .statusPill.pending,
 .statusPill.draft {
@@ -782,6 +781,7 @@ font-size: 12px; line-height: 1.4; overflow-wrap: anywhere;
 
 .statusPill.fail,
 .statusPill.rejected,
+.statusPill.no-further-action,
 .statusPill.expired {
   background: #fae8e6;
   border-color: #e7b6b0;
@@ -1944,7 +1944,7 @@ tbody tr:hover { background: #FAFBFC; }
 td { font-variant-numeric: tabular-nums; }
 .statusPill, .lifecyclePill { font-family: var(--heading-font); font-size: 10px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
 .statusPill.pass, .statusPill.passed, .statusPill.selected { background: #EAF5EF; border-color: #BADCCB; color: #236346; }
-.statusPill.fail, .statusPill.failed, .statusPill.rejected { background: #FDF3F2; border-color: #E8B4B1; color: #B51B16; }
+.statusPill.fail, .statusPill.failed, .statusPill.rejected, .statusPill.no-further-action { background: #FDF3F2; border-color: #E8B4B1; color: #B51B16; }
 .statusPill.conditional, .statusPill.pending, .statusPill.sample-requested { background: #FFF7E4; border-color: #EAD59C; color: #7F5C00; }
 .statusPill.primary { background: var(--seg-red); border-color: var(--seg-red); color: white; }
 .statusPill.secondary, .statusPill.backup { background: white; border-color: #C1C1C1; color: var(--ink); }
