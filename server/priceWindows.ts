@@ -2,7 +2,7 @@ import type { Quote } from "../src/types";
 
 type PriceQuote = Pick<
   Quote,
-  "id" | "supplierId" | "itemId" | "quoteDate" | "effectiveFrom" | "effectiveTo" | "status" | "quoteReason" | "previousQuoteId" | "recordState"
+  "id" | "supplierId" | "itemId" | "quoteDate" | "effectiveFrom" | "effectiveTo" | "status" | "previousQuoteId" | "recordState"
 >;
 
 const OPEN_END = "9999-12-31";
@@ -11,9 +11,9 @@ function startOf(quote: PriceQuote) {
   return quote.effectiveFrom ?? quote.quoteDate;
 }
 
-/** A quote that sets the supplier's price for the item, as opposed to one that is only an offer. */
+/** A quote that sets the supplier's price for the item, as opposed to one that is only an offer. Only a Selected quote does. */
 export function isEffectivePriceQuote(quote: PriceQuote): boolean {
-  return quote.status === "Selected" || quote.quoteReason === "Requote" || quote.quoteReason === "Change Work Order";
+  return quote.status === "Selected";
 }
 
 /** The price this quote replaces: the linked previous quote, or the latest earlier price still open on its start date. */

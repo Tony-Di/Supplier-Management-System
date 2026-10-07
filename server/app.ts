@@ -442,7 +442,8 @@ export function createApp(): Express {
   app.get("/api/quotes", read((store) => store.quotes));
   app.post("/api/quotes", write((ctx, request) => {
     const { store } = ctx;
-    const parsed = quoteSchema.parse({ ...request.body, recordState: "Active" });
+    // Only a later selection records which quote closed this price.
+    const { closedByQuoteId: _closedByQuoteId, ...parsed } = quoteSchema.parse({ ...request.body, recordState: "Active" });
     validateQuoteLinks(store, parsed);
     checkPriceWindow(store, { id: "", ...parsed });
     const quote = { id: ctx.nextId("q"), ...parsed };

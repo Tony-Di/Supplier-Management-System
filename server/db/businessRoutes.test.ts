@@ -113,6 +113,19 @@ test("opening the app writes nothing, even when a sync pass would change data", 
   });
 });
 
+test("a new quote cannot name the quote that closed its price", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const seed = await seedSourcingCase(app, session);
+    await pool.query("UPDATE quotes SET status = 'Selected' WHERE id = $1", [seed.quote.id]);
+    const { id: _seedQuoteId, ...quoteFields } = seed.quote;
+    const quote = await expectJson(send(app, session, "POST", "/api/quotes", { ...quoteFields, effectiveFrom: "2026-01-10", quoteDate: "2026-01-10", closedByQuoteId: seed.quote.id }), 201);
+    const { rows } = await pool.query("SELECT closed_by_quote_id FROM quotes WHERE id = $1", [quote.id]);
+    assert.deepEqual(rows, [{ closed_by_quote_id: null }]);
+  });
+});
+
 test("an edit can clear a quote's Effective To", async () => {
   await withTestApp(async ({ createApp, pool }) => {
     const app = createApp();

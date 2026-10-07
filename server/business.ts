@@ -402,6 +402,7 @@ export function buildPriceChangeFromQuote(ctx: BusinessContext, quote: Quote) {
 
 export function reconcileQuotePriceChanges(ctx: BusinessContext) {
   const { store } = ctx;
+  releasePricesOfUnselectedQuotes(store);
   const effectiveQuotes = [...store.quotes]
     .filter((quote) => quote.recordState !== "Void" && isEffectivePriceQuote(quote))
     .sort((a, b) => (a.effectiveFrom ?? a.quoteDate).localeCompare(b.effectiveFrom ?? b.quoteDate));
@@ -410,6 +411,33 @@ export function reconcileQuotePriceChanges(ctx: BusinessContext) {
     assignPreviousQuote(store, quote);
     buildPriceChangeFromQuote(ctx, quote);
     closePreviousSelectedQuote(store, quote);
+  }
+}
+
+/**
+ * Undoes what a quote's selection did once it is no longer Selected: the price
+ * it closed reopens, a later price stops naming it as the price it replaced,
+ * and price changes still pending from or against it are voided.
+ */
+function releasePricesOfUnselectedQuotes(store: Store) {
+  const isCurrentPrice = (id: string | undefined) => {
+    const quote = id ? store.quotes.find((candidate) => candidate.id === id) : undefined;
+    return Boolean(quote && quote.recordState !== "Void" && isEffectivePriceQuote(quote));
+  };
+  for (const quote of store.quotes) {
+    if (quote.closedByQuoteId && !isCurrentPrice(quote.closedByQuoteId)) {
+      quote.effectiveTo = undefined;
+      quote.closedByQuoteId = undefined;
+    }
+    if (quote.previousQuoteId && isCurrentPrice(quote.id) && !isCurrentPrice(quote.previousQuoteId)) {
+      quote.previousQuoteId = undefined;
+    }
+  }
+  for (const change of store.priceChanges) {
+    if (change.recordState === "Void" || change.status !== "Pending" || !change.sourceQuoteId) continue;
+    if (isCurrentPrice(change.sourceQuoteId) && isCurrentPrice(change.previousQuoteId)) continue;
+    change.recordState = "Void";
+    change.voidReason = "Quote no longer selected";
   }
 }
 
@@ -427,6 +455,7 @@ export function closePreviousSelectedQuote(store: Store, quote: Quote) {
   if (!previousQuote) return;
   if ((previousQuote.effectiveFrom ?? previousQuote.quoteDate) === (quote.effectiveFrom ?? quote.quoteDate)) return;
   previousQuote.effectiveTo = dayBefore(quote.effectiveFrom ?? quote.quoteDate);
+  previousQuote.closedByQuoteId = quote.id;
 }
 
 function isSampleRequestedQuote(quote: Quote) {

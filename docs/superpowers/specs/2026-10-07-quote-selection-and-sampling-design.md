@@ -118,7 +118,8 @@ when A1 → A2 → A3 and A2 leaves, the next pass links A3 to A1 and closes A1
 again.
 
 Windows closed before this release have no `closedByQuoteId` and are not
-reopened. Editing `effectiveTo` by hand clears `closedByQuoteId`.
+reopened. A reopened price is open-ended: an end date it had before it was closed
+is not restored. The API ignores a `closedByQuoteId` sent by a client.
 
 ### R5 — Source roles need a Selected quote
 
@@ -183,7 +184,7 @@ inspection edit form ("Complete inspection") can add files to the same list.
 2. Non-void `Requote` / `Change Work Order` quotes whose status is not Selected
    become Selected with basis `Migration` (D11), so their prices stay effective.
 3. `Under Review` → `Received`; `Not Selected` → `No Further Action`.
-4. One audit row per changed quote (actor `System`, source `Migration`).
+4. One audit row per changed quote (actor and source `System`, reason starting "Migration:").
 
 Before deploying, run this on the server and review the list. A quote listed as
 `Not Selected` or `Expired` is effective today only because of its reason; decide
@@ -228,8 +229,8 @@ Unit (`npm test`):
 - Manual Selected rule R3: qualified by a Pass, by an earlier Selected quote, by
   previous orders (switch on, Since set), refused otherwise.
 - Reopen R4: a quote leaving Selected reopens the price it closed and voids its
-  Pending price change; a hand-edited `effectiveTo` is not reopened; with
-  A1 → A2 → A3, A2 leaving links A3 back to A1.
+  Pending price change; an Approved one stays; with A1 → A2 → A3, A2 leaving
+  links A3 back to A1.
 - QC labels R7 for each row; Conditional default disposition; scorecard without
   the Conditional bonus.
 

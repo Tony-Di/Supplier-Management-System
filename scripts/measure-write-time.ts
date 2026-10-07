@@ -1,6 +1,6 @@
 // Times quote edits against a large synthetic data set in the TEST database,
 // with a price history (passed samples select their quotes, and a third of the
-// quotes are Requotes) so the price-change passes have work to do:
+// quotes are Selected requotes) so the price-change passes have work to do:
 //   npx tsx --env-file-if-exists=.env scripts/measure-write-time.ts
 // It empties the business tables of DATABASE_URL_TEST first. The budget is a
 // median of 200 ms per edit.
@@ -72,7 +72,7 @@ function syntheticStore(): Store {
       id, recordState: "Active", supplierId, projectId: project.id, quoteType: "Case-linked", quoteReason: q % 3 === 1 ? "Requote" : "New Quote", modelId: project.modelIds[0],
       itemId: drawingItem.itemId, drawingSetId: drawingSet.id, drawingItemId: drawingItem.id, quoteDate: "2026-02-01", effectiveFrom: addDays("2026-02-01", Math.floor(q / 100) * 3 + (q % 3)),
       currency: "USD", uom: "pcs", unitPrice: 10 + (q % 7), moq: "100", leadTime: `${7 + (q % 21)} days`, extraCostType: "None", extraCostAmount: 0,
-      status: "Received", notes: "",
+      status: q % 3 === 1 ? "Selected" : "Sample Requested", notes: "",
     });
     store.quoteCaseLinks.push({
       id: `ql-${1001 + q}`, recordState: "Active", quoteId: id, projectId: project.id, supplierId, itemId: drawingItem.itemId,
