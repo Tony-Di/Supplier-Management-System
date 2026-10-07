@@ -243,7 +243,7 @@ export function Quotes({
       <TableToolbar
         action="Add quote"
         extraActions={<button className="ghostButton" onClick={() => exportQuotes(appData, filteredQuotes)} type="button">Export quotes</button>}
-        help="Quote Status is edited here. Source Role is decided in Case Progress after QC pass."
+        help="Quote Status is edited here. Source Role is decided in Case Progress once the quote is Selected."
         onAction={onAdd}
         title="Quotation entry"
       />
