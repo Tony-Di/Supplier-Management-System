@@ -102,8 +102,8 @@ test("opening the app writes nothing, even when a sync pass would change data", 
       }),
       201,
     );
-    // A passed inspection whose quote is not Selected: the old bootstrap sync rewrote this on read.
-    await pool.query("UPDATE quotes SET status = 'Under Review' WHERE id = $1", [seed.quote.id]);
+    // A passed inspection whose quote still asks for a sample: the old bootstrap sync rewrote this on read.
+    await pool.query("UPDATE quotes SET status = 'Sample Requested' WHERE id = $1", [seed.quote.id]);
     const before = await snapshotTables(pool);
 
     for (const path of ["/api/bootstrap", "/api/scorecard", `/api/projects/${seed.project.id}/comparison`, "/api/files", "/api/score-settings"]) {

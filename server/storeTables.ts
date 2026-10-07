@@ -54,6 +54,7 @@ export const TABLES = {
       "id", ...lifecycle, "supplierId", "projectId", "quoteType", "quoteReason", "previousQuoteId", "modelId", "itemId",
       "drawingSetId", "drawingItemId", "quoteDate", "effectiveFrom", "effectiveTo", "validUntil", "currency", "uom",
       "unitPrice", "moq", "leadTime", "extraCostType", "extraCostAmount", "status", "attachmentFileId", "notes",
+      "statusBasis", "statusReference", "closedByQuoteId",
     ],
   },
   quoteCaseLinks: {

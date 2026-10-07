@@ -3,9 +3,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PoolClient } from "pg";
 
-const defaultDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
+export const migrationsDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
 
-export async function runMigrations(client: PoolClient, directory = defaultDirectory): Promise<string[]> {
+export async function runMigrations(client: PoolClient, directory = migrationsDirectory): Promise<string[]> {
   await client.query("CREATE TABLE IF NOT EXISTS schema_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())");
   const { rows } = await client.query("SELECT filename FROM schema_migrations");
   const applied = new Set(rows.map((row) => row.filename as string));

@@ -116,7 +116,7 @@ test("editing other fields does not re-check an overlap that already exists", ()
 
 test("selecting an offer whose window overlaps a current price is refused", () => {
   const current = quote("q1", "2026-07-01");
-  const before = quote("q2", "2026-03-01", undefined, { status: "Under Review" });
+  const before = quote("q2", "2026-03-01", undefined, { status: "Sample Requested" });
   const after = { ...before, status: "Selected" as const };
   assert.match(priceWindowError(after, [current, before], { before, describe }) ?? "", /overlaps quote q1/);
 });

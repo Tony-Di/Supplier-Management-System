@@ -23,6 +23,15 @@ test("dates must be written as YYYY-MM-DD", () => {
   assert.equal(quoteSchema.safeParse({ ...quote, effectiveTo: "" }).success, false);
 });
 
+test("a quote takes only the five statuses of the selection rules", () => {
+  for (const status of ["Received", "Sample Requested", "Selected", "No Further Action", "Expired"]) {
+    assert.equal(quoteSchema.safeParse({ ...quote, status }).success, true, status);
+  }
+  for (const status of ["Under Review", "Not Selected"]) {
+    assert.equal(quoteSchema.safeParse({ ...quote, status }).success, false, status);
+  }
+});
+
 test("replacement receipt dates are checked too", () => {
   const defect = { supplierId: "sup-1001", itemId: "item-1001", defectDate: "2026-04-01", defectQty: 5, defectAction: "Request Credit" };
   assert.equal(incomingDefectSchema.safeParse(defect).success, true);

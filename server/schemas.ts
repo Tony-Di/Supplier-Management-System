@@ -136,7 +136,10 @@ export const quoteSchema = z.object({
   leadTime: z.string().min(1),
   extraCostType: z.enum(["None", "Freight", "Sample", "Tooling", "Packaging Test", "Other"]).default("None"),
   extraCostAmount: z.number().nonnegative().default(0),
-  status: z.enum(["Received", "Under Review", "Sample Requested", "Selected", "Not Selected", "Expired"]).default("Received"),
+  status: z.enum(["Received", "Sample Requested", "Selected", "No Further Action", "Expired"]).default("Received"),
+  statusBasis: z.enum(["QC Pass", "QC Closed Fail", "Existing Supplier", "Previous Orders", "Migration"]).optional(),
+  statusReference: z.string().optional(),
+  closedByQuoteId: z.string().optional(),
   attachmentFileId: z.string().optional(),
   notes: z.string().default(""),
 });

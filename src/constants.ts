@@ -15,7 +15,7 @@ export const packagingItemOptions: PackagingItemType[] = [
 /** Documents a supplier may keep besides its W-9 and bank/payment info file. */
 export const maxOtherSupplierFiles = 2;
 
-export const quoteStatusOptions: Quote["status"][] = ["Received", "Under Review", "Sample Requested", "Selected", "Not Selected", "Expired"];
+export const quoteStatusOptions: Quote["status"][] = ["Received", "Sample Requested", "Selected", "No Further Action", "Expired"];
 
 export const incomingDefectTypes: IncomingDefectRecord["defectType"][] = ["Damage", "Dimension", "Quantity Shortage", "Material", "Labeling", "Other"];
 

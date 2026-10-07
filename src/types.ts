@@ -123,10 +123,19 @@ export interface Quote extends RecordLifecycle {
   leadTime: string;
   extraCostType?: "None" | "Freight" | "Sample" | "Tooling" | "Packaging Test" | "Other";
   extraCostAmount?: number;
-  status: "Received" | "Under Review" | "Sample Requested" | "Selected" | "Not Selected" | "Expired";
+  status: QuoteStatus;
+  /** Why the quote holds its status, when the system set it or checked it. */
+  statusBasis?: QuoteStatusBasis;
+  /** The PO number behind a Previous Orders selection. */
+  statusReference?: string;
+  /** The quote whose selection closed this quote's price window. */
+  closedByQuoteId?: string;
   attachmentFileId?: string;
   notes: string;
 }
+
+export type QuoteStatus = "Received" | "Sample Requested" | "Selected" | "No Further Action" | "Expired";
+export type QuoteStatusBasis = "QC Pass" | "QC Closed Fail" | "Existing Supplier" | "Previous Orders" | "Migration";
 
 export interface QuoteCaseLink extends RecordLifecycle {
   id: string;
