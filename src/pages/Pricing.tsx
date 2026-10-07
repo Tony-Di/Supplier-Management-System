@@ -3,7 +3,7 @@ import { isPublishedRecord, canDeleteRecord } from "../lib/recordLifecycle";
 import { useState } from "react";
 import { isSelectedQuote } from "../lib/sourcing";
 import { supplierName, itemCode, modelName, priceChangeReference } from "../lib/lookups";
-import { buildQuotePriceChartRows } from "../lib/priceCharts";
+import { buildQuotePriceChartRows, quotePriceSeries, type PriceTrendSource } from "../lib/priceCharts";
 import { Panel } from "../components/Panel";
 import { FilterGroup } from "../components/FilterGroup";
 import { EmptyState } from "../components/EmptyState";
@@ -21,7 +21,7 @@ export function PriceAnalytics() {
   const activeSuppliers = appData.suppliers.filter((supplier) => isPublishedRecord(supplier) && supplier.recordState !== "Void");
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>(activeItems.slice(0, 3).map((item) => item.id));
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(activeSuppliers.slice(0, 3).map((supplier) => supplier.id));
-  const [sourceFilter, setSourceFilter] = useState<"All Quotes" | "Selected Quotes">("Selected Quotes");
+  const [sourceFilter, setSourceFilter] = useState<PriceTrendSource>("All Quotes");
 
   const visibleQuotes = appData.quotes.filter(
     (quote) =>
@@ -31,24 +31,20 @@ export function PriceAnalytics() {
       (sourceFilter === "All Quotes" || isSelectedQuote(quote)),
   );
   const chartQuotes = visibleQuotes;
-  const includeAllQuoteSeries = sourceFilter === "All Quotes";
-  const includeSelectedSeries = sourceFilter === "Selected Quotes";
-  const seriesNames = Array.from(
-    new Set([
-      ...(includeAllQuoteSeries ? chartQuotes.map((quote) => `${supplierName(appData, quote.supplierId)} all quotes`) : []),
-      ...(includeSelectedSeries ? chartQuotes.filter(isSelectedQuote).map((quote) => `${supplierName(appData, quote.supplierId)} selected`) : []),
-    ]),
-  );
-  const chartRows = buildQuotePriceChartRows(appData, chartQuotes, includeAllQuoteSeries, includeSelectedSeries);
+  const seriesNames = quotePriceSeries(appData, chartQuotes, sourceFilter);
+  // A supplier's price line and its other quotes share one colour.
+  const seriesSupplier = (series: string) => series.replace(/ (selected|other quotes)$/, "");
+  const seriesSuppliers = Array.from(new Set(seriesNames.map(seriesSupplier)));
+  const chartRows = buildQuotePriceChartRows(appData, chartQuotes, sourceFilter);
   const detailRows = chartQuotes.map((quote) => ({
       id: quote.id,
       date: quote.effectiveFrom ?? quote.quoteDate,
-      source: isSelectedQuote(quote) ? "Selected Quote" : "Quote",
+      status: quote.status,
       supplier: supplierName(appData, quote.supplierId),
       item: itemCode(appData, quote.itemId),
       price: quote.unitPrice,
       quantity: quote.moq,
-      reference: `${quote.status} - ${quote.projectId ? "Case-linked" : "Standalone"}`,
+      reference: quote.projectId ? "Case-linked" : "Standalone",
       record: quote,
     })).sort((a, b) => a.date.localeCompare(b.date));
 
@@ -71,7 +67,7 @@ export function PriceAnalytics() {
           <label className="sourceFilter">
             Source
             <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as typeof sourceFilter)}>
-              {["Selected Quotes", "All Quotes"].map((source) => <option key={source}>{source}</option>)}
+              {["All Quotes", "Selected Quotes"].map((source) => <option key={source}>{source}</option>)}
             </select>
           </label>
         </div>
@@ -86,18 +82,21 @@ export function PriceAnalytics() {
                 <YAxis domain={priceAnalyticsDomain(chartQuotes)} tickFormatter={(value) => `$${value}`} width={54} />
                 <Tooltip formatter={(value) => [formatMoney(Number(value)), "Price"]} />
                 <Legend />
-                {seriesNames.map((series, index) => (
-                  <Line
-                    connectNulls
-                    dataKey={series}
-                    dot={{ r: 3 }}
-                    key={series}
-                    stroke={chartColor(index)}
-                    strokeDasharray={series.endsWith("all quotes") ? "5 5" : undefined}
-                    strokeWidth={series.endsWith("selected") ? 3 : 2}
-                    type="monotone"
-                  />
-                ))}
+                {seriesNames.map((series) => {
+                  const otherQuotes = series.endsWith("other quotes");
+                  return (
+                    <Line
+                      connectNulls={!otherQuotes}
+                      dataKey={series}
+                      dot={otherQuotes ? { r: 4, fill: "white", strokeWidth: 2 } : { r: 3 }}
+                      key={series}
+                      legendType="circle"
+                      stroke={chartColor(seriesSuppliers.indexOf(seriesSupplier(series)))}
+                      strokeWidth={otherQuotes ? 0 : 3}
+                      type="monotone"
+                    />
+                  );
+                })}
               </RechartsLineChart>
             </ResponsiveContainer>
           )}
@@ -108,7 +107,7 @@ export function PriceAnalytics() {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Source</th>
+              <th>Status</th>
               <th>Vendor</th>
               <th>Item</th>
               <th>Price</th>
@@ -119,9 +118,9 @@ export function PriceAnalytics() {
           </thead>
           <tbody>
             {detailRows.map((row) => (
-              <tr key={`${row.source}-${row.id}`}>
+              <tr key={row.id}>
                 <td>{row.date}</td>
-                <td>{row.source}</td>
+                <td><StatusPill label={row.status} /></td>
                 <td>{row.supplier}</td>
                 <td>{row.item}</td>
                 <td>{formatMoney(row.price)}</td>
