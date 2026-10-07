@@ -92,6 +92,7 @@ export function Suppliers({
             <div className="documentChecks">
               <DocumentCheck ok={supplier.hasW9} label="W-9" fileId={supplier.w9FileId} />
               <DocumentCheck ok={supplier.hasPaymentInfo} label="Payment info" fileId={supplier.paymentInfoFileId} />
+              {supplier.otherFileIds.map((fileId) => <DocumentCheck key={fileId} ok label="Other" fileId={fileId} />)}
             </div>
           </article>
         ))}

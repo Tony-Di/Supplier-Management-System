@@ -47,6 +47,11 @@ export function buildEditPatch(target: EditTarget, form: FormData) {
   if (target.endpoint === "suppliers") {
     patch.hasW9 = String(form.get("hasW9") ?? "false") === "true";
     patch.hasPaymentInfo = String(form.get("hasPaymentInfo") ?? "false") === "true";
+    // Missing means no file; a newly chosen file is linked after it uploads.
+    if (!patch.hasW9) patch.w9FileId = null;
+    if (!patch.hasPaymentInfo) patch.paymentInfoFileId = null;
+    const removedFileIds = new Set(form.getAll("removeOtherFileId").map(String));
+    patch.otherFileIds = target.record.otherFileIds.filter((fileId) => !removedFileIds.has(fileId));
     patch.capableItems = JSON.parse(String(form.get("capableItemsJson") ?? "[]")) as PackagingItemType[];
   }
   if (target.endpoint === "items") {

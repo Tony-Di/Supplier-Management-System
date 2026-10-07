@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { maxOtherSupplierFiles } from "../src/constants";
+
 const packagingItemTypes = [
   "Paper Corner Protector",
   "Long Paper Protector",
@@ -36,6 +38,7 @@ export const supplierSchema = z.object({
   hasPaymentInfo: z.boolean().default(false),
   w9FileId: z.string().optional(),
   paymentInfoFileId: z.string().optional(),
+  otherFileIds: z.array(z.string()).max(maxOtherSupplierFiles).default([]),
   notes: z.string().default(""),
   supplierSince: isoDate.optional(),
 });

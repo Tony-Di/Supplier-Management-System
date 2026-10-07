@@ -19,6 +19,7 @@ import {
   validateProjectLinks,
   validatePurchasePriceLinks,
   validateQuoteLinks,
+  validateSupplierFileLinks,
 } from "./business";
 import {
   drawingSetSchema,
@@ -153,6 +154,7 @@ export function createApp(): Express {
   app.get("/api/suppliers", read((store) => store.suppliers));
   app.post("/api/suppliers", write((ctx, request) => {
     const supplier = { id: ctx.nextId("sup"), ...supplierSchema.parse(request.body) };
+    validateSupplierFileLinks(ctx.store, supplier);
     ctx.store.suppliers.push(supplier);
     ctx.audit("Create", "Supplier", supplier.id, supplier.name, undefined, supplier);
     return created(supplier);
@@ -169,6 +171,7 @@ export function createApp(): Express {
     const { store } = ctx;
     const before = cloneRecord(store.suppliers.find((record) => record.id === request.params.id));
     const supplier = updateById(store.suppliers, request.params.id, request.body, supplierSchema.parse);
+    validateSupplierFileLinks(store, supplier);
     ctx.audit(editAction(before, supplier), "Supplier", supplier.id, supplier.name, before, supplier);
     return ok(supplier);
   }));

@@ -2,10 +2,10 @@ import { ErrorNotice } from "../components/ErrorNotice";
 import { useAppData } from "../AppDataContext";
 import { useState, FormEvent } from "react";
 import { type PackagingItemType, type Supplier } from "../types";
-import { uploadOptionalFormFile } from "../lib/uploads";
+import { attachSupplierUploads } from "../lib/uploads";
 import { createSupplier } from "../api";
 import { MultiSelectDropdown } from "../components/MultiSelectDropdown";
-import { packagingItemOptions, uploadAccept } from "../constants";
+import { maxOtherSupplierFiles, packagingItemOptions, uploadAccept } from "../constants";
 import { localDateString } from "../lib/format";
 
 export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
@@ -21,9 +21,7 @@ export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onC
     setFormError("");
 
     try {
-      const w9Upload = await uploadOptionalFormFile(form, "w9File", "Supplier W9", "supplier");
-      const paymentInfoUpload = await uploadOptionalFormFile(form, "paymentInfoFile", "Supplier Payment Info", "supplier");
-      await createSupplier({
+      const supplier: Omit<Supplier, "id"> = {
         recordState: "Active",
         name: String(form.get("name") ?? ""),
         erpVendorId: String(form.get("erpVendorId") ?? "") || undefined,
@@ -36,13 +34,14 @@ export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onC
         email: String(form.get("email") ?? ""),
         phone: String(form.get("phone") ?? ""),
         paymentTerms: String(form.get("paymentTerms") ?? ""),
-        hasW9: Boolean(w9Upload),
-        hasPaymentInfo: Boolean(paymentInfoUpload),
-        w9FileId: w9Upload?.id,
-        paymentInfoFileId: paymentInfoUpload?.id,
+        hasW9: false,
+        hasPaymentInfo: false,
+        otherFileIds: [],
         notes: String(form.get("notes") ?? ""),
         supplierSince: String(form.get("supplierSince") ?? "") || undefined,
-      });
+      };
+      await attachSupplierUploads(form, supplier);
+      await createSupplier(supplier);
       await onCreated();
     } catch (requestError) {
       setFormError(requestError instanceof Error ? requestError.message : "Unable to create supplier.");
@@ -127,6 +126,10 @@ export function SupplierModal({ onClose, onCreated }: { onClose: () => void; onC
           <label>
             Bank / payment info file
             <input name="paymentInfoFile" type="file" accept={uploadAccept} />
+          </label>
+          <label>
+            Other documents (up to {maxOtherSupplierFiles})
+            <input multiple name="otherFiles" type="file" accept={uploadAccept} />
           </label>
         </div>
 

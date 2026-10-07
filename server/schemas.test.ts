@@ -35,3 +35,9 @@ test("a supplier's Since date is optional and written as YYYY-MM-DD", () => {
   assert.equal(supplierSchema.parse({ name: "Woodridge", supplierSince: "2025-12-06" }).supplierSince, "2025-12-06");
   assert.equal(supplierSchema.safeParse({ name: "Woodridge", supplierSince: "12/06/2025" }).success, false);
 });
+
+test("a supplier has no other documents by default and at most two", () => {
+  assert.deepEqual(supplierSchema.parse({ name: "Woodridge" }).otherFileIds, []);
+  assert.deepEqual(supplierSchema.parse({ name: "Woodridge", otherFileIds: ["file-1", "file-2"] }).otherFileIds, ["file-1", "file-2"]);
+  assert.equal(supplierSchema.safeParse({ name: "Woodridge", otherFileIds: ["file-1", "file-2", "file-3"] }).success, false);
+});
