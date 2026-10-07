@@ -1,5 +1,7 @@
 import { type SampleInspection } from "../../types";
 import { rejectedSampleActions } from "../../lib/sourcing";
+import { uploadAccept } from "../../constants";
+import { PhotoFileReferences } from "../../components/PhotoFileReferences";
 import { useState } from "react";
 
 export function InspectionEditFields({ record }: { record: SampleInspection }) {
@@ -26,6 +28,11 @@ export function InspectionEditFields({ record }: { record: SampleInspection }) {
       <label>Sample Received<input name="sampleReceivedDate" defaultValue={record.sampleReceivedDate} type="date" required /></label>
       <label>Inspector<input name="inspector" defaultValue={record.inspector ?? ""} /></label>
       <label>Signed Date<input name="signedDate" defaultValue={record.signedDate ?? ""} type="date" /></label>
+      <label>
+        Add photos / attachments
+        <input multiple name="photoFiles" type="file" accept={uploadAccept} />
+        {Boolean(record.photoFileIds?.length) && <span className="muted">Already attached: <PhotoFileReferences inspection={record} /></span>}
+      </label>
       <label className="fullWidthLabel">Notes<textarea name="notes" defaultValue={record.notes} rows={3} /></label>
     </>
   );

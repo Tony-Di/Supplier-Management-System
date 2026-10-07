@@ -178,7 +178,7 @@ export function InspectionModal({
             </label>
           )}
           <label>
-            Problem Photos
+            Photos / attachments
             <input multiple name="photoFiles" type="file" accept={uploadAccept} />
           </label>
           <label>

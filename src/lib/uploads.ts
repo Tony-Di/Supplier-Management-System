@@ -51,6 +51,16 @@ export async function attachSupplierUploads(form: FormData, patch: Record<string
   }
 }
 
+/** Adds the files chosen when completing an inspection to the ones it already has. */
+export async function attachInspectionUploads(form: FormData, patch: Record<string, unknown>, existingFileIds: string[], upload: Upload = uploadSelectedFile) {
+  const files = chosenFiles(form, "photoFiles");
+  if (files.length === 0) return;
+  const uploaded = await Promise.all(files.map((file) => upload(file, "QC Photo", "inspection")));
+  const photoFileIds = [...existingFileIds, ...uploaded.map((file) => file.id)];
+  patch.photoFileIds = photoFileIds;
+  patch.problemPhotos = photoFileIds.length;
+}
+
 // An untouched file input still submits an empty, nameless file.
 function chosenFiles(form: FormData, fieldName: string) {
   return form.getAll(fieldName).filter((file): file is File => file instanceof File && file.size > 0);
