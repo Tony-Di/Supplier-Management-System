@@ -5,7 +5,8 @@ import { useAppData } from "../../AppDataContext";
 import { useState, useEffect } from "react";
 import { type PackagingItemType } from "../../types";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
-import { packagingItemOptions, quoteStatusOptions } from "../../constants";
+import { maxOtherSupplierFiles, packagingItemOptions, quoteStatusOptions, uploadAccept } from "../../constants";
+import { FileReference } from "../../components/FileReference";
 import { isPublishedRecord } from "../../lib/recordLifecycle";
 import { localDateString } from "../../lib/format";
 import { modelName, activeDrawingSetsForModel, itemById } from "../../lib/lookups";
@@ -29,9 +30,21 @@ export function EditFields({ target }: { target: EditTarget }) {
         <label>Email<input name="email" defaultValue={record.email} /></label>
         <label>Phone<input name="phone" defaultValue={record.phone} /></label>
         <label>Payment Terms<input name="paymentTerms" defaultValue={record.paymentTerms} placeholder="Net 30, Net 45..." /></label>
-        <label>W-9<select name="hasW9" defaultValue={record.hasW9 ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
-        <label>Payment Info<select name="hasPaymentInfo" defaultValue={record.hasPaymentInfo ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
         <label>Since<input name="supplierSince" type="date" defaultValue={record.supplierSince ?? ""} max={localDateString()} /></label>
+        <label>W-9<select name="hasW9" defaultValue={record.hasW9 ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
+        <SupplierFileInput fileId={record.w9FileId} label="W-9 file" name="w9File" />
+        <label>Payment Info<select name="hasPaymentInfo" defaultValue={record.hasPaymentInfo ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
+        <SupplierFileInput fileId={record.paymentInfoFileId} label="bank / payment info file" name="paymentInfoFile" />
+        <div className="formSection fullSpan supplierOtherFiles">
+          <span>Other documents (up to {maxOtherSupplierFiles})</span>
+          {record.otherFileIds.map((fileId) => (
+            <label className="removeFileOption" key={fileId}>
+              <input name="removeOtherFileId" type="checkbox" value={fileId} />
+              Remove <FileReference fileId={fileId} />
+            </label>
+          ))}
+          <input multiple name="otherFiles" type="file" accept={uploadAccept} />
+        </div>
         <input name="capableItemsJson" type="hidden" value={JSON.stringify(capableItems)} />
         <div className="formSection fullSpan">
           <MultiSelectDropdown
@@ -232,5 +245,16 @@ export function EditFields({ target }: { target: EditTarget }) {
       <label>Status<select name="status" defaultValue={record.status}>{["Pending", "Approved", "Rejected"].map((value) => <option key={value}>{value}</option>)}</select></label>
       <label>Reason<select name="reason" defaultValue={record.reason}>{["Material", "Freight", "Labor", "Negotiated", "Model Change", "Drawing Change", "Requote", "Change Work Order", "Other"].map((value) => <option key={value}>{value}</option>)}</select></label>
     </>
+  );
+}
+
+/** A file picker that replaces the supplier document already on file, if there is one. */
+function SupplierFileInput({ fileId, label, name }: { fileId?: string; label: string; name: string }) {
+  return (
+    <label>
+      {fileId ? `Replace ${label}` : `Upload ${label}`}
+      <input name={name} type="file" accept={uploadAccept} />
+      {fileId && <span className="muted">Current: <FileReference fileId={fileId} /></span>}
+    </label>
   );
 }

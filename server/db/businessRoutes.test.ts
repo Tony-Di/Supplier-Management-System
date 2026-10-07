@@ -221,6 +221,38 @@ test("a reference to a missing file is refused with 400 and nothing is stored", 
   });
 });
 
+test("a supplier's other documents are stored and an edit can remove one", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const upload = (fileName: string) =>
+      expectJson(send(app, session, "POST", "/api/files", { fileName, contentBase64: Buffer.from(fileName).toString("base64"), purpose: "Other" }), 201);
+    const certificate = await upload("ISO 9001.pdf");
+    const insurance = await upload("Insurance.pdf");
+    const supplier = await expectJson(
+      send(app, session, "POST", "/api/suppliers", { name: "Woodridge", otherFileIds: [certificate.id, insurance.id] }),
+      201,
+    );
+    const select = () => pool.query("SELECT other_file_ids FROM suppliers WHERE id = $1", [supplier.id]);
+    assert.deepEqual((await select()).rows, [{ other_file_ids: [certificate.id, insurance.id] }]);
+
+    await expectJson(send(app, session, "PATCH", `/api/suppliers/${supplier.id}`, { otherFileIds: [insurance.id] }), 200);
+    assert.deepEqual((await select()).rows, [{ other_file_ids: [insurance.id] }]);
+  });
+});
+
+test("an other document that does not exist is refused with 400 and nothing is stored", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const before = await snapshotTables(pool);
+    const response = await send(app, session, "POST", "/api/suppliers", { name: "Legacy Paper", otherFileIds: ["file-9999"] });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).message, /file-9999/);
+    assert.deepEqual(await snapshotTables(pool), before);
+  });
+});
+
 test("an impossible date is refused with 400", async () => {
   await withTestApp(async ({ createApp }) => {
     const app = createApp();

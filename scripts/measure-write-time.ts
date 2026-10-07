@@ -36,7 +36,7 @@ function syntheticStore(): Store {
   for (let s = 0; s < 50; s += 1) {
     store.suppliers.push({
       id: `sup-${1001 + s}`, recordState: "Active", name: `Supplier ${s}`, status: "Active", type: "Manufacturer", country: "United States",
-      region: "", capableItems: [...types], primaryContact: "", email: "", phone: "", paymentTerms: "Net 30", hasW9: true, hasPaymentInfo: true, notes: "",
+      region: "", capableItems: [...types], primaryContact: "", email: "", phone: "", paymentTerms: "Net 30", hasW9: true, hasPaymentInfo: true, otherFileIds: [], notes: "",
     });
   }
   for (let m = 0; m < 20; m += 1) {

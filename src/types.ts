@@ -40,6 +40,7 @@ export interface Supplier extends RecordLifecycle {
   hasPaymentInfo: boolean;
   w9FileId?: string;
   paymentInfoFileId?: string;
+  otherFileIds: string[];
   notes: string;
   supplierSince?: string;
 }

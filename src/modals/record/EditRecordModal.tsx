@@ -5,6 +5,7 @@ import { useState, FormEvent } from "react";
 import { buildEditPatch, editTitle } from "./editHelpers";
 import { EditFields } from "./EditFields";
 import { voidedReferenceMessage } from "../../lib/recordOptions";
+import { attachSupplierUploads } from "../../lib/uploads";
 
 export function EditRecordModal({
   onClose,
@@ -28,6 +29,7 @@ export function EditRecordModal({
       const patch = buildEditPatch(target, form);
       setSaving(true);
       setFormError("");
+      if (target.endpoint === "suppliers") await attachSupplierUploads(form, patch);
       await onSave(patch);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Unable to save changes.");

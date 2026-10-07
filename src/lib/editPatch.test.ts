@@ -40,17 +40,44 @@ test("editing a quote's effective date clears Valid Until", () => {
 });
 
 test("an emptied ERP vendor ID is sent as null", () => {
-  const supplier = { id: "sup-1", recordState: "Active", capableItems: [] } as unknown as Supplier;
+  const supplier = { id: "sup-1", recordState: "Active", capableItems: [], otherFileIds: [] } as unknown as Supplier;
   const patch = buildEditPatch({ endpoint: "suppliers", record: supplier }, editForm({ erpVendorId: "", capableItemsJson: "[]" }));
   assert.equal(patch.erpVendorId, null);
 });
 
 test("a supplier's Since date is sent as entered, and as null once emptied", () => {
-  const supplier = { id: "sup-1", recordState: "Active", capableItems: [] } as unknown as Supplier;
+  const supplier = { id: "sup-1", recordState: "Active", capableItems: [], otherFileIds: [] } as unknown as Supplier;
   const edit = (supplierSince: string) =>
     buildEditPatch({ endpoint: "suppliers", record: supplier }, editForm({ supplierSince, capableItemsJson: "[]" })).supplierSince;
   assert.equal(edit("2025-12-06"), "2025-12-06");
   assert.equal(edit(""), null);
+});
+
+const supplierWithFiles = {
+  id: "sup-1",
+  recordState: "Active",
+  capableItems: [],
+  hasW9: true,
+  hasPaymentInfo: true,
+  w9FileId: "file-1",
+  paymentInfoFileId: "file-2",
+  otherFileIds: ["file-3", "file-4"],
+} as unknown as Supplier;
+
+function supplierEditForm(fields: Record<string, string> = {}) {
+  return editForm({ hasW9: "true", hasPaymentInfo: "true", capableItemsJson: "[]", ...fields });
+}
+
+test("choosing Missing for a supplier document clears its file", () => {
+  const patch = buildEditPatch({ endpoint: "suppliers", record: supplierWithFiles }, supplierEditForm({ hasW9: "false" }));
+  assert.equal(patch.w9FileId, null);
+  assert.equal("paymentInfoFileId" in patch, false);
+});
+
+test("a ticked other document is removed and the rest are kept", () => {
+  const form = supplierEditForm();
+  form.append("removeOtherFileId", "file-3");
+  assert.deepEqual(buildEditPatch({ endpoint: "suppliers", record: supplierWithFiles }, form).otherFileIds, ["file-4"]);
 });
 
 test("switching a defect to Request Credit clears its replacement quantity", () => {

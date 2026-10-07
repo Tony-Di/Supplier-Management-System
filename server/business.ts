@@ -45,6 +45,13 @@ export function validateDrawingSetLinks(store: Store, drawingSet: { modelId: str
   );
 }
 
+/** A list of file IDs has no foreign key to check it, so each one is looked up here. */
+export function validateSupplierFileLinks(store: Store, supplier: { otherFileIds: string[] }) {
+  for (const fileId of supplier.otherFileIds) {
+    if (!store.files.some((file) => file.id === fileId)) throw new ValidationError(`Other document not found: ${fileId}`);
+  }
+}
+
 export function validateQuoteLinks(store: Store, quote: Omit<Quote, "id">) {
   const supplier = findSupplier(store, quote.supplierId);
   if (!supplier) throw new ValidationError(`Supplier not found: ${quote.supplierId}`);

@@ -12,6 +12,9 @@ export const packagingItemOptions: PackagingItemType[] = [
   "Stretch Film",
 ];
 
+/** Documents a supplier may keep besides its W-9 and bank/payment info file. */
+export const maxOtherSupplierFiles = 2;
+
 export const quoteStatusOptions: Quote["status"][] = ["Received", "Under Review", "Sample Requested", "Selected", "Not Selected", "Expired"];
 
 export const incomingDefectTypes: IncomingDefectRecord["defectType"][] = ["Damage", "Dimension", "Quantity Shortage", "Material", "Labeling", "Other"];
