@@ -174,6 +174,21 @@ test("a status the system set is kept when an edit sends another basis", async (
   });
 });
 
+test("a source role is refused for a quote that is not Selected, even after its sample passed", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, inspect } = await seedSampledQuote(app, session, pool);
+    const role = { projectId: seed.project.id, modelId: seed.model.id, itemId: seed.item.id, supplierId: seed.supplier.id, sourceQuoteId: seed.quote.id, role: "Primary", effectiveFrom: "2026-03-01" };
+    await inspect({ result: "Pass" });
+    await expectJson(send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "No Further Action" }), 200);
+
+    const refused = await send(app, session, "POST", "/api/source-assignments", role);
+    assert.equal(refused.status, 400);
+    assert.match((await refused.json()).message, /must be Selected/);
+  });
+});
+
 test("a supplier's Since date is stored and an edit can clear it", async () => {
   await withTestApp(async ({ createApp, pool }) => {
     const app = createApp();

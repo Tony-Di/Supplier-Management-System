@@ -11,7 +11,6 @@ import type { BusinessContext } from "./context";
 import { ValidationError } from "./errors";
 import { mergePatch } from "./patch";
 import { priceWindowError } from "./priceWindows";
-import { latestInspection, qcAllowsSourceRole } from "./rules";
 import type { Store } from "./storeShape";
 
 export function cloneRecord<T>(record: T | undefined): T | undefined {
@@ -265,33 +264,22 @@ export function ensureSourceAssignmentLinks(store: Store, record: {
   if (record.projectId && !store.projects.some((project) => project.id === record.projectId && project.recordState !== "Void")) {
     throw new ValidationError(`Case not found: ${record.projectId}`);
   }
-  if (record.sourceQuoteId) {
-    const quote = store.quotes.find((candidate) => candidate.id === record.sourceQuoteId && candidate.recordState !== "Void");
-    if (!quote) throw new ValidationError(`Quote not found: ${record.sourceQuoteId}`);
-    if (quote.supplierId !== record.supplierId || quote.itemId !== record.itemId) {
-      throw new ValidationError("Source quote must match assignment supplier and item.");
-    }
-    if (quote.modelId !== record.modelId && !store.items.find((candidate) => candidate.id === record.itemId)?.usedForModels.includes(record.modelId)) {
-      throw new ValidationError("Source quote item must be valid for the assignment model.");
-    }
-    if (
-      record.projectId &&
-      quote.projectId !== record.projectId &&
-      !store.quoteCaseLinks.some((link) => link.recordState !== "Void" && link.projectId === record.projectId && link.quoteId === quote.id)
-    ) {
-      throw new ValidationError("Source quote must be linked to the assignment case.");
-    }
+  if (!record.sourceQuoteId) throw new ValidationError("A Selected quote is required before assigning a source role.");
+  const quote = store.quotes.find((candidate) => candidate.id === record.sourceQuoteId && candidate.recordState !== "Void");
+  if (!quote) throw new ValidationError(`Quote not found: ${record.sourceQuoteId}`);
+  if (quote.status !== "Selected") throw new ValidationError("Quote must be Selected before assigning a source role.");
+  if (quote.supplierId !== record.supplierId || quote.itemId !== record.itemId) {
+    throw new ValidationError("Source quote must match assignment supplier and item.");
   }
-
-  const project = record.projectId ? store.projects.find((candidate) => candidate.id === record.projectId) : undefined;
-  const inspection = latestInspection(store.inspections, {
-    supplierId: record.supplierId,
-    itemId: record.itemId,
-    drawingSetId: project?.drawingSetId,
-    sourceQuoteId: record.sourceQuoteId,
-  });
-  if (!qcAllowsSourceRole(inspection)) {
-    throw new ValidationError("QC must pass or be conditional before assigning source role.");
+  if (quote.modelId !== record.modelId && !item.usedForModels.includes(record.modelId)) {
+    throw new ValidationError("Source quote item must be valid for the assignment model.");
+  }
+  if (
+    record.projectId &&
+    quote.projectId !== record.projectId &&
+    !store.quoteCaseLinks.some((link) => link.recordState !== "Void" && link.projectId === record.projectId && link.quoteId === quote.id)
+  ) {
+    throw new ValidationError("Source quote must be linked to the assignment case.");
   }
 }
 

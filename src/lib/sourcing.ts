@@ -47,15 +47,9 @@ export function buildCaseProgressRow(appData: Pick<AppData, "inspections" | "ite
       current.itemId === itemId &&
       current.supplierId === supplierId)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
-  const canAssign = Boolean(quote && latestInspection && (latestInspection.result === "Pass" || latestInspection.result === "Conditional"));
-
   return {
-    assignDisabledReason: quote
-      ? latestInspection
-        ? "QC must pass or be conditional before assigning source role."
-        : "QC inspection is required before assigning source role."
-      : "Quote is required before assigning source role.",
-    canAssign,
+    assignDisabledReason: quote ? "Quote must be Selected before assigning a source role." : "Quote is required before assigning source role.",
+    canAssign: quote?.status === "Selected",
     inScope,
     item,
     itemId,
@@ -218,10 +212,12 @@ export function qcQueueActionLabel(appData: Pick<AppData, "inspections">, quote:
   return "Record inspection";
 }
 
+/** What QC may decide for a failed or conditional round: send another sample, or stop following the quote up. */
+export const rejectedSampleActions: SampleInspection["disposition"][] = ["Re-sample Required", "No Further Action"];
+
 export function defaultDispositionForResult(result: SampleInspection["result"]): SampleInspection["disposition"] {
   if (result === "Pass") return "Accepted";
-  if (result === "Fail") return "Re-sample Required";
-  if (result === "Conditional") return "Conditional Approval";
+  if (result === "Fail" || result === "Conditional") return "Re-sample Required";
   return "Pending";
 }
 

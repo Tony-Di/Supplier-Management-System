@@ -175,7 +175,7 @@ function sampleRequirementForQuoteInProject(store: Store, quote: Quote, project:
       inspection.supplierId === quote.supplierId &&
       inspection.itemId === quote.itemId &&
       (!activeProjectDrawingSet || inspection.drawingSetId === activeProjectDrawingSet.id) &&
-      (inspection.result === "Pass" || inspection.result === "Conditional"))
+      inspection.result === "Pass")
     .sort((a, b) => a.sampleRound - b.sampleRound || a.sampleReceivedDate.localeCompare(b.sampleReceivedDate))
     .slice(-1)[0];
   if (passedInspection) return "Not Required - Existing QC Pass";
@@ -540,7 +540,7 @@ function buildSupplierScorecard(store: Store, supplierId: string) {
   const sampleQualityScore =
     reviewedSamples === 0
       ? 0
-      : clamp(Math.round((pass / reviewedSamples) * (store.scoreWeights.sampleQuality - 5) + conditional * 2 - fail * 3 + (pass > 0 ? 5 : 0)), 0, store.scoreWeights.sampleQuality);
+      : clamp(Math.round((pass / reviewedSamples) * (store.scoreWeights.sampleQuality - 5) - fail * 3 + (pass > 0 ? 5 : 0)), 0, store.scoreWeights.sampleQuality);
   const pricingScore = scorePricingCompetitiveness(store, supplierQuotes, store.scoreWeights.pricing, supplier.paymentTerms);
   const responsivenessScore = scoreResponsiveness(
     { quoteCount: supplierQuotes.length, averageLeadTime, selectedQuotes },

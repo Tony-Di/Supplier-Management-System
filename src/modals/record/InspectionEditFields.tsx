@@ -1,10 +1,10 @@
 import { type SampleInspection } from "../../types";
+import { rejectedSampleActions } from "../../lib/sourcing";
 import { useState } from "react";
 
 export function InspectionEditFields({ record }: { record: SampleInspection }) {
   const [result, setResult] = useState<SampleInspection["result"]>(record.result);
   const showAction = result !== "Pass" && result !== "Not Submitted";
-  const defaultAction = result === "Conditional" ? "Conditional Approval" : "Re-sample Required";
 
   return (
     <>
@@ -17,8 +17,8 @@ export function InspectionEditFields({ record }: { record: SampleInspection }) {
       {showAction && (
         <label>
           Action
-          <select name="disposition" defaultValue={record.disposition === "Accepted" || record.disposition === "No Further Action" ? defaultAction : record.disposition}>
-            {["Re-sample Required", "Conditional Approval"].map((value) => <option key={value}>{value}</option>)}
+          <select name="disposition" defaultValue={rejectedSampleActions.includes(record.disposition) ? record.disposition : "Re-sample Required"}>
+            {rejectedSampleActions.map((value) => <option key={value}>{value}</option>)}
           </select>
         </label>
       )}

@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Quote } from "../src/types";
-import { reconcileQuotePriceChanges } from "./business";
+import { buildScorecard, reconcileQuotePriceChanges, syncReusableQuotesForProject } from "./business";
 import { createContext } from "./context";
 import { emptyStore } from "./storeShape";
+import { sampleStore } from "./testFixtures";
 
 function priceQuote(id: string, effectiveFrom: string, unitPrice: number, patch: Partial<Quote> = {}): Quote {
   return {
@@ -87,4 +88,25 @@ test("when the middle price stops being Selected, the next price closes the one 
   assert.equal(a3.previousQuoteId, "a1");
   assert.deepEqual([a1.effectiveTo, a1.closedByQuoteId], ["2026-06-30", "a3"]);
   assert.deepEqual(activeChanges(store), [["a3", "a1"]]);
+});
+
+test("a conditional sample does not spare a case another sample", () => {
+  const linkFor = (result: "Pass" | "Conditional") => {
+    const store = sampleStore();
+    store.projects[0].openDate = "2026-03-01";
+    store.inspections[0].result = result;
+    syncReusableQuotesForProject(createContext(store, new Map(), undefined), store.projects[0]);
+    return store.quoteCaseLinks[0].sampleRequirement;
+  };
+  assert.equal(linkFor("Pass"), "Not Required - Existing QC Pass");
+  assert.notEqual(linkFor("Conditional"), "Not Required - Existing QC Pass");
+});
+
+test("a conditional sample adds nothing to the sample quality score", () => {
+  const store = sampleStore();
+  store.inspections.push({ ...store.inspections[0], id: "ins-1002", sampleRound: 3, result: "Conditional", disposition: "Re-sample Required" });
+  const row = buildScorecard(store).rows.find((candidate) => candidate.supplier.id === "sup-1001");
+  const sampleQuality = row?.categories[0].children?.find((child) => child.key === "sampleQuality");
+  // Weight 30: one pass in two reviewed samples is half of 25 scaled points, plus 5 for having a pass.
+  assert.equal(sampleQuality?.score, 18);
 });

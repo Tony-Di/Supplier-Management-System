@@ -5,7 +5,7 @@ import type { Quote, SampleInspection } from "../src/types";
 import { createContext } from "./context";
 import { ValidationError } from "./errors";
 import { sampleStore } from "./testFixtures";
-import { demoteConflictingSourceRoles, ensureNoSupplierLinks, entityLabel, syncQuoteStatusesFromInspections } from "./workflow";
+import { demoteConflictingSourceRoles, ensureNoSupplierLinks, ensureSourceAssignmentLinks, entityLabel, syncQuoteStatusesFromInspections } from "./workflow";
 
 function inspectedQuote(status: Quote["status"], inspection: Partial<SampleInspection>, statusBasis?: Quote["statusBasis"]) {
   const store = sampleStore();
@@ -58,6 +58,17 @@ test("a quote ended by a failed sample goes back to waiting when that result cha
 function pick(quote: Quote) {
   return { status: quote.status, statusBasis: quote.statusBasis };
 }
+
+test("a source role needs a Selected quote, whatever its samples say", () => {
+  const store = sampleStore();
+  const assignment = store.sourceAssignments[0];
+  store.quotes[0].status = "Sample Requested";
+  assert.throws(() => ensureSourceAssignmentLinks(store, assignment), /must be Selected before assigning a source role/);
+  assert.throws(() => ensureSourceAssignmentLinks(store, { ...assignment, sourceQuoteId: undefined }), /quote is required/);
+  store.quotes[0].status = "Selected";
+  store.inspections[0].result = "Fail";
+  assert.doesNotThrow(() => ensureSourceAssignmentLinks(store, assignment));
+});
 
 test("a new Primary source demotes the existing Primary to Backup", () => {
   const store = sampleStore();
