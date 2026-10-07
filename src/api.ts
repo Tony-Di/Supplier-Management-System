@@ -155,8 +155,13 @@ export function fetchAuditEntries(filter: AuditFilter = {}) {
   return request<AuditLogRecord[]>(`/api/audit-logs?${params.toString()}`);
 }
 
+export interface SessionFeatures {
+  /** A buyer may select a quote without a sample by confirming earlier orders. */
+  previousOrderSelection: boolean;
+}
+
 export function fetchSession() {
-  return request<SessionUser & { csrfToken: string }>("/api/auth/me");
+  return request<SessionUser & { csrfToken: string; features?: SessionFeatures }>("/api/auth/me");
 }
 
 export function signOut() {

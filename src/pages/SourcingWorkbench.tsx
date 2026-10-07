@@ -17,7 +17,7 @@ import { quoteStatusOptions } from "../constants";
 import { EmptyState } from "../components/EmptyState";
 import { StatusPill } from "../components/StatusPill";
 import { formatMoney } from "../lib/format";
-import { QuoteStatusSelect } from "../components/QuoteStatusSelect";
+import { QuoteStatusSelect, type QuoteStatusChange } from "../components/QuoteStatusSelect";
 import { QuoteValueStack } from "../components/QuoteValueStack";
 import { useScorecard } from "../useScorecard";
 import { QuoteMini } from "../components/QuoteMini";
@@ -215,7 +215,7 @@ export function Quotes({
   onDelete: DeleteHandler;
   onEdit: (target: EditTarget) => void;
   onHistory: HistoryHandler;
-  onQuoteStatusChange: (quoteId: string, status: Quote["status"]) => Promise<void>;
+  onQuoteStatusChange: (quoteId: string, change: QuoteStatusChange) => Promise<void>;
   onVoid: VoidHandler;
   selectedProjectId: string;
 }) {

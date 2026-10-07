@@ -2,6 +2,7 @@ import { availableRecordOptions } from "./lib/recordOptions";
 import { sourceRoleEligibility } from "./lib/sourceRoleEligibility";
 import { WorkflowActionsProvider } from "./WorkflowActionsContext";
 import { ErrorNotice } from "./components/ErrorNotice";
+import { type QuoteStatusChange } from "./components/QuoteStatusSelect";
 import { VoidedRecords } from "./components/VoidedRecords";
 import { useState, useEffect, useMemo } from "react";
 import { type Section, type ProductsTab, type SourcingTab, type PricingTab, type QCTab, type ReportsTab, type AdminTab, type EditTarget, type VoidTarget, type ViewTarget } from "./uiTypes";
@@ -121,10 +122,10 @@ function Workbench() {
     }
   }
 
-  async function handleQuoteStatusChange(quoteId: string, status: Quote["status"]) {
+  async function handleQuoteStatusChange(quoteId: string, change: QuoteStatusChange) {
     try {
       setActionError("");
-      await updateRecord("quotes", quoteId, { status });
+      await updateRecord("quotes", quoteId, change);
       await refreshData();
     } catch (requestError) {
       setActionError(requestError instanceof Error ? requestError.message : "Unable to update quote status.");

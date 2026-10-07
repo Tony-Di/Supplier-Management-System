@@ -1,3 +1,4 @@
+import { manualSelection } from "../src/lib/selection";
 import type { Quote, SampleInspection } from "../src/types";
 import { isPlainRecord, type AuditAction } from "./auditEntry";
 import {
@@ -201,6 +202,40 @@ function latestInspectionOfQuote(store: Store, quoteId: string) {
     .filter((inspection) => inspection.recordState !== "Void" && inspection.relatedQuoteId === quoteId)
     .sort((a, b) => a.sampleRound - b.sampleRound || a.sampleReceivedDate.localeCompare(b.sampleReceivedDate))
     .at(-1);
+}
+
+/**
+ * Applies the buyer's status change on a quote create or edit. Selected needs a
+ * supplier already qualified for the item, or a confirmed previous-order
+ * selection. Any other change clears the basis; an unchanged status keeps the
+ * basis already recorded, whatever the request sent.
+ */
+export function settleManualQuoteStatus(store: Store, quote: Quote, before: Quote | undefined, previousOrderSelection: boolean) {
+  if (before && quote.status === before.status) {
+    quote.statusBasis = before.statusBasis;
+    quote.statusReference = before.statusReference;
+    return;
+  }
+  if (quote.status !== "Selected") {
+    quote.statusBasis = undefined;
+    quote.statusReference = undefined;
+    return;
+  }
+  const selection = manualSelection(store, quote, previousOrderSelection);
+  if (selection === "Existing Supplier") {
+    quote.statusBasis = "Existing Supplier";
+    quote.statusReference = undefined;
+    return;
+  }
+  if (selection === "Previous Orders" && quote.statusBasis === "Previous Orders") {
+    quote.statusReference = quote.statusReference?.trim() || undefined;
+    return;
+  }
+  throw new ValidationError(
+    selection === "Previous Orders"
+      ? "Confirm that this supplier has supplied this item before, or request a sample first."
+      : "Request a sample first: this supplier has not passed QC for this item.",
+  );
 }
 
 export function ensureSourceAssignmentLinks(store: Store, record: {

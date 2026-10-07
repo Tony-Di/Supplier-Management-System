@@ -4,7 +4,6 @@ import { after } from "node:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Pool, type PoolClient } from "pg";
-import type { Express } from "express";
 
 import { migrationsDirectory, runMigrations } from "../scripts/migrate";
 
@@ -61,7 +60,7 @@ export async function resetTestDatabase(executor: QueryExecutor): Promise<void> 
 }
 
 interface TestAppContext {
-  createApp: () => Express;
+  createApp: typeof import("./app").createApp;
   pool: Pool;
 }
 

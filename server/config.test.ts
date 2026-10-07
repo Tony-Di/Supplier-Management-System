@@ -55,3 +55,8 @@ test("requires https in production", () => {
     /HTTPS/,
   );
 });
+
+test("selecting on previous orders stays on unless it is switched off", () => {
+  assert.equal(getConfig(base).previousOrderSelection, true);
+  assert.equal(getConfig({ ...base, PREVIOUS_ORDER_SELECTION: "off" }).previousOrderSelection, false);
+});

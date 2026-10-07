@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { Pool } from "pg";
 
 import { withTestApp } from "../testDb";
-import { expectJson, send, signIn } from "./http";
+import { call, expectJson, send, signIn } from "./http";
 import { seedSourcingCase, snapshotTables } from "./seed";
 
 test("a rejected edit changes nothing", async () => {
@@ -96,6 +96,81 @@ test("voiding the passing inspection puts the quote back to waiting and reopens 
     assert.equal(reopened.effective_to, null);
     const { rows: changes } = await pool.query("SELECT record_state FROM price_changes");
     assert.deepEqual(changes, [{ record_state: "Void" }]);
+  });
+});
+
+test("a new supplier's quote cannot be set to Selected by hand", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const seed = await seedSourcingCase(app, session);
+    const before = await snapshotTables(pool);
+    const response = await send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Selected" });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).message, /Request a sample first/);
+    assert.deepEqual(await snapshotTables(pool), before);
+  });
+});
+
+test("a supplier that passed QC for the item can have a requote set to Selected by hand", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, inspect } = await seedSampledQuote(app, session, pool);
+    await inspect({ result: "Pass" });
+    const { id: _seedQuoteId, ...quoteFields } = seed.quote;
+    const requote = await expectJson(
+      send(app, session, "POST", "/api/quotes", { ...quoteFields, quoteReason: "Requote", quoteDate: "2026-08-01", effectiveFrom: "2026-08-01", unitPrice: 14 }),
+      201,
+    );
+    const selected = await expectJson(send(app, session, "PATCH", `/api/quotes/${requote.id}`, { status: "Selected", statusBasis: "QC Pass" }), 200);
+    assert.deepEqual([selected.status, selected.statusBasis], ["Selected", "Existing Supplier"]);
+  });
+});
+
+test("previous orders select a quote for a supplier with a Since date, and only when confirmed", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp({ previousOrderSelection: true });
+    const session = await signIn(app);
+    const seed = await seedSourcingCase(app, session);
+    await expectJson(send(app, session, "PATCH", `/api/suppliers/${seed.supplier.id}`, { supplierSince: "2023-04-01" }), 200);
+
+    const unconfirmed = await send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Selected" });
+    assert.equal(unconfirmed.status, 400);
+    assert.match((await unconfirmed.json()).message, /supplied this item before/);
+
+    await expectJson(
+      send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Selected", statusBasis: "Previous Orders", statusReference: " PO-77 " }),
+      200,
+    );
+    const { rows } = await pool.query("SELECT status, status_basis, status_reference FROM quotes WHERE id = $1", [seed.quote.id]);
+    assert.deepEqual(rows, [{ status: "Selected", status_basis: "Previous Orders", status_reference: "PO-77" }]);
+  });
+});
+
+test("previous orders are refused once that entry point is switched off", async () => {
+  await withTestApp(async ({ createApp }) => {
+    const app = createApp({ previousOrderSelection: false });
+    const session = await signIn(app);
+    const seed = await seedSourcingCase(app, session);
+    await expectJson(send(app, session, "PATCH", `/api/suppliers/${seed.supplier.id}`, { supplierSince: "2023-04-01" }), 200);
+    const response = await send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Selected", statusBasis: "Previous Orders" });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).message, /Request a sample first/);
+    const me = await (await call(app, "/api/auth/me", { cookie: session.cookie })).json();
+    assert.deepEqual(me.features, { previousOrderSelection: false });
+  });
+});
+
+test("a status the system set is kept when an edit sends another basis", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, inspect } = await seedSampledQuote(app, session, pool);
+    await inspect({ result: "Pass" });
+    await expectJson(send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { notes: "MOQ confirmed", statusBasis: "Previous Orders" }), 200);
+    const { rows } = await pool.query("SELECT status, status_basis FROM quotes WHERE id = $1", [seed.quote.id]);
+    assert.deepEqual(rows, [{ status: "Selected", status_basis: "QC Pass" }]);
   });
 });
 

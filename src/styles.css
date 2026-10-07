@@ -2015,8 +2015,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 .editFieldset { border: 0; margin: 0; min-width: 0; }
 .editFieldset:disabled { opacity: 0.65; }
 .supplierOtherFiles { font-size: 12px; font-weight: 500; color: #555; }
-.formGrid .removeFileOption { flex-direction: row; align-items: center; gap: 8px; color: var(--ink); }
-.formGrid .removeFileOption input { flex: 0 0 auto; width: 15px; height: 15px; min-height: 0; margin: 0; padding: 0; }
+.formGrid .checkboxOption { flex-direction: row; align-items: center; gap: 8px; color: var(--ink); }
+.formGrid .checkboxOption input { flex: 0 0 auto; width: 15px; height: 15px; min-height: 0; margin: 0; padding: 0; }
 .blockedAction { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; border-left: 2px solid var(--line); padding-left: 8px; }
 .sourceRoleSelect { min-width: 160px; max-width: 200px; }
 .sourceRoleSelect .blockedAction span { font-size: 11px; line-height: 1.45; }

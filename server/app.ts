@@ -41,6 +41,7 @@ import { ValidationError } from "./errors";
 import { errorHandler } from "./errorHandler";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
+import { getConfig } from "./config";
 import { requireAdmin, requireAuth, sessionMiddleware, verifyCsrf } from "./session";
 import { listAuditEntries } from "./auditLog";
 import { pool } from "./db";
@@ -67,13 +68,15 @@ import {
   entityLabel,
   nextDrawingSetRevision,
   syncActiveCasesForModels,
+  settleManualQuoteStatus,
   syncActivePackagingSetItems,
   updateById,
   voidById,
 } from "./workflow";
 
-export function createApp(): Express {
+export function createApp({ previousOrderSelection = getConfig().previousOrderSelection }: { previousOrderSelection?: boolean } = {}): Express {
   const app = express();
+  app.locals.previousOrderSelection = previousOrderSelection;
 
   app.use(cors({ origin: ["http://127.0.0.1:5173", "http://localhost:5173"] }));
   app.use(express.json({ limit: "10mb" }));
@@ -446,6 +449,7 @@ export function createApp(): Express {
     validateQuoteLinks(store, parsed);
     checkPriceWindow(store, { id: "", ...parsed });
     const quote = { id: ctx.nextId("q"), ...parsed };
+    settleManualQuoteStatus(store, quote, undefined, previousOrderSelection);
     store.quotes.push(quote);
     assignPreviousQuote(store, quote);
     syncCaseFromQuote(ctx, quote);
@@ -471,6 +475,7 @@ export function createApp(): Express {
     const before = cloneRecord(store.quotes.find((record) => record.id === request.params.id));
     if (before) checkPriceWindow(store, { ...quoteSchema.parse(mergePatch(before, patch)), id: before.id }, before, reason);
     const quote = updateById(store.quotes, request.params.id, patch, quoteSchema.parse);
+    settleManualQuoteStatus(store, quote, before, previousOrderSelection);
     validateQuoteLinks(store, quote);
     assignPreviousQuote(store, quote);
     syncCaseFromQuote(ctx, quote);
