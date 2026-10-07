@@ -1,11 +1,7 @@
-import type { Quote } from "../src/types";
+import type { Quote, SampleInspection } from "../src/types";
 import { isPlainRecord, type AuditAction } from "./auditEntry";
 import {
-  assignPreviousQuote,
-  buildPriceChangeFromQuote,
-  closePreviousSelectedQuote,
   reconcileQuotePriceChanges,
-  syncCaseFromQuote,
   syncReusableQuotesForProject,
   syncReusableQuotesForProjects,
   validateDrawingSetLinks,
@@ -160,38 +156,51 @@ export function syncActiveCasesForModels(ctx: BusinessContext, modelIds: string[
   return changed;
 }
 
-export function syncQuoteStatusesFromPassedInspections(ctx: BusinessContext) {
-  let changed = false;
-  for (const inspection of ctx.store.inspections) {
-    if (inspection.recordState !== "Void") changed = syncQuoteStatusFromInspection(ctx, inspection) || changed;
+/**
+ * Moves quotes along with their latest sample inspection. Only a quote that
+ * asked for a sample is changed, so a buyer's decision always stands; a status
+ * the system set is undone when the inspection behind it is voided or changed.
+ */
+export function syncQuoteStatusesFromInspections(ctx: BusinessContext) {
+  const { store } = ctx;
+  for (const quote of store.quotes) {
+    if (quote.recordState === "Void") continue;
+    const next = statusFromInspection(quote, latestInspectionOfQuote(store, quote.id));
+    if (!next) continue;
+    const before = cloneRecord(quote);
+    quote.status = next.status;
+    quote.statusBasis = next.basis;
+    quote.statusReference = undefined;
+    ctx.audit("Status Change", "Quote", quote.id, entityLabel(store, "Quote", quote), before, quote, next.reason, quote.projectId, "System");
   }
-  return changed;
 }
 
-export function syncQuoteStatusFromInspection(ctx: BusinessContext, inspection: { relatedQuoteId?: string; result: string }) {
-  const { store } = ctx;
-  if (!inspection.relatedQuoteId || inspection.result !== "Pass") return false;
-  const quote = store.quotes.find((candidate) => candidate.id === inspection.relatedQuoteId && candidate.recordState !== "Void");
-  if (!quote || quote.status === "Selected") return false;
-  const before = cloneRecord(quote);
-  quote.status = "Selected";
-  assignPreviousQuote(store, quote);
-  buildPriceChangeFromQuote(ctx, quote);
-  closePreviousSelectedQuote(store, quote);
-  syncCaseFromQuote(ctx, quote);
-  syncReusableQuotesForProjects(ctx);
-  ctx.audit(
-    "Status Change",
-    "Quote",
-    quote.id,
-    entityLabel(store, "Quote", quote),
-    before,
-    quote,
-    "Sample inspection passed; quote selected automatically.",
-    quote.projectId,
-    "System",
-  );
-  return true;
+function statusFromInspection(
+  quote: Quote,
+  inspection: SampleInspection | undefined,
+): { status: Quote["status"]; basis?: Quote["statusBasis"]; reason: string } | undefined {
+  const passed = inspection?.result === "Pass";
+  const closedAsFailed = (inspection?.result === "Fail" || inspection?.result === "Conditional") && inspection.disposition === "No Further Action";
+  if (quote.status === "Sample Requested" && passed) {
+    return { status: "Selected", basis: "QC Pass", reason: "Sample inspection passed; quote selected automatically." };
+  }
+  if (quote.status === "Sample Requested" && closedAsFailed) {
+    return { status: "No Further Action", basis: "QC Closed Fail", reason: "Sample inspection failed with no further action." };
+  }
+  if (quote.status === "Selected" && quote.statusBasis === "QC Pass" && !passed) {
+    return { status: "Sample Requested", reason: "The passing sample inspection was voided or changed." };
+  }
+  if (quote.status === "No Further Action" && quote.statusBasis === "QC Closed Fail" && !closedAsFailed) {
+    return { status: "Sample Requested", reason: "The failed sample inspection was voided or changed." };
+  }
+  return undefined;
+}
+
+function latestInspectionOfQuote(store: Store, quoteId: string) {
+  return store.inspections
+    .filter((inspection) => inspection.recordState !== "Void" && inspection.relatedQuoteId === quoteId)
+    .sort((a, b) => a.sampleRound - b.sampleRound || a.sampleReceivedDate.localeCompare(b.sampleReceivedDate))
+    .at(-1);
 }
 
 export function ensureSourceAssignmentLinks(store: Store, record: {
@@ -409,15 +418,15 @@ export function voidById<T extends { id: string; recordState?: "Draft" | "Active
 
 /**
  * The passes that keep derived records consistent: packaging-set coverage,
- * case items, reusable quotes, quotes selected by a passed inspection, and
- * price changes. Every write runs them before it commits, so reads never need to.
+ * case items, quote statuses that follow sample inspections, reusable quotes,
+ * and price changes. Every write runs them before it commits, so reads never need to.
  */
 export function reconcile(ctx: BusinessContext) {
   const modelIds = ctx.store.models.map((model) => model.id);
   syncActivePackagingSetItems(ctx, modelIds, "Auto sync");
   syncActiveCasesForModels(ctx, modelIds, "Auto sync");
+  syncQuoteStatusesFromInspections(ctx);
   syncReusableQuotesForProjects(ctx);
-  syncQuoteStatusesFromPassedInspections(ctx);
   reconcileQuotePriceChanges(ctx);
 }
 

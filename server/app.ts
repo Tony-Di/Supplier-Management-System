@@ -68,7 +68,6 @@ import {
   nextDrawingSetRevision,
   syncActiveCasesForModels,
   syncActivePackagingSetItems,
-  syncQuoteStatusFromInspection,
   updateById,
   voidById,
 } from "./workflow";
@@ -526,7 +525,6 @@ export function createApp(): Express {
     validateInspectionLinks(store, parsed);
     const inspection = { id: ctx.nextId("ins"), ...parsed };
     store.inspections.push(inspection);
-    syncQuoteStatusFromInspection(ctx, inspection);
     ctx.audit("Create", "Inspection", inspection.id, entityLabel(store, "Inspection", inspection), undefined, inspection, undefined, inspection.relatedQuoteId);
     return created(inspection);
   }));
@@ -542,7 +540,6 @@ export function createApp(): Express {
     const before = cloneRecord(store.inspections.find((record) => record.id === request.params.id));
     const inspection = updateById(store.inspections, request.params.id, request.body, inspectionSchema.parse);
     validateInspectionLinks(store, inspection);
-    syncQuoteStatusFromInspection(ctx, inspection);
     ctx.audit(editAction(before, inspection), "Inspection", inspection.id, entityLabel(store, "Inspection", inspection), before, inspection, undefined, inspection.relatedQuoteId);
     return ok(inspection);
   }));
