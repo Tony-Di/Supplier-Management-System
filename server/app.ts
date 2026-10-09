@@ -41,6 +41,7 @@ import { ValidationError } from "./errors";
 import { errorHandler } from "./errorHandler";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
+import { getConfig } from "./config";
 import { requireAdmin, requireAuth, sessionMiddleware, verifyCsrf } from "./session";
 import { listAuditEntries } from "./auditLog";
 import { pool } from "./db";
@@ -67,14 +68,15 @@ import {
   entityLabel,
   nextDrawingSetRevision,
   syncActiveCasesForModels,
+  settleManualQuoteStatus,
   syncActivePackagingSetItems,
-  syncQuoteStatusFromInspection,
   updateById,
   voidById,
 } from "./workflow";
 
-export function createApp(): Express {
+export function createApp({ previousOrderSelection = getConfig().previousOrderSelection }: { previousOrderSelection?: boolean } = {}): Express {
   const app = express();
+  app.locals.previousOrderSelection = previousOrderSelection;
 
   app.use(cors({ origin: ["http://127.0.0.1:5173", "http://localhost:5173"] }));
   app.use(express.json({ limit: "10mb" }));
@@ -442,10 +444,12 @@ export function createApp(): Express {
   app.get("/api/quotes", read((store) => store.quotes));
   app.post("/api/quotes", write((ctx, request) => {
     const { store } = ctx;
-    const parsed = quoteSchema.parse({ ...request.body, recordState: "Active" });
+    // Only a later selection records which quote closed this price.
+    const { closedByQuoteId: _closedByQuoteId, ...parsed } = quoteSchema.parse({ ...request.body, recordState: "Active" });
     validateQuoteLinks(store, parsed);
     checkPriceWindow(store, { id: "", ...parsed });
     const quote = { id: ctx.nextId("q"), ...parsed };
+    settleManualQuoteStatus(store, quote, undefined, previousOrderSelection);
     store.quotes.push(quote);
     assignPreviousQuote(store, quote);
     syncCaseFromQuote(ctx, quote);
@@ -471,6 +475,7 @@ export function createApp(): Express {
     const before = cloneRecord(store.quotes.find((record) => record.id === request.params.id));
     if (before) checkPriceWindow(store, { ...quoteSchema.parse(mergePatch(before, patch)), id: before.id }, before, reason);
     const quote = updateById(store.quotes, request.params.id, patch, quoteSchema.parse);
+    settleManualQuoteStatus(store, quote, before, previousOrderSelection);
     validateQuoteLinks(store, quote);
     assignPreviousQuote(store, quote);
     syncCaseFromQuote(ctx, quote);
@@ -525,7 +530,6 @@ export function createApp(): Express {
     validateInspectionLinks(store, parsed);
     const inspection = { id: ctx.nextId("ins"), ...parsed };
     store.inspections.push(inspection);
-    syncQuoteStatusFromInspection(ctx, inspection);
     ctx.audit("Create", "Inspection", inspection.id, entityLabel(store, "Inspection", inspection), undefined, inspection, undefined, inspection.relatedQuoteId);
     return created(inspection);
   }));
@@ -541,7 +545,6 @@ export function createApp(): Express {
     const before = cloneRecord(store.inspections.find((record) => record.id === request.params.id));
     const inspection = updateById(store.inspections, request.params.id, request.body, inspectionSchema.parse);
     validateInspectionLinks(store, inspection);
-    syncQuoteStatusFromInspection(ctx, inspection);
     ctx.audit(editAction(before, inspection), "Inspection", inspection.id, entityLabel(store, "Inspection", inspection), before, inspection, undefined, inspection.relatedQuoteId);
     return ok(inspection);
   }));

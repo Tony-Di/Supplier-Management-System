@@ -3,7 +3,7 @@ import { type AppData, createInspection } from "../api";
 import { useAppData } from "../AppDataContext";
 import { useState, useEffect, FormEvent } from "react";
 import { activeDrawingSetsForModel, itemCode, drawingFileLabel } from "../lib/lookups";
-import { caseSupplierIds, nextInspectionRoundForQuote, defaultDispositionForResult } from "../lib/sourcing";
+import { caseSupplierIds, nextInspectionRoundForQuote, defaultDispositionForResult, rejectedSampleActions } from "../lib/sourcing";
 import { type SampleInspection } from "../types";
 import { uploadMultipleFormFiles } from "../lib/uploads";
 import { uploadAccept } from "../constants";
@@ -172,13 +172,13 @@ export function InspectionModal({
           {result !== "Pass" && result !== "Not Submitted" && (
             <label>
               Action
-              <select name="disposition" defaultValue={result === "Conditional" ? "Conditional Approval" : "Re-sample Required"}>
-                {["Re-sample Required", "Conditional Approval"].map((value) => <option key={value}>{value}</option>)}
+              <select name="disposition" defaultValue="Re-sample Required">
+                {rejectedSampleActions.map((value) => <option key={value}>{value}</option>)}
               </select>
             </label>
           )}
           <label>
-            Problem Photos
+            Photos / attachments
             <input multiple name="photoFiles" type="file" accept={uploadAccept} />
           </label>
           <label>

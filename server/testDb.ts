@@ -1,21 +1,21 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readdirSync } from "node:fs";
 import { after } from "node:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Pool, type PoolClient } from "pg";
-import type { Express } from "express";
 
-import { runMigrations } from "../scripts/migrate";
+import { migrationsDirectory, runMigrations } from "../scripts/migrate";
 
 const connectionString = process.env.DATABASE_URL_TEST;
 
 /**
  * Runs `fn` with a client bound to a freshly created, isolated schema that has
- * every migration applied. The schema is dropped afterwards. Use this for
- * repository-level tests that talk to Postgres directly.
+ * every migration applied, or only those up to and including `through`, so a
+ * test can seed older data and then run the rest. The schema is dropped
+ * afterwards. Use this for repository-level tests that talk to Postgres directly.
  */
-export async function withTestDatabase(fn: (client: PoolClient) => Promise<void>) {
+export async function withTestDatabase(fn: (client: PoolClient) => Promise<void>, options: { through?: string } = {}) {
   if (!connectionString) throw new Error("DATABASE_URL_TEST is not set. Run npm test for the offline suite.");
   const pool = new Pool({ connectionString });
   const schema = `test_${randomUUID().replace(/-/g, "")}`;
@@ -23,13 +23,21 @@ export async function withTestDatabase(fn: (client: PoolClient) => Promise<void>
   try {
     await client.query(`CREATE SCHEMA ${schema}`);
     await client.query(`SET search_path TO ${schema}`);
-    await runMigrations(client);
+    await runMigrations(client, options.through ? migrationsThrough(options.through) : undefined);
     await fn(client);
   } finally {
     await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
     client.release();
     await pool.end();
   }
+}
+
+function migrationsThrough(lastFilename: string) {
+  const directory = mkdtempSync(join(tmpdir(), "sourcing-migrations-"));
+  for (const filename of readdirSync(migrationsDirectory)) {
+    if (filename.endsWith(".sql") && filename <= lastFilename) copyFileSync(join(migrationsDirectory, filename), join(directory, filename));
+  }
+  return directory;
 }
 
 interface QueryExecutor {
@@ -52,7 +60,7 @@ export async function resetTestDatabase(executor: QueryExecutor): Promise<void> 
 }
 
 interface TestAppContext {
-  createApp: () => Express;
+  createApp: typeof import("./app").createApp;
   pool: Pool;
 }
 

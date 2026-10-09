@@ -38,7 +38,6 @@ export function buildCaseProgressRow(appData: Pick<AppData, "inspections" | "ite
   const itemQuotes = quotesForCaseItemSupplier(appData, project, itemId, supplierId);
   const quote = itemQuotes.find(isSelectedQuote) ?? itemQuotes.find(isSampleRequestedQuote) ?? itemQuotes[0];
   const quoteInspections = quote ? inspectionsForQuote(appData, quote.id) : [];
-  const latestInspection = quote ? latestCaseInspection(appData, project, quote) : undefined;
   const quoteCaseLink = quote ? quoteCaseLinkFor(appData, quote.id, project.id) : undefined;
   const assignment = appData.sourceAssignments
     .filter((current) =>
@@ -47,20 +46,14 @@ export function buildCaseProgressRow(appData: Pick<AppData, "inspections" | "ite
       current.itemId === itemId &&
       current.supplierId === supplierId)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
-  const canAssign = Boolean(quote && latestInspection && (latestInspection.result === "Pass" || latestInspection.result === "Conditional"));
-
   return {
-    assignDisabledReason: quote
-      ? latestInspection
-        ? "QC must pass or be conditional before assigning source role."
-        : "QC inspection is required before assigning source role."
-      : "Quote is required before assigning source role.",
-    canAssign,
+    assignDisabledReason: quote ? "Quote must be Selected before assigning a source role." : "Quote is required before assigning source role.",
+    canAssign: quote?.status === "Selected",
     inScope,
     item,
     itemId,
     lastUpdate: latestActivityDate(itemQuotes, quoteInspections),
-    qcLabel: quote ? caseQcLabel(appData, project, quote, latestInspection) : "No sample requested",
+    qc: quote ? qcProgress(appData, quote) : noSampleRequested,
     quoteCaseLink,
     quoteLinkLabel: quote ? quoteCaseLabel(appData, quote, project.id) : "",
     quote,
@@ -154,28 +147,6 @@ export function quotesForCaseItemSupplier(appData: Pick<AppData, "items" | "proj
     .sort((a, b) => (b.effectiveFrom ?? b.quoteDate).localeCompare(a.effectiveFrom ?? a.quoteDate));
 }
 
-export function latestCaseInspection(appData: Pick<AppData, "inspections">, project: AppData["projects"][number], quote: Quote) {
-  const directInspection = latestInspectionForQuote(appData, quote.id);
-  if (directInspection) return directInspection;
-  return appData.inspections
-    .filter((inspection) =>
-      inspection.recordState !== "Void" &&
-      inspection.supplierId === quote.supplierId &&
-      inspection.itemId === quote.itemId &&
-      inspection.drawingSetId === project.drawingSetId)
-    .sort((a, b) => a.sampleRound - b.sampleRound || a.sampleReceivedDate.localeCompare(b.sampleReceivedDate))
-    .slice(-1)[0];
-}
-
-export function caseQcLabel(appData: Pick<AppData, "inspections" | "quoteCaseLinks">, project: AppData["projects"][number], quote: Quote, inspection?: SampleInspection) {
-  const link = quoteCaseLinkFor(appData, quote.id, project.id);
-  if (inspection?.result === "Pass" || inspection?.result === "Conditional") return "Existing QC Pass";
-  if (isSampleRequestedQuote(quote)) return qcQueueStatus(appData, quote);
-  if (link?.sampleRequirement === "Not Required - Existing QC Pass") return "Existing QC Pass";
-  if (link?.sampleRequirement === "Required") return "Sample Required";
-  return "No sample requested";
-}
-
 export function inspectionsForQuote(appData: Pick<AppData, "inspections">, quoteId: string) {
   return appData.inspections
     .filter((inspection) => inspection.relatedQuoteId === quoteId && inspection.recordState !== "Void")
@@ -194,34 +165,50 @@ export function isSelectedQuote(quote: Quote) {
   return quote.status === "Selected";
 }
 
-export function isQuoteInQcQueue(appData: Pick<AppData, "inspections">, quote: Quote) {
-  const latestInspection = latestInspectionForQuote(appData, quote.id);
-  if (!latestInspection) return true;
-  if (latestInspection.result === "Pass" || latestInspection.disposition === "Accepted") return false;
-  if (latestInspection.disposition === "No Further Action") return false;
-  return true;
+/** The QC sample queue holds exactly the quotes waiting for a sample. */
+export function isQuoteInQcQueue(quote: Quote) {
+  return quote.recordState !== "Void" && isSampleRequestedQuote(quote);
 }
 
-export function qcQueueStatus(appData: Pick<AppData, "inspections">, quote: Quote) {
-  const latestInspection = latestInspectionForQuote(appData, quote.id);
-  if (!latestInspection) return "Waiting for Sample";
-  if (latestInspection.result === "Not Submitted") return "Pending Inspection";
-  if (latestInspection.result === "Fail") return latestInspection.disposition === "No Further Action" ? "Closed Fail" : "Re-sample Required";
-  if (latestInspection.result === "Conditional") return "Conditional Review";
-  return "QC Pass";
+export interface QcProgress {
+  label: string;
+  tone: "pass" | "rejected" | "pending" | "neutral";
+}
+
+const noSampleRequested: QcProgress = { label: "No sample requested", tone: "neutral" };
+
+/** Where a quote's sampling stands, naming the round, for the QC queue, Case Progress and the comparison. */
+export function qcProgress(appData: Pick<AppData, "inspections">, quote: Quote): QcProgress {
+  const latest = latestInspectionForQuote(appData, quote.id);
+  if (latest) {
+    const round = latest.sampleRound;
+    if (latest.result === "Pass") return { label: `Round ${round} Passed`, tone: "pass" };
+    if (latest.result === "Not Submitted") return { label: `Round ${round} – Pending Inspection`, tone: "pending" };
+    if (latest.disposition === "No Further Action") return { label: `Round ${round} Rejected – No Further Action`, tone: "rejected" };
+    return { label: `Round ${round} Rejected – Waiting for Round ${round + 1}`, tone: "rejected" };
+  }
+  if (isSelectedQuote(quote)) {
+    return { label: `No Sample Needed – ${quote.statusBasis === "Previous Orders" ? "Previous Orders" : "Existing Supplier"}`, tone: "pass" };
+  }
+  if (isSampleRequestedQuote(quote)) return { label: "Round 1 – Waiting for Sample", tone: "pending" };
+  return noSampleRequested;
 }
 
 export function qcQueueActionLabel(appData: Pick<AppData, "inspections">, quote: Quote) {
   const latestInspection = latestInspectionForQuote(appData, quote.id);
   if (!latestInspection) return "Receive sample";
-  if (latestInspection.result === "Fail" && latestInspection.disposition !== "No Further Action") return "Receive next sample";
+  if ((latestInspection.result === "Fail" || latestInspection.result === "Conditional") && latestInspection.disposition !== "No Further Action") {
+    return "Receive next sample";
+  }
   return "Record inspection";
 }
 
+/** What QC may decide for a failed or conditional round: send another sample, or stop following the quote up. */
+export const rejectedSampleActions: SampleInspection["disposition"][] = ["Re-sample Required", "No Further Action"];
+
 export function defaultDispositionForResult(result: SampleInspection["result"]): SampleInspection["disposition"] {
   if (result === "Pass") return "Accepted";
-  if (result === "Fail") return "Re-sample Required";
-  if (result === "Conditional") return "Conditional Approval";
+  if (result === "Fail" || result === "Conditional") return "Re-sample Required";
   return "Pending";
 }
 

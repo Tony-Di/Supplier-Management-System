@@ -39,6 +39,16 @@ test("editing a quote's effective date clears Valid Until", () => {
   assert.equal(patch.validUntil, null);
 });
 
+test("selecting on previous orders sends the basis and the PO number", () => {
+  const patch = buildEditPatch({ endpoint: "quotes", record: quote }, editForm({ status: "Selected", previousOrdersConfirmed: "on", statusReference: " PO-77 " }));
+  assert.deepEqual([patch.status, patch.statusBasis, patch.statusReference], ["Selected", "Previous Orders", "PO-77"]);
+});
+
+test("a quote edit without the previous-orders confirmation sends no basis", () => {
+  const patch = buildEditPatch({ endpoint: "quotes", record: quote }, editForm({ status: "Selected" }));
+  assert.equal("statusBasis" in patch, false);
+});
+
 test("an emptied ERP vendor ID is sent as null", () => {
   const supplier = { id: "sup-1", recordState: "Active", capableItems: [], otherFileIds: [] } as unknown as Supplier;
   const patch = buildEditPatch({ endpoint: "suppliers", record: supplier }, editForm({ erpVendorId: "", capableItemsJson: "[]" }));

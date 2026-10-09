@@ -2,7 +2,7 @@ import type { AppData } from "../api";
 import type { Quote } from "../types";
 import { isUsableRecord } from "./recordOptions";
 
-/** Keep the selection order aligned with server/rules.ts; parity is regression tested. */
+/** Whether a quote can take a source role (it must be Selected, as server/workflow.ts checks), and the case's latest QC record for it. */
 export function sourceRoleEligibility(data: AppData, quote: Quote | undefined, projectId = quote?.projectId) {
   if (!quote) return { reason: "Quote is required before assigning source role.", inspection: undefined };
   const project = data.projects.find((record) => record.id === projectId);
@@ -19,7 +19,6 @@ export function sourceRoleEligibility(data: AppData, quote: Quote | undefined, p
   if (unavailable) return { inspection, reason: "A linked supplier, model, item, case or quote is unavailable. Source roles cannot be assigned." };
   return {
     inspection,
-    reason: inspection?.result === "Pass" || inspection?.result === "Conditional"
-      ? undefined : "QC must pass or be conditional before assigning source role.",
+    reason: quote.status === "Selected" ? undefined : "Quote must be Selected before assigning a source role.",
   };
 }

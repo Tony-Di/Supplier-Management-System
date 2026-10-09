@@ -175,7 +175,7 @@ function sampleRequirementForQuoteInProject(store: Store, quote: Quote, project:
       inspection.supplierId === quote.supplierId &&
       inspection.itemId === quote.itemId &&
       (!activeProjectDrawingSet || inspection.drawingSetId === activeProjectDrawingSet.id) &&
-      (inspection.result === "Pass" || inspection.result === "Conditional"))
+      inspection.result === "Pass")
     .sort((a, b) => a.sampleRound - b.sampleRound || a.sampleReceivedDate.localeCompare(b.sampleReceivedDate))
     .slice(-1)[0];
   if (passedInspection) return "Not Required - Existing QC Pass";
@@ -402,6 +402,7 @@ export function buildPriceChangeFromQuote(ctx: BusinessContext, quote: Quote) {
 
 export function reconcileQuotePriceChanges(ctx: BusinessContext) {
   const { store } = ctx;
+  releasePricesOfUnselectedQuotes(store);
   const effectiveQuotes = [...store.quotes]
     .filter((quote) => quote.recordState !== "Void" && isEffectivePriceQuote(quote))
     .sort((a, b) => (a.effectiveFrom ?? a.quoteDate).localeCompare(b.effectiveFrom ?? b.quoteDate));
@@ -410,6 +411,33 @@ export function reconcileQuotePriceChanges(ctx: BusinessContext) {
     assignPreviousQuote(store, quote);
     buildPriceChangeFromQuote(ctx, quote);
     closePreviousSelectedQuote(store, quote);
+  }
+}
+
+/**
+ * Undoes what a quote's selection did once it is no longer Selected: the price
+ * it closed reopens, a later price stops naming it as the price it replaced,
+ * and price changes still pending from or against it are voided.
+ */
+function releasePricesOfUnselectedQuotes(store: Store) {
+  const isCurrentPrice = (id: string | undefined) => {
+    const quote = id ? store.quotes.find((candidate) => candidate.id === id) : undefined;
+    return Boolean(quote && quote.recordState !== "Void" && isEffectivePriceQuote(quote));
+  };
+  for (const quote of store.quotes) {
+    if (quote.closedByQuoteId && !isCurrentPrice(quote.closedByQuoteId)) {
+      quote.effectiveTo = undefined;
+      quote.closedByQuoteId = undefined;
+    }
+    if (quote.previousQuoteId && isCurrentPrice(quote.id) && !isCurrentPrice(quote.previousQuoteId)) {
+      quote.previousQuoteId = undefined;
+    }
+  }
+  for (const change of store.priceChanges) {
+    if (change.recordState === "Void" || change.status !== "Pending" || !change.sourceQuoteId) continue;
+    if (isCurrentPrice(change.sourceQuoteId) && isCurrentPrice(change.previousQuoteId)) continue;
+    change.recordState = "Void";
+    change.voidReason = "Quote no longer selected";
   }
 }
 
@@ -427,6 +455,7 @@ export function closePreviousSelectedQuote(store: Store, quote: Quote) {
   if (!previousQuote) return;
   if ((previousQuote.effectiveFrom ?? previousQuote.quoteDate) === (quote.effectiveFrom ?? quote.quoteDate)) return;
   previousQuote.effectiveTo = dayBefore(quote.effectiveFrom ?? quote.quoteDate);
+  previousQuote.closedByQuoteId = quote.id;
 }
 
 function isSampleRequestedQuote(quote: Quote) {
@@ -511,7 +540,7 @@ function buildSupplierScorecard(store: Store, supplierId: string) {
   const sampleQualityScore =
     reviewedSamples === 0
       ? 0
-      : clamp(Math.round((pass / reviewedSamples) * (store.scoreWeights.sampleQuality - 5) + conditional * 2 - fail * 3 + (pass > 0 ? 5 : 0)), 0, store.scoreWeights.sampleQuality);
+      : clamp(Math.round((pass / reviewedSamples) * (store.scoreWeights.sampleQuality - 5) - fail * 3 + (pass > 0 ? 5 : 0)), 0, store.scoreWeights.sampleQuality);
   const pricingScore = scorePricingCompetitiveness(store, supplierQuotes, store.scoreWeights.pricing, supplier.paymentTerms);
   const responsivenessScore = scoreResponsiveness(
     { quoteCount: supplierQuotes.length, averageLeadTime, selectedQuotes },

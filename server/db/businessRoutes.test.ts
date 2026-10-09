@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { Pool } from "pg";
 
 import { withTestApp } from "../testDb";
-import { expectJson, send, signIn } from "./http";
+import { call, expectJson, send, signIn } from "./http";
 import { seedSourcingCase, snapshotTables } from "./seed";
 
 test("a rejected edit changes nothing", async () => {
@@ -19,17 +20,18 @@ test("a rejected edit changes nothing", async () => {
   });
 });
 
-test("passing an inspection stores the quote as Selected with its price change", async () => {
-  await withTestApp(async ({ createApp, pool }) => {
-    const app = createApp();
-    const session = await signIn(app);
-    const seed = await seedSourcingCase(app, session);
-    const { id: _seedQuoteId, ...quoteFields } = seed.quote;
-    const earlier = await expectJson(
-      send(app, session, "POST", "/api/quotes", { ...quoteFields, quoteDate: "2026-01-10", effectiveFrom: "2026-01-10", unitPrice: 10, status: "Selected" }),
-      201,
-    );
-    const inspection = await expectJson(
+/** A case quote waiting for its sample, an earlier Selected price for the same supplier and item, and a helper to record its inspection. */
+async function seedSampledQuote(app: Parameters<typeof signIn>[0], session: Awaited<ReturnType<typeof signIn>>, pool: Pool) {
+  const seed = await seedSourcingCase(app, session);
+  const { id: _seedQuoteId, ...quoteFields } = seed.quote;
+  const earlier = await expectJson(
+    send(app, session, "POST", "/api/quotes", { ...quoteFields, quoteDate: "2026-01-10", effectiveFrom: "2026-01-10", unitPrice: 10 }),
+    201,
+  );
+  await pool.query("UPDATE quotes SET status = 'Selected' WHERE id = $1", [earlier.id]);
+  await expectJson(send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Sample Requested" }), 200);
+  const inspect = (fields: Record<string, unknown>) =>
+    expectJson(
       send(app, session, "POST", "/api/inspections", {
         supplierId: seed.supplier.id,
         projectId: seed.project.id,
@@ -39,19 +41,151 @@ test("passing an inspection stores the quote as Selected with its price change",
         itemId: seed.item.id,
         drawingItemId: seed.drawingSet.drawingItems[0].id,
         sampleReceivedDate: "2026-02-15",
-        result: "Not Submitted",
+        ...fields,
       }),
       201,
     );
+  return { seed, earlier, inspect };
+}
+
+test("passing an inspection stores the quote as Selected with its price change", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, earlier, inspect } = await seedSampledQuote(app, session, pool);
+    const inspection = await inspect({ result: "Not Submitted" });
 
     await expectJson(send(app, session, "PATCH", `/api/inspections/${inspection.id}`, { result: "Pass" }), 200);
 
-    const { rows: [quote] } = await pool.query("SELECT status, previous_quote_id FROM quotes WHERE id = $1", [seed.quote.id]);
-    assert.deepEqual(quote, { status: "Selected", previous_quote_id: earlier.id });
+    const { rows: [quote] } = await pool.query("SELECT status, status_basis, previous_quote_id FROM quotes WHERE id = $1", [seed.quote.id]);
+    assert.deepEqual(quote, { status: "Selected", status_basis: "QC Pass", previous_quote_id: earlier.id });
     const { rows: changes } = await pool.query("SELECT source_quote_id, previous_quote_id, old_price, new_price FROM price_changes");
     assert.deepEqual(changes, [{ source_quote_id: seed.quote.id, previous_quote_id: earlier.id, old_price: 10, new_price: 12 }]);
     const { rows: [closed] } = await pool.query("SELECT effective_to FROM quotes WHERE id = $1", [earlier.id]);
     assert.notEqual(closed.effective_to, null);
+  });
+});
+
+test("a quote the buyer drops after its sample passed stays dropped", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, inspect } = await seedSampledQuote(app, session, pool);
+    const inspection = await inspect({ result: "Pass" });
+
+    const dropped = await expectJson(send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "No Further Action" }), 200);
+    assert.equal(dropped.status, "No Further Action");
+    await expectJson(send(app, session, "PATCH", `/api/inspections/${inspection.id}`, { notes: "Checked again" }), 200);
+    const { rows } = await pool.query("SELECT status FROM quotes WHERE id = $1", [seed.quote.id]);
+    assert.deepEqual(rows, [{ status: "No Further Action" }]);
+  });
+});
+
+test("voiding the passing inspection puts the quote back to waiting and reopens the earlier price", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, earlier, inspect } = await seedSampledQuote(app, session, pool);
+    const inspection = await inspect({ result: "Pass" });
+
+    await expectJson(send(app, session, "POST", `/api/inspections/${inspection.id}/void`, { reason: "Entered against the wrong quote" }), 200);
+
+    const { rows: [quote] } = await pool.query("SELECT status, status_basis FROM quotes WHERE id = $1", [seed.quote.id]);
+    assert.deepEqual(quote, { status: "Sample Requested", status_basis: null });
+    const { rows: [reopened] } = await pool.query("SELECT effective_to FROM quotes WHERE id = $1", [earlier.id]);
+    assert.equal(reopened.effective_to, null);
+    const { rows: changes } = await pool.query("SELECT record_state FROM price_changes");
+    assert.deepEqual(changes, [{ record_state: "Void" }]);
+  });
+});
+
+test("a new supplier's quote cannot be set to Selected by hand", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const seed = await seedSourcingCase(app, session);
+    const before = await snapshotTables(pool);
+    const response = await send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Selected" });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).message, /Request a sample first/);
+    assert.deepEqual(await snapshotTables(pool), before);
+  });
+});
+
+test("a supplier that passed QC for the item can have a requote set to Selected by hand", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, inspect } = await seedSampledQuote(app, session, pool);
+    await inspect({ result: "Pass" });
+    const { id: _seedQuoteId, ...quoteFields } = seed.quote;
+    const requote = await expectJson(
+      send(app, session, "POST", "/api/quotes", { ...quoteFields, quoteReason: "Requote", quoteDate: "2026-08-01", effectiveFrom: "2026-08-01", unitPrice: 14 }),
+      201,
+    );
+    const selected = await expectJson(send(app, session, "PATCH", `/api/quotes/${requote.id}`, { status: "Selected", statusBasis: "QC Pass" }), 200);
+    assert.deepEqual([selected.status, selected.statusBasis], ["Selected", "Existing Supplier"]);
+  });
+});
+
+test("previous orders select a quote for a supplier with a Since date, and only when confirmed", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp({ previousOrderSelection: true });
+    const session = await signIn(app);
+    const seed = await seedSourcingCase(app, session);
+    await expectJson(send(app, session, "PATCH", `/api/suppliers/${seed.supplier.id}`, { supplierSince: "2023-04-01" }), 200);
+
+    const unconfirmed = await send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Selected" });
+    assert.equal(unconfirmed.status, 400);
+    assert.match((await unconfirmed.json()).message, /supplied this item before/);
+
+    await expectJson(
+      send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Selected", statusBasis: "Previous Orders", statusReference: " PO-77 " }),
+      200,
+    );
+    const { rows } = await pool.query("SELECT status, status_basis, status_reference FROM quotes WHERE id = $1", [seed.quote.id]);
+    assert.deepEqual(rows, [{ status: "Selected", status_basis: "Previous Orders", status_reference: "PO-77" }]);
+  });
+});
+
+test("previous orders are refused once that entry point is switched off", async () => {
+  await withTestApp(async ({ createApp }) => {
+    const app = createApp({ previousOrderSelection: false });
+    const session = await signIn(app);
+    const seed = await seedSourcingCase(app, session);
+    await expectJson(send(app, session, "PATCH", `/api/suppliers/${seed.supplier.id}`, { supplierSince: "2023-04-01" }), 200);
+    const response = await send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "Selected", statusBasis: "Previous Orders" });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).message, /Request a sample first/);
+    const me = await (await call(app, "/api/auth/me", { cookie: session.cookie })).json();
+    assert.deepEqual(me.features, { previousOrderSelection: false });
+  });
+});
+
+test("a status the system set is kept when an edit sends another basis", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, inspect } = await seedSampledQuote(app, session, pool);
+    await inspect({ result: "Pass" });
+    await expectJson(send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { notes: "MOQ confirmed", statusBasis: "Previous Orders" }), 200);
+    const { rows } = await pool.query("SELECT status, status_basis FROM quotes WHERE id = $1", [seed.quote.id]);
+    assert.deepEqual(rows, [{ status: "Selected", status_basis: "QC Pass" }]);
+  });
+});
+
+test("a source role is refused for a quote that is not Selected, even after its sample passed", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { seed, inspect } = await seedSampledQuote(app, session, pool);
+    const role = { projectId: seed.project.id, modelId: seed.model.id, itemId: seed.item.id, supplierId: seed.supplier.id, sourceQuoteId: seed.quote.id, role: "Primary", effectiveFrom: "2026-03-01" };
+    await inspect({ result: "Pass" });
+    await expectJson(send(app, session, "PATCH", `/api/quotes/${seed.quote.id}`, { status: "No Further Action" }), 200);
+
+    const refused = await send(app, session, "POST", "/api/source-assignments", role);
+    assert.equal(refused.status, 400);
+    assert.match((await refused.json()).message, /must be Selected/);
   });
 });
 
@@ -102,14 +236,27 @@ test("opening the app writes nothing, even when a sync pass would change data", 
       }),
       201,
     );
-    // A passed inspection whose quote is not Selected: the old bootstrap sync rewrote this on read.
-    await pool.query("UPDATE quotes SET status = 'Under Review' WHERE id = $1", [seed.quote.id]);
+    // A passed inspection whose quote still asks for a sample: the old bootstrap sync rewrote this on read.
+    await pool.query("UPDATE quotes SET status = 'Sample Requested' WHERE id = $1", [seed.quote.id]);
     const before = await snapshotTables(pool);
 
     for (const path of ["/api/bootstrap", "/api/scorecard", `/api/projects/${seed.project.id}/comparison`, "/api/files", "/api/score-settings"]) {
       await expectJson(send(app, session, "GET", path), 200);
     }
     assert.deepEqual(await snapshotTables(pool), before);
+  });
+});
+
+test("a new quote cannot name the quote that closed its price", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const seed = await seedSourcingCase(app, session);
+    await pool.query("UPDATE quotes SET status = 'Selected' WHERE id = $1", [seed.quote.id]);
+    const { id: _seedQuoteId, ...quoteFields } = seed.quote;
+    const quote = await expectJson(send(app, session, "POST", "/api/quotes", { ...quoteFields, effectiveFrom: "2026-01-10", quoteDate: "2026-01-10", closedByQuoteId: seed.quote.id }), 201);
+    const { rows } = await pool.query("SELECT closed_by_quote_id FROM quotes WHERE id = $1", [quote.id]);
+    assert.deepEqual(rows, [{ closed_by_quote_id: null }]);
   });
 });
 

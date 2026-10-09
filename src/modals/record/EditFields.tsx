@@ -5,7 +5,8 @@ import { useAppData } from "../../AppDataContext";
 import { useState, useEffect } from "react";
 import { type PackagingItemType } from "../../types";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
-import { maxOtherSupplierFiles, packagingItemOptions, quoteStatusOptions, uploadAccept } from "../../constants";
+import { maxOtherSupplierFiles, packagingItemOptions, uploadAccept } from "../../constants";
+import { QuoteStatusField } from "../../components/QuoteStatusField";
 import { FileReference } from "../../components/FileReference";
 import { isPublishedRecord } from "../../lib/recordLifecycle";
 import { localDateString } from "../../lib/format";
@@ -38,7 +39,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <div className="formSection fullSpan supplierOtherFiles">
           <span>Other documents (up to {maxOtherSupplierFiles})</span>
           {record.otherFileIds.map((fileId) => (
-            <label className="removeFileOption" key={fileId}>
+            <label className="checkboxOption" key={fileId}>
               <input name="removeOtherFileId" type="checkbox" value={fileId} />
               Remove <FileReference fileId={fileId} />
             </label>
@@ -208,7 +209,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <label>Reason for changing Effective To<input name="changeReason" placeholder="Required only when Effective To changes" /></label>
         <label>Extra Cost Type<select name="extraCostType" defaultValue={record.extraCostType ?? "None"}>{["None", "Freight", "Sample", "Tooling", "Packaging Test", "Other"].map((value) => <option key={value}>{value}</option>)}</select></label>
         <label>Extra Cost Amount<input min="0" name="extraCostAmount" defaultValue={record.extraCostAmount ?? 0} step="0.001" type="number" /></label>
-        <label>Status<select name="status" defaultValue={record.status}>{quoteStatusOptions.map((value) => <option key={value}>{value}</option>)}</select></label>
+        <QuoteStatusField defaultValue={record.status} quote={record} />
         <label className="fullWidthLabel">Notes<textarea name="notes" defaultValue={record.notes} rows={3} /></label>
       </>
     );

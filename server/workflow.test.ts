@@ -1,19 +1,73 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { Quote, SampleInspection } from "../src/types";
 import { createContext } from "./context";
 import { ValidationError } from "./errors";
 import { sampleStore } from "./testFixtures";
-import { demoteConflictingSourceRoles, ensureNoSupplierLinks, entityLabel, syncQuoteStatusFromInspection } from "./workflow";
+import { demoteConflictingSourceRoles, ensureNoSupplierLinks, ensureSourceAssignmentLinks, entityLabel, syncQuoteStatusesFromInspections } from "./workflow";
 
-test("a passed inspection selects its quote and records a system change", () => {
+function inspectedQuote(status: Quote["status"], inspection: Partial<SampleInspection>, statusBasis?: Quote["statusBasis"]) {
   const store = sampleStore();
-  store.quotes[0].status = "Received";
+  Object.assign(store.quotes[0], { status, statusBasis });
+  Object.assign(store.inspections[0], inspection);
   const ctx = createContext(store, new Map(), undefined);
-  assert.equal(syncQuoteStatusFromInspection(ctx, store.inspections[0]), true);
-  assert.equal(store.quotes[0].status, "Selected");
+  syncQuoteStatusesFromInspections(ctx);
+  return { quote: store.quotes[0], ctx };
+}
+
+const pass = { result: "Pass", disposition: "Accepted" } as const;
+const closedFail = { result: "Fail", disposition: "No Further Action" } as const;
+
+test("a passed sample selects a quote that asked for it and records a system change", () => {
+  const { quote, ctx } = inspectedQuote("Sample Requested", pass);
+  assert.deepEqual([quote.status, quote.statusBasis], ["Selected", "QC Pass"]);
   const entry = ctx.auditEntries.find((candidate) => candidate.entityType === "Quote");
   assert.deepEqual([entry?.entityLabel, entry?.source, entry?.actorUserId], ["Legacy Paper / PAL-01", "System", null]);
+});
+
+test("a sample closed as failed ends the quote", () => {
+  assert.deepEqual(Object.values(pick(inspectedQuote("Sample Requested", closedFail).quote)), ["No Further Action", "QC Closed Fail"]);
+  assert.deepEqual(Object.values(pick(inspectedQuote("Sample Requested", { result: "Conditional", disposition: "No Further Action" }).quote)), ["No Further Action", "QC Closed Fail"]);
+});
+
+test("a rejected round that needs another sample leaves the quote waiting", () => {
+  assert.equal(inspectedQuote("Sample Requested", { result: "Fail", disposition: "Re-sample Required" }).quote.status, "Sample Requested");
+  assert.equal(inspectedQuote("Sample Requested", { result: "Conditional", disposition: "Re-sample Required" }).quote.status, "Sample Requested");
+  assert.equal(inspectedQuote("Sample Requested", { result: "Not Submitted", disposition: "Pending" }).quote.status, "Sample Requested");
+});
+
+test("a buyer's decision is never changed by a sample result", () => {
+  for (const status of ["Received", "No Further Action", "Expired"] as const) {
+    const { quote, ctx } = inspectedQuote(status, pass);
+    assert.equal(quote.status, status);
+    assert.equal(ctx.auditEntries.length, 0);
+  }
+  assert.equal(inspectedQuote("Selected", closedFail, "Existing Supplier").quote.status, "Selected");
+});
+
+test("a quote selected by a pass goes back to waiting when the pass is voided or changed", () => {
+  assert.deepEqual(Object.values(pick(inspectedQuote("Selected", { ...pass, recordState: "Void" }, "QC Pass").quote)), ["Sample Requested", undefined]);
+  assert.deepEqual(Object.values(pick(inspectedQuote("Selected", { result: "Fail", disposition: "Re-sample Required" }, "QC Pass").quote)), ["Sample Requested", undefined]);
+});
+
+test("a quote ended by a failed sample goes back to waiting when that result changes", () => {
+  assert.deepEqual(Object.values(pick(inspectedQuote("No Further Action", { result: "Fail", disposition: "Re-sample Required" }, "QC Closed Fail").quote)), ["Sample Requested", undefined]);
+});
+
+function pick(quote: Quote) {
+  return { status: quote.status, statusBasis: quote.statusBasis };
+}
+
+test("a source role needs a Selected quote, whatever its samples say", () => {
+  const store = sampleStore();
+  const assignment = store.sourceAssignments[0];
+  store.quotes[0].status = "Sample Requested";
+  assert.throws(() => ensureSourceAssignmentLinks(store, assignment), /must be Selected before assigning a source role/);
+  assert.throws(() => ensureSourceAssignmentLinks(store, { ...assignment, sourceQuoteId: undefined }), /quote is required/);
+  store.quotes[0].status = "Selected";
+  store.inspections[0].result = "Fail";
+  assert.doesNotThrow(() => ensureSourceAssignmentLinks(store, assignment));
 });
 
 test("a new Primary source demotes the existing Primary to Backup", () => {

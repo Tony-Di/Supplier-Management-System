@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Quote } from "../src/types";
-import { effectiveDateOrderError, overlappingPriceQuote, priceWindowError } from "./priceWindows";
+import { effectiveDateOrderError, isEffectivePriceQuote, overlappingPriceQuote, priceWindowError } from "./priceWindows";
 
 function quote(id: string, effectiveFrom: string, effectiveTo?: string, patch: Partial<Quote> = {}): Quote {
   return {
@@ -62,10 +62,12 @@ test("quotes that are only offers do not hold a price window", () => {
   assert.equal(overlappingPriceQuote(offer, [current, offer]), undefined);
 });
 
-test("a requote holds a price window even before it is selected", () => {
+test("a requote holds no price window until it is selected", () => {
   const current = quote("q1", "2026-01-01", "2026-12-31");
   const requote = quote("q2", "2026-03-01", "2026-04-30", { status: "Received", quoteReason: "Requote" });
-  assert.equal(overlappingPriceQuote(current, [current, requote])?.id, "q2");
+  assert.equal(isEffectivePriceQuote(requote), false);
+  assert.equal(overlappingPriceQuote(current, [current, requote]), undefined);
+  assert.equal(isEffectivePriceQuote({ ...requote, status: "Selected" }), true);
 });
 
 test("voided quotes and other suppliers or items are ignored", () => {
@@ -116,7 +118,7 @@ test("editing other fields does not re-check an overlap that already exists", ()
 
 test("selecting an offer whose window overlaps a current price is refused", () => {
   const current = quote("q1", "2026-07-01");
-  const before = quote("q2", "2026-03-01", undefined, { status: "Under Review" });
+  const before = quote("q2", "2026-03-01", undefined, { status: "Sample Requested" });
   const after = { ...before, status: "Selected" as const };
   assert.match(priceWindowError(after, [current, before], { before, describe }) ?? "", /overlaps quote q1/);
 });

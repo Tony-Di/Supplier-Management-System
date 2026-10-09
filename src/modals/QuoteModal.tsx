@@ -6,7 +6,8 @@ import { type Quote } from "../types";
 import { activeDrawingSetsForModel, itemById } from "../lib/lookups";
 import { todayDateString } from "../lib/format";
 import { uploadOptionalFormFile } from "../lib/uploads";
-import { quoteStatusOptions, uploadAccept } from "../constants";
+import { uploadAccept } from "../constants";
+import { QuoteStatusField } from "../components/QuoteStatusField";
 
 export function QuoteModal({
   data,
@@ -82,6 +83,8 @@ export function QuoteModal({
         extraCostType: String(form.get("extraCostType") ?? "None") as Quote["extraCostType"],
         extraCostAmount: Number(form.get("extraCostAmount") ?? 0),
         status: String(form.get("status") ?? "Received") as Quote["status"],
+        statusBasis: form.has("previousOrdersConfirmed") ? "Previous Orders" : undefined,
+        statusReference: String(form.get("statusReference") ?? "").trim() || undefined,
         attachmentFileId: attachmentUpload?.id,
         notes: String(form.get("notes") ?? ""),
       });
@@ -172,12 +175,7 @@ export function QuoteModal({
             Extra Cost Amount
             <input min="0" name="extraCostAmount" step="0.001" type="number" defaultValue="0" />
           </label>
-          <label>
-            Status
-            <select name="status" defaultValue="Received">
-              {quoteStatusOptions.map((status) => <option key={status}>{status}</option>)}
-            </select>
-          </label>
+          <QuoteStatusField defaultValue="Received" quote={{ id: "", supplierId, itemId }} />
           <label>
             Quote Attachment
             <input name="attachmentFile" type="file" accept={uploadAccept} />

@@ -29,7 +29,7 @@ test("a new record is an insert of its full row", () => {
 test("a changed record is an update of its full row", () => {
   const before = sampleStore();
   const after = sampleStore();
-  after.quotes[0].status = "Not Selected";
+  after.quotes[0].status = "No Further Action";
   const changes = diffRecords(TABLES.quotes, before.quotes, after.quotes);
   assert.deepEqual(changes.updates, [toRow(TABLES.quotes, after.quotes[0])]);
   assert.deepEqual([changes.inserts, changes.deletes], [[], []]);

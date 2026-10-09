@@ -33,6 +33,10 @@ export function buildEditPatch(target: EditTarget, form: FormData) {
   if (target.endpoint === "quotes") {
     const changeReason = String(form.get("changeReason") ?? "").trim();
     if (changeReason) patch.changeReason = changeReason;
+    if (form.has("previousOrdersConfirmed")) {
+      patch.statusBasis = "Previous Orders";
+      patch.statusReference = String(form.get("statusReference") ?? "").trim() || null;
+    }
   }
   if (target.endpoint === "projects") {
     const supplierIdsJson = String(form.get("supplierIdsJson") ?? "[]");

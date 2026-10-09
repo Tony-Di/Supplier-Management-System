@@ -7,6 +7,8 @@ export interface Config {
   secureCookies: boolean;
   authMode: "entra" | "dev";
   entra: { tenantId: string; clientId: string; clientSecret: string } | undefined;
+  /** Whether a buyer may select a quote without a sample by confirming earlier orders. Switched off once ERP history is in the system. */
+  previousOrderSelection: boolean;
 }
 
 function required(env: NodeJS.ProcessEnv, name: string): string {
@@ -48,5 +50,6 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): Config {
     secureCookies: production || env.COOKIE_SECURE === "true",
     authMode,
     entra,
+    previousOrderSelection: env.PREVIOUS_ORDER_SELECTION !== "off",
   };
 }
