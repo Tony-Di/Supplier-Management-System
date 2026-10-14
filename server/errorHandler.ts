@@ -6,6 +6,8 @@ const DATABASE_REFUSALS: Record<string, string> = {
   "23503": "This change refers to a record that does not exist, or removes one that other records still use.",
   "22007": "A date is not valid.",
   "22008": "A date is not valid.",
+  "22003": "A number is too large.",
+  "22021": "Text cannot contain a NUL character.",
 };
 
 /**

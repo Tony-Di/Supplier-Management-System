@@ -411,6 +411,37 @@ test("an impossible date is refused with 400", async () => {
   });
 });
 
+test("a quantity too large for its column is refused with 400 and nothing is stored", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { supplier, item } = await seedSourcingCase(app, session);
+    const before = await snapshotTables(pool);
+    const response = await send(app, session, "POST", "/api/incoming-defects", {
+      supplierId: supplier.id,
+      itemId: item.id,
+      defectDate: "2026-04-01",
+      defectQty: 3000000000,
+      defectAction: "Request Credit",
+    });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).message, "A number is too large.");
+    assert.deepEqual(await snapshotTables(pool), before);
+  });
+});
+
+test("a NUL character in text is refused with 400 and nothing is stored", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const before = await snapshotTables(pool);
+    const response = await send(app, session, "POST", "/api/suppliers", { name: "Null\u0000Supplier" });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).message, "Text cannot contain a NUL character.");
+    assert.deepEqual(await snapshotTables(pool), before);
+  });
+});
+
 test("a purchase price that a price change refers to cannot be deleted", async () => {
   await withTestApp(async ({ createApp }) => {
     const app = createApp();
