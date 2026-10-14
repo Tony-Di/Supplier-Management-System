@@ -57,6 +57,10 @@ Steps:
 
 ### 2. Two database refusals still return 500
 
+**Done 2026-10-14** (`fix/database-refusals`): both codes are in
+`DATABASE_REFUSALS`, with a unit test each in `server/errorHandler.test.ts`
+and a route test each in `server/db/businessRoutes.test.ts`.
+
 `server/errorHandler.ts` maps 23503, 22007 and 22008 to 400. Two more reach
 Postgres from a request that passes validation, and return 500:
 

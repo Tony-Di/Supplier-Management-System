@@ -61,6 +61,20 @@ test("an impossible date from Postgres is a 400", () => {
   });
 });
 
+test("a number too large for its column from Postgres is a 400", () => {
+  assert.deepEqual(respond(databaseError("22003", 'value "3000000000" is out of range for type integer')), {
+    status: 400,
+    body: { message: "A number is too large." },
+  });
+});
+
+test("a NUL character in text from Postgres is a 400", () => {
+  assert.deepEqual(respond(databaseError("22021", 'invalid byte sequence for encoding "UTF8": 0x00')), {
+    status: 400,
+    body: { message: "Text cannot contain a NUL character." },
+  });
+});
+
 test("any other error stays a 500 without detail", () => {
   const original = console.error;
   console.error = () => {};
