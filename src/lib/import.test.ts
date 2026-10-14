@@ -35,6 +35,16 @@ test('reports a Used for model that does not exist', () => {
   const [row] = parseItemImportRows('P-1\tBox\tPallet\tBTA; BTC 621', models);
   assert.deepEqual(row.errors, ['Model "BTC 621" not found']);
 });
+test('keeps commas inside a quoted CSV cell in that cell', () => {
+  assert.deepEqual(parseItemImportRows('P-1,"Pallet, heat treated",Pallet,"BTA, BTC 620"', models), [
+    { itemCode: 'P-1', description: 'Pallet, heat treated', type: 'Pallet', usedFor: ['BTA', 'BTC 620'], errors: [] },
+  ]);
+});
+test('reads a doubled quote in a quoted CSV cell as one quote', () => {
+  const [row] = parseItemImportRows('P-1,"48"" pallet",Pallet,BTA', models);
+  assert.equal(row.description, '48" pallet');
+  assert.deepEqual(row.errors, []);
+});
 test('recognizes duplicate item codes regardless of case or outer whitespace', () => {
   assert.deepEqual([...findDuplicateItemCodes([{ itemCode: ' p-1 ' }, { itemCode: 'P-1' }, { itemCode: 'p-2' }] as PackagingItem[])], ['p-1']);
 });

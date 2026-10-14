@@ -14,6 +14,35 @@ export function findDuplicateItemCodes(records: PackagingItem[]) {
 // spacing; those are matched rather than rejected.
 const matchKey = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
 
+// A CSV line, where a quoted cell may hold commas and "" stands for one quote.
+function splitCsvLine(line: string) {
+  const cells: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (quoted) {
+      if (char === '"' && line[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        cell += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ",") {
+      cells.push(cell);
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  cells.push(cell);
+  return cells;
+}
+
 export function parseItemImportRows(rawText: string, models: Pick<Model, "id" | "name">[]) {
   return rawText
     .split(/\r?\n/)
@@ -21,7 +50,7 @@ export function parseItemImportRows(rawText: string, models: Pick<Model, "id" | 
     .filter(Boolean)
     .filter((line, index) => index !== 0 || !/^item code[\t,]/i.test(line))
     .map((line) => {
-      const columns = line.includes("\t") ? line.split("\t") : line.split(",");
+      const columns = line.includes("\t") ? line.split("\t") : splitCsvLine(line);
       const [itemCode = "", description = "", rawType = "", rawUsedFor = ""] = columns.map((column) => column.trim());
       const usedForNames = rawUsedFor.split(/[;,]/).map((value) => value.trim()).filter(Boolean);
       const errors: string[] = [];
