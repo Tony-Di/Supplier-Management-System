@@ -45,6 +45,22 @@ test('reads a doubled quote in a quoted CSV cell as one quote', () => {
   assert.equal(row.description, '48" pallet');
   assert.deepEqual(row.errors, []);
 });
+test('keeps a line break inside a quoted CSV cell in one row', () => {
+  const rows = parseItemImportRows('P-1,"Pallet\r\nheat treated",Pallet,BTA\r\nP-2,Box,Pallet,BTA', models);
+  assert.deepEqual(rows.map((row) => [row.itemCode, row.description, row.errors]), [
+    ['P-1', 'Pallet\nheat treated', []],
+    ['P-2', 'Box', []],
+  ]);
+});
+test('keeps a line break inside a quoted cell pasted from Excel in one row', () => {
+  const rows = parseItemImportRows('P-1\t"Pallet\nheat treated"\tPallet\tBTA', models);
+  assert.deepEqual(rows.map((row) => [row.itemCode, row.description, row.errors]), [['P-1', 'Pallet\nheat treated', []]]);
+});
+test('reads a quote inside an unquoted CSV cell as text', () => {
+  const [row] = parseItemImportRows('P-1,48" pallet,Pallet,BTA', models);
+  assert.equal(row.description, '48" pallet');
+  assert.deepEqual(row.errors, []);
+});
 test('recognizes duplicate item codes regardless of case or outer whitespace', () => {
   assert.deepEqual([...findDuplicateItemCodes([{ itemCode: ' p-1 ' }, { itemCode: 'P-1' }, { itemCode: 'p-2' }] as PackagingItem[])], ['p-1']);
 });
