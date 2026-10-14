@@ -210,6 +210,7 @@ export function EditFields({ target }: { target: EditTarget }) {
         <label>Extra Cost Type<select name="extraCostType" defaultValue={record.extraCostType ?? "None"}>{["None", "Freight", "Sample", "Tooling", "Packaging Test", "Other"].map((value) => <option key={value}>{value}</option>)}</select></label>
         <label>Extra Cost Amount<input min="0" name="extraCostAmount" defaultValue={record.extraCostAmount ?? 0} step="0.001" type="number" /></label>
         <QuoteStatusField defaultValue={record.status} quote={record} />
+        {record.attachmentFileId && <span className="fullWidthLabel muted">Attachment: <FileReference fileId={record.attachmentFileId} /></span>}
         <label className="fullWidthLabel">Notes<textarea name="notes" defaultValue={record.notes} rows={3} /></label>
       </>
     );

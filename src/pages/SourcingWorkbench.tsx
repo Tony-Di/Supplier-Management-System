@@ -16,6 +16,7 @@ import { exportQuotes } from "../lib/exports";
 import { quoteStatusOptions } from "../constants";
 import { EmptyState } from "../components/EmptyState";
 import { StatusPill } from "../components/StatusPill";
+import { FileReference } from "../components/FileReference";
 import { formatMoney } from "../lib/format";
 import { QuoteStatusSelect, type QuoteStatusChange } from "../components/QuoteStatusSelect";
 import { QuoteValueStack } from "../components/QuoteValueStack";
@@ -312,6 +313,7 @@ export function Quotes({
                 <th>Effective From</th>
                 <th>MOQ</th>
                 <th>Lead Time</th>
+                <th>Attachment</th>
                 <th>Status</th>
                 <th>Source Role</th>
                 <th>Action</th>
@@ -320,7 +322,7 @@ export function Quotes({
             <tbody>
               {filteredQuotes.length === 0 && (
                 <tr>
-                  <td colSpan={12}><EmptyState text="No quotes match the selected filters." /></td>
+                  <td colSpan={13}><EmptyState text="No quotes match the selected filters." /></td>
                 </tr>
               )}
               {filteredQuotes.map((quote) => (
@@ -334,6 +336,7 @@ export function Quotes({
                   <td>{quote.effectiveFrom ?? quote.quoteDate}</td>
                   <td>{quote.moq}</td>
                   <td>{quote.leadTime}</td>
+                  <td><FileReference fileId={quote.attachmentFileId} /></td>
                   <td><QuoteStatusSelect quote={quote} onChange={onQuoteStatusChange} /></td>
                   <td><StatusPill label={sourceRoleForQuote(appData, quote) ?? "Not assigned"} /></td>
                   <td>
