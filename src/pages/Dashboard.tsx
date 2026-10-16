@@ -20,6 +20,7 @@ export function Dashboard() {
   const activeItems = appData.items.filter((item) => item.recordState !== "Void");
   const activeSuppliers = appData.suppliers.filter((supplier) => supplier.recordState !== "Void");
   const [selectedItemId, setSelectedItemId] = useState(activeItems[0]?.id ?? "");
+  const [showAllCoverageRisk, setShowAllCoverageRisk] = useState(false);
   useEffect(() => {
     if (!selectedItemId && activeItems[0]) setSelectedItemId(activeItems[0].id);
     if (selectedItemId && !activeItems.some((item) => item.id === selectedItemId)) setSelectedItemId(activeItems[0]?.id ?? "");
@@ -170,8 +171,12 @@ export function Dashboard() {
                 <strong>{coverageRiskItems.length} item{coverageRiskItems.length === 1 ? "" : "s"} need backup</strong>
                 <span>active sourced items without Backup source</span>
                 <div className="riskCodeList">
-                  {coverageRiskItems.slice(0, 3).map((item) => <span key={item.id}>{item.itemCode}</span>)}
-                  {coverageRiskItems.length > 3 && <span>+{coverageRiskItems.length - 3} more</span>}
+                  {(showAllCoverageRisk ? coverageRiskItems : coverageRiskItems.slice(0, 3)).map((item) => <span key={item.id}>{item.itemCode}</span>)}
+                  {coverageRiskItems.length > 3 && (
+                    <button aria-expanded={showAllCoverageRisk} className="riskCodeToggle" onClick={() => setShowAllCoverageRisk((current) => !current)} type="button">
+                      {showAllCoverageRisk ? "Show less" : `+${coverageRiskItems.length - 3} more`}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
