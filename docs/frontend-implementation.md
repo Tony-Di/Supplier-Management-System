@@ -28,9 +28,9 @@ No backend code, API contracts, dependencies or package lockfile were changed. T
 
 ## Existing differences for a later business decision
 
-- Dashboard local score calculations use fixed weights, while `GET /api/scorecard` uses saved configurable weights. On the baseline data, Dashboard showed an average of 88 while the authoritative supplier scores were 79 and 94. These calculations were preserved during the split. Supplier cards and Reports use server scores when available.
-- Some Reports refresh dependencies use collection lengths, which can miss edits that do not change the number of records.
-- `scoreIssueSummary` can describe a zero-weight quality category as lacking QC passes even when passes exist.
-- The existing CSV parser does not fully parse quoted comma-containing cells.
+- ~~Dashboard local score calculations use fixed weights, while `GET /api/scorecard` uses saved configurable weights. On the baseline data, Dashboard showed an average of 88 while the authoritative supplier scores were 79 and 94. These calculations were preserved during the split. Supplier cards and Reports use server scores when available.~~ Fixed in `365bd9a`: Dashboard reads `GET /api/scorecard`. Checked in the app 2026-10-14.
+- ~~Some Reports refresh dependencies use collection lengths, which can miss edits that do not change the number of records.~~ Fixed in `365bd9a`: `useScorecard` reloads whenever the app data is replaced. Checked in the app 2026-10-14 by editing a unit price.
+- ~~`scoreIssueSummary` can describe a zero-weight quality category as lacking QC passes even when passes exist.~~ Fixed 2026-10-14 (`fix/csv-quoted-cells`).
+- ~~The existing CSV parser does not fully parse quoted comma-containing cells.~~ Fixed 2026-10-14 (`fix/csv-quoted-cells`).
 
 These are pre-existing behavior differences; resolving them requires a separate scope and, for score consistency, agreement on the authoritative scoring path.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { manualSelection } from "./selection";
+import { manualSelection, previousOrdersSelection } from "./selection";
 import type { Quote, SampleInspection, Supplier } from "../types";
 
 const quote = { id: "q-new", supplierId: "sup-1", itemId: "item-1" };
@@ -33,4 +33,12 @@ test("a supplier with a Since date can be selected on previous orders while that
   assert.equal(manualSelection(data({ supplierSince: "2023-04-01" }), quote, true), "Previous Orders");
   assert.equal(manualSelection(data({ supplierSince: "2023-04-01" }), quote, false), "Sample Required");
   assert.equal(manualSelection(data(), quote, true), "Sample Required");
+});
+
+test("a previous-order selection records the PO number, trimmed", () => {
+  assert.deepEqual(previousOrdersSelection(" PO-778 "), { status: "Selected", statusBasis: "Previous Orders", statusReference: "PO-778" });
+});
+
+test("a previous-order selection without a PO number stores no reference", () => {
+  assert.deepEqual(previousOrdersSelection("   "), { status: "Selected", statusBasis: "Previous Orders", statusReference: undefined });
 });

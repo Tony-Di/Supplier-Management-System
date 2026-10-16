@@ -32,7 +32,7 @@ export function scoreIssueSummary(appData: Pick<AppData, "incomingDefects">, row
     .filter((defect) => defect.supplierId === row.supplier.id && defect.recordState !== "Void" && isWithinRecentDays(defect.defectDate, 90))
     .reduce((sum, defect) => sum + defect.defectQty, 0);
 
-  if (sampleQuality && sampleQuality.score === 0) issues.push("No QC pass");
+  if (sampleQuality && sampleQuality.max > 0 && sampleQuality.score === 0) issues.push("No QC pass");
   if (incomingQuality && incomingQuality.score < incomingQuality.max && supplierDefectQty > 0) issues.push(`${supplierDefectQty} defect qty`);
   if (pricing && pricing.score < pricing.max * 0.35) issues.push("Not price competitive");
   if (response && response.score < response.max * 0.5) issues.push("Weak response data");

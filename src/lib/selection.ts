@@ -27,3 +27,8 @@ export function manualSelection(
   const supplier = records.suppliers.find((candidate) => candidate.id === quote.supplierId);
   return previousOrderSelection && supplier?.supplierSince ? "Previous Orders" : "Sample Required";
 }
+
+/** The change a confirmed previous-order selection sends; the PO number is optional. */
+export function previousOrdersSelection(poNumber: string): Pick<Quote, "status" | "statusBasis" | "statusReference"> {
+  return { status: "Selected", statusBasis: "Previous Orders", statusReference: poNumber.trim() || undefined };
+}
