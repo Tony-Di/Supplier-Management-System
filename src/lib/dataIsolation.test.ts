@@ -9,6 +9,6 @@ test("interleaved data snapshots never leak supplier names into charts", () => {
   const second = { suppliers: [{ id: "s", name: "Second" }] as Supplier[] };
   const quotes = [{ supplierId: "s", quoteDate: "2026-09-01", unitPrice: 2 }] as Quote[];
   assert.equal(supplierName(first, "s"), "First");
-  assert.deepEqual(buildDashboardPriceTrendRows(second, quotes), [{ date: "2026-09-01", Second: 2 }]);
-  assert.deepEqual(buildDashboardPriceTrendRows(first, quotes), [{ date: "2026-09-01", First: 2 }]);
+  assert.deepEqual(buildDashboardPriceTrendRows(second, quotes), [{ date: "2026-09-01", time: Date.UTC(2026, 8, 1), Second: 2 }]);
+  assert.deepEqual(buildDashboardPriceTrendRows(first, quotes), [{ date: "2026-09-01", time: Date.UTC(2026, 8, 1), First: 2 }]);
 });

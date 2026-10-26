@@ -14,11 +14,16 @@ export function csvCell(value: string | number | undefined) {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-export function formatMonthTick(dateText: string) {
-  const parsedDate = new Date(`${dateText}T00:00:00`);
-  if (Number.isNaN(parsedDate.getTime())) return dateText;
+// Chart times are UTC midnights (see chartTime), so they are read back in UTC.
+// A tooltip can be asked for a label with no point under the cursor, so a
+// missing time gives a blank label rather than throwing during render.
+export function formatChartDate(time: number) {
+  return Number.isFinite(time) ? new Date(time).toISOString().slice(0, 10) : "";
+}
 
-  return parsedDate.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+// "2026-04" rather than "Apr 26", which reads as April 26th.
+export function formatMonthTick(time: number) {
+  return formatChartDate(time).slice(0, 7);
 }
 
 export function todayDateString() {

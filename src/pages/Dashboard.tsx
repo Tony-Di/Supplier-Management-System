@@ -10,7 +10,7 @@ import { Metric } from "../components/Metric";
 import { Panel } from "../components/Panel";
 import { EmptyState } from "../components/EmptyState";
 import { ResponsiveContainer, LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from "recharts";
-import { formatMonthTick, formatMoney } from "../lib/format";
+import { formatChartDate, formatMonthTick, formatMoney } from "../lib/format";
 import { dashboardPriceDomain, chartColor } from "../lib/charts";
 import { AlertRow } from "../components/AlertRow";
 
@@ -99,13 +99,13 @@ export function Dashboard() {
                 <EmptyState text="No selected quote price records for this item yet." />
               ) : (
                 <ResponsiveContainer height={260} width="100%">
-                  <RechartsLineChart data={priceTrendRows} margin={{ top: 10, right: 20, bottom: 4, left: 2 }}>
+                  <RechartsLineChart data={priceTrendRows} margin={{ top: 10, right: 28, bottom: 4, left: 28 }}>
                     <CartesianGrid stroke="#e7ecee" />
-                    <XAxis dataKey="date" tickFormatter={formatMonthTick} />
+                    <XAxis dataKey="time" domain={["dataMin", "dataMax"]} interval="preserveStartEnd" padding={{ left: 12, right: 12 }} scale="time" tickFormatter={formatMonthTick} ticks={priceTrendRows.map((row) => row.time)} type="number" />
                     <YAxis domain={dashboardPriceDomain(selectedItemQuotes)} hide />
-                    <Tooltip formatter={(value, name) => [formatMoney(Number(value)), String(name)]} labelFormatter={(label) => `Date: ${label}`} />
+                    <Tooltip formatter={(value, name) => [formatMoney(Number(value)), String(name)]} labelFormatter={(label) => `Date: ${formatChartDate(Number(label))}`} />
                     {selectedSeries.map((series, index) => (
-                      <Line connectNulls dataKey={series} dot={{ r: 3 }} key={series} stroke={chartColor(index)} strokeWidth={3} type="monotone" />
+                      <Line connectNulls dataKey={series} dot={{ r: 3 }} key={series} stroke={chartColor(index)} strokeWidth={3} type="stepAfter" />
                     ))}
                   </RechartsLineChart>
                 </ResponsiveContainer>
