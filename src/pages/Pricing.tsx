@@ -9,7 +9,7 @@ import { FilterGroup } from "../components/FilterGroup";
 import { EmptyState } from "../components/EmptyState";
 import { ResponsiveContainer, LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from "recharts";
 import { priceAnalyticsDomain, chartColor } from "../lib/charts";
-import { formatMoney } from "../lib/format";
+import { formatChartDate, formatMoney } from "../lib/format";
 import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHandler } from "../uiTypes";
 import { StatusPill } from "../components/StatusPill";
 import { LifecyclePill } from "../components/LifecyclePill";
@@ -78,9 +78,9 @@ export function PriceAnalytics() {
             <ResponsiveContainer height={320} width="100%">
               <RechartsLineChart data={chartRows} margin={{ top: 12, right: 24, bottom: 6, left: 6 }}>
                 <CartesianGrid stroke="#e7ecee" />
-                <XAxis dataKey="date" />
+                <XAxis dataKey="time" domain={["dataMin", "dataMax"]} padding={{ left: 24, right: 24 }} scale="time" tickFormatter={formatChartDate} ticks={chartRows.map((row) => row.time)} type="number" />
                 <YAxis domain={priceAnalyticsDomain(chartQuotes)} tickFormatter={(value) => `$${value}`} width={54} />
-                <Tooltip formatter={(value) => [formatMoney(Number(value)), "Price"]} />
+                <Tooltip formatter={(value, name) => [formatMoney(Number(value)), String(name)]} labelFormatter={(label) => formatChartDate(Number(label))} />
                 <Legend />
                 {seriesNames.map((series) => {
                   const otherQuotes = series.endsWith("other quotes");
@@ -93,7 +93,7 @@ export function PriceAnalytics() {
                       legendType="circle"
                       stroke={chartColor(seriesSuppliers.indexOf(seriesSupplier(series)))}
                       strokeWidth={otherQuotes ? 0 : 3}
-                      type="monotone"
+                      type="stepAfter"
                     />
                   );
                 })}
