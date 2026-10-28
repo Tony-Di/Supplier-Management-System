@@ -456,3 +456,129 @@ test("a purchase price that a price change refers to cannot be deleted", async (
     assert.equal((await response.json()).message, "Cannot delete purchase price: linked to price changes.");
   });
 });
+
+test("a model import creates new models and skips names that exist or repeat", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    await expectJson(send(app, session, "POST", "/api/models", { name: "BTA", recordState: "Active" }), 201);
+
+    const result = await expectJson(send(app, session, "POST", "/api/models/import", {
+      rows: [
+        { name: "bta" },
+        { name: "BTC 620", productFamily: "", status: "Inactive", notes: "Pilot" },
+        { name: "BTC  620" },
+      ],
+    }), 201);
+
+    assert.deepEqual(result, { totalRows: 3, created: 1, duplicated: 1, skipped: 1 });
+    const { rows } = await pool.query("SELECT name, product_family, status, notes FROM models ORDER BY id");
+    assert.deepEqual(rows, [
+      { name: "BTA", product_family: "Solar Module", status: "Active", notes: "" },
+      { name: "BTC 620", product_family: "Solar Module", status: "Inactive", notes: "Pilot" },
+    ]);
+    const { rows: audit } = await pool.query("SELECT action, source FROM audit_logs WHERE entity_type = 'Model' ORDER BY id");
+    assert.deepEqual(audit, [{ action: "Create", source: "UI" }, { action: "Import", source: "Import" }]);
+  });
+});
+
+test("an item import adds new models to an existing Item Code and to codes repeated in the import", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { model, item } = await seedSourcingCase(app, session);
+    const post = (path: string, body: unknown) => expectJson(send(app, session, "POST", path, body), 201);
+    const btc = await post("/api/models", { name: "BTC 620", recordState: "Active" });
+    const btcSet = await post("/api/drawing-sets", {
+      modelId: btc.id,
+      name: "BTC packaging",
+      status: "Active",
+      effectiveDate: "2026-03-01",
+      recordState: "Active",
+      drawingItems: [],
+    });
+
+    const result = await post("/api/items/import", {
+      rows: [
+        { itemCode: "pal-01", description: "Pallet", type: "Pallet", usedFor: ["BTA", "BTC 620"] },
+        { itemCode: "PAL-01", description: "Pallet", type: "Pallet", usedFor: ["BTA"] },
+        { itemCode: "STR-01", description: "Strap", type: "Strapping", usedFor: ["BTA"] },
+        { itemCode: "STR-01", description: "Strap", type: "Strapping", usedFor: ["BTC 620"] },
+        { itemCode: "STR-01", description: "Strap", type: "Strapping", usedFor: ["BTA"] },
+      ],
+    });
+
+    assert.deepEqual(
+      [result.totalRows, result.created, result.linked, result.duplicated, result.skipped],
+      [5, 1, 2, 1, 1],
+    );
+    const { rows: items } = await pool.query("SELECT id, item_code, used_for_models FROM items ORDER BY id");
+    assert.deepEqual(items.map(({ item_code, used_for_models }) => ({ item_code, used_for_models })), [
+      { item_code: "PAL-01", used_for_models: [model.id, btc.id] },
+      { item_code: "STR-01", used_for_models: [model.id, btc.id] },
+    ]);
+    const { rows: btcItems } = await pool.query("SELECT item_id FROM drawing_items WHERE drawing_set_id = $1 ORDER BY item_id", [btcSet.id]);
+    assert.deepEqual(btcItems.map((row) => row.item_id), [item.id, items[1].id]);
+    const { rows: audit } = await pool.query("SELECT action, entity_label, reason FROM audit_logs WHERE entity_type = 'Item' AND source = 'Import' ORDER BY id");
+    assert.deepEqual(audit, [
+      { action: "Import", entity_label: "STR-01", reason: "Created from item import" },
+      { action: "Edit", entity_label: "PAL-01", reason: "Models added by item import" },
+    ]);
+  });
+});
+
+test("a packaging set for a new model links the shared items it covers to that model", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { model, item, drawingSet } = await seedSourcingCase(app, session);
+    const post = (path: string, body: unknown) => expectJson(send(app, session, "POST", path, body), 201);
+    const bte = await post("/api/models", { name: "BTE 800", recordState: "Active" });
+
+    const created = await post("/api/drawing-sets", {
+      modelId: bte.id,
+      name: "SEG-BTE-800 A0",
+      status: "Active",
+      effectiveDate: "2026-10-28",
+      recordState: "Active",
+      replaceActive: true,
+      linkItemIds: [item.id],
+      drawingItems: [{ itemId: item.id }],
+    });
+
+    assert.equal(created.modelId, bte.id);
+    assert.equal(created.revision, "1.0");
+    const { rows: [linked] } = await pool.query("SELECT used_for_models FROM items WHERE id = $1", [item.id]);
+    assert.deepEqual(linked.used_for_models, [model.id, bte.id]);
+    const { rows: sets } = await pool.query("SELECT id, model_id, status FROM drawing_sets ORDER BY id");
+    assert.deepEqual(sets, [
+      { id: drawingSet.id, model_id: model.id, status: "Active" },
+      { id: created.id, model_id: bte.id, status: "Active" },
+    ]);
+    const { rows: audit } = await pool.query("SELECT action, reason FROM audit_logs WHERE entity_type = 'Item' AND entity_id = $1 ORDER BY id DESC LIMIT 1", [item.id]);
+    assert.deepEqual(audit, [{ action: "Edit", reason: "Linked to model by packaging set import" }]);
+  });
+});
+
+test("a packaging set that links a missing item is refused and links nothing", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { item } = await seedSourcingCase(app, session);
+    const bte = await expectJson(send(app, session, "POST", "/api/models", { name: "BTE 800", recordState: "Active" }), 201);
+    const before = await snapshotTables(pool);
+
+    const response = await send(app, session, "POST", "/api/drawing-sets", {
+      modelId: bte.id,
+      name: "SEG-BTE-800 A0",
+      status: "Active",
+      effectiveDate: "2026-10-28",
+      recordState: "Active",
+      linkItemIds: [item.id, "item-9999"],
+      drawingItems: [{ itemId: item.id }],
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await snapshotTables(pool), before);
+  });
+});

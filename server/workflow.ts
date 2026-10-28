@@ -317,6 +317,11 @@ export function demoteConflictingSourceRoles(ctx: BusinessContext, current: {
   }
 }
 
+// Imported model names match whatever their case or spacing.
+export function modelNameKey(name: string) {
+  return name.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 export function ensureUniqueItemCode(store: Store, itemCode: string, currentItemId?: string) {
   const normalizedCode = itemCode.trim().toLowerCase();
   const duplicate = store.items.find(

@@ -21,7 +21,7 @@ export function ModelsAndItems({
   onDelete,
   onEdit,
   onHistory,
-  onImportItems,
+  onImport,
   onVoid,
 }: {
   onAddItem: () => void;
@@ -29,7 +29,7 @@ export function ModelsAndItems({
   onDelete: DeleteHandler;
   onEdit: (target: EditTarget) => void;
   onHistory: HistoryHandler;
-  onImportItems: () => void;
+  onImport: () => void;
   onVoid: VoidHandler;
 }) {
   const { data: appData } = useAppData();
@@ -45,29 +45,24 @@ export function ModelsAndItems({
             <label className="modelFilterControl">
               View
               <select value={masterView} onChange={(event) => setMasterView(event.target.value as "Items" | "Models")}>
-                <option value="Items">Packaging items</option>
-                <option value="Models">Models</option>
+                <option value="Items">Packaging items ({approvedItems.length})</option>
+                <option value="Models">Models ({approvedModels.length})</option>
               </select>
             </label>
           </div>
           <div className="itemMasterActions">
-            {masterView === "Items" && (
-              <button className="ghostButton" onClick={onImportItems} type="button">
-                <FileStack size={16} />
-                Import items
-              </button>
-            )}
-            {masterView === "Items" ? (
-              <button className="primaryButton" onClick={onAddItem} type="button">
-                <Plus size={16} />
-                Add item
-              </button>
-            ) : (
-              <button className="primaryButton" onClick={onAddModel} type="button">
-                <Plus size={16} />
-                Add model
-              </button>
-            )}
+            <button className="ghostButton" onClick={onImport} type="button">
+              <FileStack size={16} />
+              Import
+            </button>
+            <button className="ghostButton" onClick={onAddModel} type="button">
+              <Plus size={16} />
+              Add model
+            </button>
+            <button className="primaryButton" onClick={onAddItem} type="button">
+              <Plus size={16} />
+              Add item
+            </button>
           </div>
         </div>
         <div className="tableScroll">
@@ -120,6 +115,8 @@ export function ModelsAndItems({
                   <th>Model</th>
                   <th>Product Family</th>
                   <th>Status</th>
+                  <th>Items</th>
+                  <th>Packaging Set</th>
                   <th>Notes</th>
                   <th>Action</th>
                 </tr>
@@ -130,6 +127,8 @@ export function ModelsAndItems({
                     <td>{model.name}</td>
                     <td>{model.productFamily}</td>
                     <td>{model.status}</td>
+                    <td>{approvedItems.filter((item) => item.usedForModels.includes(model.id)).length}</td>
+                    <td><ModelPackagingSet modelId={model.id} /></td>
                     <td>{model.notes}</td>
                     <td>
                       <div className="tableActions">
@@ -248,6 +247,14 @@ export function DrawingSets({
       ))}
     </section>
   );
+}
+
+// Each model has its own packaging drawings, even where it shares items with
+// other models.
+function ModelPackagingSet({ modelId }: { modelId: string }) {
+  const { data: appData } = useAppData();
+  const activeSet = appData.drawingSets.find((set) => set.recordState !== "Void" && set.status === "Active" && set.modelId === modelId);
+  return activeSet ? <PackagingSetTitle set={activeSet} /> : <span className="muted">None active</span>;
 }
 
 export function PackagingSetTitle({ set }: { set: DrawingSet }) {

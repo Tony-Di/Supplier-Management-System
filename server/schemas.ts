@@ -85,6 +85,9 @@ export const drawingSetSchema = z.object({
     .default([]),
 });
 
+// Items a new packaging set covers that are not yet linked to its model.
+export const drawingSetLinkItemIdsSchema = z.array(z.string().min(1)).default([]);
+
 export const itemImportSchema = z.object({
   updateExisting: z.boolean().default(false),
   rows: z.array(
@@ -93,6 +96,17 @@ export const itemImportSchema = z.object({
       description: z.string().min(1),
       type: z.enum(packagingItemTypes),
       usedFor: z.array(z.string()).min(1),
+    }),
+  ),
+});
+
+export const modelImportSchema = z.object({
+  rows: z.array(
+    z.object({
+      name: z.string().trim().min(1),
+      productFamily: z.string().trim().default(""),
+      status: z.enum(["Active", "Inactive"]).default("Active"),
+      notes: z.string().default(""),
     }),
   ),
 });

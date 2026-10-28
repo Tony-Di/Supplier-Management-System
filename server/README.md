@@ -50,9 +50,9 @@ Records. Each supports `GET` (list), `POST` (create), `PATCH /:id` (update), `DE
 A `PATCH` sets only the fields in its body; a field sent as `null` is cleared. Dates are `YYYY-MM-DD`. A record that other records refer to cannot be deleted.
 
 - `/api/suppliers`
-- `/api/models`
-- `/api/items` (also `POST /api/items/import`)
-- `/api/drawing-sets`
+- `/api/models` (also `POST /api/models/import`: a name that already exists, or repeats in the import, is skipped)
+- `/api/items` (also `POST /api/items/import`: an Item Code that already exists, or repeats in the import, is one item, so the row's Used for models are added to it)
+- `/api/drawing-sets`: a `POST` may send `linkItemIds`, items the new set covers that are not yet linked to its model; they are linked in the same request.
 - `/api/projects`
 - `/api/quotes`: `status` is one of `Received`, `Sample Requested`, `Selected`, `No Further Action` and `Expired`. Only a Selected quote's price takes effect; a price window (Effective From to Effective To) may not overlap another effective price for the same supplier and item, and Effective To may not fall before Effective From. A `PATCH` that changes Effective To must include `changeReason`, which is recorded in the audit trail.
   - Setting `Selected` by hand needs a supplier that passed QC or had a Selected quote for the item. Otherwise the request must send `statusBasis: "Previous Orders"` (optional `statusReference`, the PO number), the supplier must have a Since date, and `PREVIOUS_ORDER_SELECTION` must not be `off`; anything else is refused with `400` "Request a sample first".
