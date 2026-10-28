@@ -531,7 +531,7 @@ export function CaseQuoteWorkbench({
           </label>
         </div>
       </div>
-      <div className="tableViewport"><table className="comparisonTable compactComparison">
+      <div className="tableViewport"><table className="comparisonTable compactComparison caseProgressTable">
         <thead>
           <tr>
             {selectedItemId === "All" && <th>Item</th>}
@@ -551,9 +551,10 @@ export function CaseQuoteWorkbench({
               </td>
             </tr>
           )}
-          {rows.map((row) => {
+          {rows.map((row, index) => {
+            const startsItem = selectedItemId === "All" && index > 0 && rows[index - 1].itemId !== row.itemId;
             return (
-              <tr key={`supplier-progress-${row.itemId}-${row.supplierId}`}>
+              <tr className={startsItem ? "itemGroupStart" : undefined} key={`supplier-progress-${row.itemId}-${row.supplierId}`}>
                 {selectedItemId === "All" && (
                   <td>
                     <strong>{row.item ? row.item.itemCode : itemCode(appData, row.itemId)}</strong>
