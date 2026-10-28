@@ -1,6 +1,8 @@
 import { packagingItemOptions } from "../constants";
 import { type PackagingItem, type DrawingSet, type Model } from "../types";
 
+export type ImportKind = "Items" | "Models";
+
 export function findDuplicateItemCodes(records: PackagingItem[]) {
   const counts = records.reduce((map, item) => {
     const key = item.itemCode.trim().toLowerCase();
@@ -74,15 +76,57 @@ function splitCells(record: string, delimiter: string) {
   return cells;
 }
 
-export function parseItemImportRows(rawText: string, models: Pick<Model, "id" | "name">[]) {
+function importLines(rawText: string) {
   return splitRecords(rawText.replace(/\r\n?/g, "\n"))
     .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line, index) => index !== 0 || !/^item code[\t,]/i.test(line))
+    .filter(Boolean);
+}
+
+function importCells(line: string) {
+  return (line.includes("\t") ? splitCells(line, "\t") : splitCells(line, ",")).map((cell) => cell.trim());
+}
+
+const itemHeader = /^item\s*code\s*([\t,]|$)/i;
+const modelHeader = /^(model|module)s?(\s*name)?\s*([\t,]|$)/i;
+const modelStatuses: Model["status"][] = ["Active", "Inactive"];
+
+function findModel(models: Pick<Model, "id" | "name">[], value: string) {
+  return models.find((candidate) => matchKey(candidate.id) === matchKey(value) || matchKey(candidate.name) === matchKey(value));
+}
+
+function splitUsedFor(value: string) {
+  return value.split(/[;,]/).map((name) => name.trim()).filter(Boolean);
+}
+
+// A header row decides. Without one, the paste is items when most rows carry
+// a packaging type in the third column or a known model in the fourth.
+export function detectImportKind(rawText: string, models: Pick<Model, "id" | "name">[]): ImportKind {
+  const lines = importLines(rawText);
+  if (lines.length === 0 || itemHeader.test(lines[0])) return "Items";
+  if (modelHeader.test(lines[0])) return "Models";
+  const itemLines = lines.filter((line) => {
+    const [, , type = "", usedFor = ""] = importCells(line);
+    return packagingItemOptions.some((option) => matchKey(option) === matchKey(type)) || splitUsedFor(usedFor).some((value) => findModel(models, value));
+  });
+  return itemLines.length * 2 >= lines.length ? "Items" : "Models";
+}
+
+const codeKey = (itemCode: string) => itemCode.trim().toLowerCase();
+
+// An Item Code that already exists, or repeats in the paste, is not a second
+// item: its Used for models are added to the one item.
+export function parseItemImportRows(
+  rawText: string,
+  models: Pick<Model, "id" | "name">[],
+  items: Pick<PackagingItem, "itemCode" | "usedForModels">[] = [],
+) {
+  const existingCodes = new Set(items.map((item) => codeKey(item.itemCode)));
+  const linkedModelIds = new Map(items.map((item) => [codeKey(item.itemCode), new Set(item.usedForModels)]));
+  return importLines(rawText)
+    .filter((line, index) => index !== 0 || !itemHeader.test(line))
     .map((line) => {
-      const columns = line.includes("\t") ? splitCells(line, "\t") : splitCells(line, ",");
-      const [itemCode = "", description = "", rawType = "", rawUsedFor = ""] = columns.map((column) => column.trim());
-      const usedForNames = rawUsedFor.split(/[;,]/).map((value) => value.trim()).filter(Boolean);
+      const [itemCode = "", description = "", rawType = "", rawUsedFor = ""] = importCells(line);
+      const usedForNames = splitUsedFor(rawUsedFor);
       const errors: string[] = [];
 
       const missing = [
@@ -96,13 +140,46 @@ export function parseItemImportRows(rawText: string, models: Pick<Model, "id" | 
       const type = packagingItemOptions.find((option) => matchKey(option) === matchKey(rawType));
       if (rawType && !type) errors.push(`Type "${rawType}" is not a valid type`);
 
-      const usedFor = usedForNames.map((value) => {
-        const model = models.find((candidate) => matchKey(candidate.id) === matchKey(value) || matchKey(candidate.name) === matchKey(value));
+      const matchedModels = usedForNames.map((value) => {
+        const model = findModel(models, value);
         if (!model) errors.push(`Model "${value}" not found`);
-        return model?.name ?? value;
+        return model;
       });
+      const usedFor = matchedModels.map((model, index) => model?.name ?? usedForNames[index]);
 
-      return { itemCode, description, type: type ?? rawType, usedFor, errors };
+      let note = "";
+      if (errors.length === 0) {
+        const key = codeKey(itemCode);
+        const linked = linkedModelIds.get(key);
+        const rowModels = [...new Map(matchedModels.filter((model) => model !== undefined).map((model) => [model.id, model])).values()];
+        const added = rowModels.filter((model) => !linked?.has(model.id));
+        const existing = existingCodes.has(key);
+        if (linked && added.length > 0) note = `Adds ${added.map((model) => model.name).join(", ")} to ${existing ? "the existing item" : "the same item above"}`;
+        else if (linked) note = existing ? "Already exists, skipped" : "Repeated row, skipped";
+        linkedModelIds.set(key, new Set([...(linked ?? []), ...added.map((model) => model.id)]));
+      }
+
+      return { itemCode, description, type: type ?? rawType, usedFor, note, errors };
+    });
+}
+
+export function parseModelImportRows(rawText: string, models: Pick<Model, "name">[]) {
+  const existingNames = new Set(models.map((model) => matchKey(model.name)));
+  const seenNames = new Set<string>();
+  return importLines(rawText)
+    .filter((line, index) => index !== 0 || !modelHeader.test(line))
+    .map((line) => {
+      const [name = "", productFamily = "", rawStatus = "", notes = ""] = importCells(line);
+      const errors: string[] = [];
+      if (!name) errors.push("Missing Model");
+      const status = rawStatus ? modelStatuses.find((option) => matchKey(option) === matchKey(rawStatus)) : "Active";
+      if (!status) errors.push(`Status "${rawStatus}" must be Active or Inactive`);
+
+      const key = matchKey(name);
+      const note = !name ? "" : existingNames.has(key) ? "Already exists, skipped" : seenNames.has(key) ? "Repeated row, skipped" : "";
+      if (name) seenNames.add(key);
+
+      return { name, productFamily: productFamily || "Solar Module", status: status ?? rawStatus, notes, note, errors };
     });
 }
 

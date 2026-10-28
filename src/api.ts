@@ -212,7 +212,14 @@ export function importItems(payload: {
   updateExisting?: boolean;
   rows: Array<{ itemCode: string; description: string; type: PackagingItem["type"]; usedFor: string[] }>;
 }) {
-  return request<{ totalRows: number; created: number; duplicated: number; skipped: number; duplicateItemCodes: string[] }>("/api/items/import", {
+  return request<{ totalRows: number; created: number; linked: number; duplicated: number; skipped: number; duplicateItemCodes: string[] }>("/api/items/import", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function importModels(payload: { rows: Array<Pick<Model, "name" | "productFamily" | "status" | "notes">> }) {
+  return request<{ totalRows: number; created: number; duplicated: number; skipped: number }>("/api/models/import", {
     method: "POST",
     body: JSON.stringify(payload),
   });

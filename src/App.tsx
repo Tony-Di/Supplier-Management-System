@@ -27,7 +27,7 @@ import { AuditLog } from "./pages/AuditLog";
 import { SupplierModal } from "./modals/SupplierModal";
 import { ItemModal } from "./modals/ItemModal";
 import { ModelModal } from "./modals/ModelModal";
-import { ItemImportModal } from "./modals/ItemImportModal";
+import { ProductImportModal } from "./modals/ProductImportModal";
 import { ProjectModal } from "./modals/ProjectModal";
 import { DrawingSetModal } from "./modals/DrawingSetModal";
 import { QuoteModal } from "./modals/QuoteModal";
@@ -65,7 +65,7 @@ function Workbench() {
   const { data, setData, refresh: refreshData, loading, error } = useAppData();
   const recordOptions = useMemo(() => availableRecordOptions(data), [data]);
   const [actionError, setActionError] = useState("");
-  const [modal, setModal] = useState<"supplier" | "model" | "item" | "itemImport" | "drawingSet" | "project" | "quote" | "inspection" | "incomingDefect" | "priceChange" | "scoreSettings" | null>(null);
+  const [modal, setModal] = useState<"supplier" | "model" | "item" | "productImport" | "drawingSet" | "project" | "quote" | "inspection" | "incomingDefect" | "priceChange" | "scoreSettings" | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [voidTarget, setVoidTarget] = useState<VoidTarget | null>(null);
   const [viewTarget, setViewTarget] = useState<ViewTarget | null>(null);
@@ -202,7 +202,7 @@ function Workbench() {
             onDelete={handleDelete}
             onEdit={setEditTarget}
             onHistory={openHistory}
-            onImportItems={() => setModal("itemImport")}
+            onImport={() => setModal("productImport")}
             onVoid={handleVoid}
           />
         )}
@@ -294,9 +294,9 @@ function Workbench() {
             }}
           />
         )}
-        {modal === "itemImport" && (
-          <ItemImportModal
-            models={recordOptions.models}
+        {modal === "productImport" && (
+          <ProductImportModal
+            data={recordOptions}
             onClose={() => setModal(null)}
             onImported={async () => {
               setModal(null);

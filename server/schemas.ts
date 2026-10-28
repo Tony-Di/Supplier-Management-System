@@ -97,6 +97,17 @@ export const itemImportSchema = z.object({
   ),
 });
 
+export const modelImportSchema = z.object({
+  rows: z.array(
+    z.object({
+      name: z.string().trim().min(1),
+      productFamily: z.string().trim().default(""),
+      status: z.enum(["Active", "Inactive"]).default("Active"),
+      notes: z.string().default(""),
+    }),
+  ),
+});
+
 export const projectSchema = z.object({
   ...lifecycleSchema,
   name: z.string().min(1),

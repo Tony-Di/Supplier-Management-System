@@ -28,6 +28,7 @@ import {
   inspectionSchema,
   itemImportSchema,
   itemSchema,
+  modelImportSchema,
   modelSchema,
   priceChangeSchema,
   projectSchema,
@@ -49,6 +50,8 @@ import { mergePatch } from "./patch";
 import { readFileContent } from "./storeRepository";
 import { downloadHeaders, fileIdFromStoredName, storagePath, uploadFileType } from "./uploads";
 import { serveFrontend } from "./frontend";
+import type { PackagingItem } from "../src/types";
+import { isUsableRecord } from "./rules";
 import { created, ok, read, write } from "./unitOfWork";
 import {
   checkPriceWindow,
@@ -66,6 +69,7 @@ import {
   ensureSourceAssignmentLinks,
   ensureUniqueItemCode,
   entityLabel,
+  modelNameKey,
   nextDrawingSetRevision,
   syncActiveCasesForModels,
   settleManualQuoteStatus,
@@ -193,6 +197,31 @@ export function createApp({ previousOrderSelection = getConfig().previousOrderSe
     ctx.audit("Create", "Model", model.id, model.name, undefined, model);
     return created(model);
   }));
+  app.post("/api/models/import", write((ctx, request) => {
+    const { store } = ctx;
+    const parsed = modelImportSchema.parse(request.body);
+    const existingNames = new Set(store.models.filter(isUsableRecord).map((model) => modelNameKey(model.name)));
+    const importedNames = new Set<string>();
+    const imported = parsed.rows.map((row) => {
+      const key = modelNameKey(row.name);
+      if (existingNames.has(key)) return "duplicated";
+      if (importedNames.has(key)) return "skipped";
+      const model = {
+        id: ctx.nextId("model"),
+        ...modelSchema.parse({ ...row, productFamily: row.productFamily || undefined, recordState: "Active" }),
+      };
+      store.models.push(model);
+      importedNames.add(key);
+      ctx.audit("Import", "Model", model.id, model.name, undefined, model, "Created from model import", model.id, "Import");
+      return "created";
+    });
+    return created({
+      totalRows: parsed.rows.length,
+      created: imported.filter((action) => action === "created").length,
+      duplicated: imported.filter((action) => action === "duplicated").length,
+      skipped: imported.filter((action) => action === "skipped").length,
+    });
+  }));
   app.delete("/api/models/:id", write((ctx, request) => {
     const { store } = ctx;
     ensureNoModelLinks(store, request.params.id);
@@ -229,59 +258,73 @@ export function createApp({ previousOrderSelection = getConfig().previousOrderSe
     ctx.audit("Create", "Item", item.id, item.itemCode, undefined, item);
     return created(item);
   }));
+  // One Item Code is one item however many models use it, so a code that
+  // already exists, or repeats in the import, gains the row's models instead.
   app.post("/api/items/import", write((ctx, request) => {
     const { store } = ctx;
     const parsed = itemImportSchema.parse(request.body);
-    const existingItemCodes = new Set(
+    const itemsByCode = new Map(
       store.items
         .filter((item) => item.recordState !== "Void")
-        .map((item) => item.itemCode.trim().toLowerCase()),
+        .map((item) => [item.itemCode.trim().toLowerCase(), item]),
     );
-    const importedItemCodes = new Set<string>();
+    const createdItems: PackagingItem[] = [];
+    const linkedItems = new Map<string, { before: PackagingItem; item: PackagingItem }>();
+    const affectedModelIds = new Set<string>();
     const imported = parsed.rows.map((row) => {
-      const modelIds = row.usedFor.map((modelNameOrId) => {
+      const modelIds = Array.from(new Set(row.usedFor.map((modelNameOrId) => {
         const match = store.models.find(
           (model) =>
-            model.id.toLowerCase() === modelNameOrId.trim().toLowerCase() ||
-            model.name.toLowerCase() === modelNameOrId.trim().toLowerCase(),
+            isUsableRecord(model) &&
+            (model.id.toLowerCase() === modelNameOrId.trim().toLowerCase() ||
+              modelNameKey(model.name) === modelNameKey(modelNameOrId)),
         );
         if (!match) throw new ValidationError(`Model not found for Used for: ${modelNameOrId}`);
         return match.id;
-      });
+      })));
       const normalizedItemCode = row.itemCode.trim().toLowerCase();
-      if (existingItemCodes.has(normalizedItemCode)) {
-        return { action: "duplicated", itemCode: row.itemCode };
+      const item = itemsByCode.get(normalizedItemCode);
+      if (!item) {
+        const itemBody = itemSchema.parse({
+          itemCode: row.itemCode,
+          itemName: row.description,
+          type: row.type,
+          usedForModels: modelIds,
+          uom: "pcs",
+          status: "Active",
+          recordState: "Active",
+        });
+        const createdItem = { id: ctx.nextId("item"), ...itemBody };
+        store.items.push(createdItem);
+        itemsByCode.set(normalizedItemCode, createdItem);
+        createdItems.push(createdItem);
+        modelIds.forEach((modelId) => affectedModelIds.add(modelId));
+        return { action: "created", itemCode: row.itemCode };
       }
-      if (importedItemCodes.has(normalizedItemCode)) {
-        return { action: "skipped", itemCode: row.itemCode, reason: "Duplicate row in this import" };
+      const addedModelIds = modelIds.filter((modelId) => !item.usedForModels.includes(modelId));
+      const createdHere = createdItems.includes(item);
+      if (addedModelIds.length === 0) {
+        return createdHere
+          ? { action: "skipped", itemCode: row.itemCode, reason: "Duplicate row in this import" }
+          : { action: "duplicated", itemCode: row.itemCode };
       }
-      const itemBody = itemSchema.parse({
-        itemCode: row.itemCode,
-        itemName: row.description,
-        type: row.type,
-        usedForModels: Array.from(new Set(modelIds)),
-        uom: "pcs",
-        status: "Active",
-        recordState: "Active",
-      });
-
-      const item = { id: ctx.nextId("item"), ...itemBody };
-      store.items.push(item);
-      importedItemCodes.add(normalizedItemCode);
-      ctx.audit("Import", "Item", item.id, item.itemCode, undefined, item, "Created from item import", item.id, "Import");
-      return { action: "created", item };
+      if (!createdHere && !linkedItems.has(item.id)) linkedItems.set(item.id, { before: structuredClone(item), item });
+      item.usedForModels = [...item.usedForModels, ...addedModelIds];
+      addedModelIds.forEach((modelId) => affectedModelIds.add(modelId));
+      return { action: "linked", itemCode: row.itemCode };
     });
-    const affectedModelIds = Array.from(
-      new Set(
-        imported
-          .flatMap((row) => (row.action === "created" && row.item ? row.item.usedForModels : [])),
-      ),
-    );
-    syncActivePackagingSetItems(ctx, affectedModelIds, "Item import");
-    syncActiveCasesForModels(ctx, affectedModelIds, "Item import");
+    for (const item of createdItems) {
+      ctx.audit("Import", "Item", item.id, item.itemCode, undefined, item, "Created from item import", item.id, "Import");
+    }
+    for (const { before, item } of linkedItems.values()) {
+      ctx.audit("Edit", "Item", item.id, item.itemCode, before, item, "Models added by item import", item.id, "Import");
+    }
+    syncActivePackagingSetItems(ctx, [...affectedModelIds], "Item import");
+    syncActiveCasesForModels(ctx, [...affectedModelIds], "Item import");
     return created({
       totalRows: parsed.rows.length,
       created: imported.filter((row) => row.action === "created").length,
+      linked: imported.filter((row) => row.action === "linked").length,
       duplicated: imported.filter((row) => row.action === "duplicated").length,
       skipped: imported.filter((row) => row.action === "skipped").length,
       duplicateItemCodes: imported.filter((row) => row.action === "duplicated").map((row) => row.itemCode),
