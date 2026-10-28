@@ -229,6 +229,7 @@ export function createDrawingSet(
   payload: Omit<DrawingSet, "id" | "drawingItems"> & {
     drawingItems: Array<Omit<DrawingSet["drawingItems"][number], "id">>;
     replaceActive?: boolean;
+    linkItemIds?: string[];
   },
 ) {
   return request<DrawingSet>("/api/drawing-sets", {

@@ -85,6 +85,9 @@ export const drawingSetSchema = z.object({
     .default([]),
 });
 
+// Items a new packaging set covers that are not yet linked to its model.
+export const drawingSetLinkItemIdsSchema = z.array(z.string().min(1)).default([]);
+
 export const itemImportSchema = z.object({
   updateExisting: z.boolean().default(false),
   rows: z.array(

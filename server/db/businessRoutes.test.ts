@@ -526,3 +526,59 @@ test("an item import adds new models to an existing Item Code and to codes repea
     ]);
   });
 });
+
+test("a packaging set for a new model links the shared items it covers to that model", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { model, item, drawingSet } = await seedSourcingCase(app, session);
+    const post = (path: string, body: unknown) => expectJson(send(app, session, "POST", path, body), 201);
+    const bte = await post("/api/models", { name: "BTE 800", recordState: "Active" });
+
+    const created = await post("/api/drawing-sets", {
+      modelId: bte.id,
+      name: "SEG-BTE-800 A0",
+      status: "Active",
+      effectiveDate: "2026-10-28",
+      recordState: "Active",
+      replaceActive: true,
+      linkItemIds: [item.id],
+      drawingItems: [{ itemId: item.id }],
+    });
+
+    assert.equal(created.modelId, bte.id);
+    assert.equal(created.revision, "1.0");
+    const { rows: [linked] } = await pool.query("SELECT used_for_models FROM items WHERE id = $1", [item.id]);
+    assert.deepEqual(linked.used_for_models, [model.id, bte.id]);
+    const { rows: sets } = await pool.query("SELECT id, model_id, status FROM drawing_sets ORDER BY id");
+    assert.deepEqual(sets, [
+      { id: drawingSet.id, model_id: model.id, status: "Active" },
+      { id: created.id, model_id: bte.id, status: "Active" },
+    ]);
+    const { rows: audit } = await pool.query("SELECT action, reason FROM audit_logs WHERE entity_type = 'Item' AND entity_id = $1 ORDER BY id DESC LIMIT 1", [item.id]);
+    assert.deepEqual(audit, [{ action: "Edit", reason: "Linked to model by packaging set import" }]);
+  });
+});
+
+test("a packaging set that links a missing item is refused and links nothing", async () => {
+  await withTestApp(async ({ createApp, pool }) => {
+    const app = createApp();
+    const session = await signIn(app);
+    const { item } = await seedSourcingCase(app, session);
+    const bte = await expectJson(send(app, session, "POST", "/api/models", { name: "BTE 800", recordState: "Active" }), 201);
+    const before = await snapshotTables(pool);
+
+    const response = await send(app, session, "POST", "/api/drawing-sets", {
+      modelId: bte.id,
+      name: "SEG-BTE-800 A0",
+      status: "Active",
+      effectiveDate: "2026-10-28",
+      recordState: "Active",
+      linkItemIds: [item.id, "item-9999"],
+      drawingItems: [{ itemId: item.id }],
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await snapshotTables(pool), before);
+  });
+});

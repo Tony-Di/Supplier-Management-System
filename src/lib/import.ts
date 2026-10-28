@@ -195,6 +195,19 @@ export function packagingSetNameFromFileName(fileName: string) {
   return fileName.replace(/\.[^.]+$/, "").trim();
 }
 
+const nameTokens = (value: string) => value.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+
+// The model a package PDF is named after: the one sharing the most words with
+// the file name, unless another model shares as many.
+export function modelFromFileName<T extends Pick<Model, "name">>(fileName: string, models: T[]) {
+  const fileTokens = new Set(nameTokens(packagingSetNameFromFileName(fileName)));
+  const [best, runnerUp] = models
+    .map((model) => ({ model, score: nameTokens(model.name).filter((token) => fileTokens.has(token)).length }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score);
+  return best && best.score !== runnerUp?.score ? best.model : undefined;
+}
+
 export function nextPackagingSetRevision(sets: DrawingSet[], modelId: string) {
   const existingCount = sets.filter((set) => set.modelId === modelId && set.recordState !== "Void").length;
   return `${existingCount + 1}.0`;

@@ -22,6 +22,7 @@ import {
   validateSupplierFileLinks,
 } from "./business";
 import {
+  drawingSetLinkItemIdsSchema,
   drawingSetSchema,
   fileUploadSchema,
   incomingDefectSchema,
@@ -375,6 +376,16 @@ export function createApp({ previousOrderSelection = getConfig().previousOrderSe
       })),
     });
     validateDrawingSetLinks(store, parsed);
+    let linkedItems = false;
+    for (const itemId of drawingSetLinkItemIdsSchema.parse(request.body?.linkItemIds)) {
+      const item = store.items.find((candidate) => candidate.id === itemId);
+      if (!item || !isUsableRecord(item)) throw new ValidationError(`Item not found: ${itemId}`);
+      if (item.usedForModels.includes(parsed.modelId)) continue;
+      const before = cloneRecord(item);
+      item.usedForModels = [...item.usedForModels, parsed.modelId];
+      ctx.audit("Edit", "Item", item.id, item.itemCode, before, item, "Linked to model by packaging set import");
+      linkedItems = true;
+    }
     if (request.body?.replaceActive && parsed.status === "Active") {
       for (const drawingSet of store.drawingSets) {
         if (drawingSet.modelId === parsed.modelId && drawingSet.status === "Active") {
@@ -394,6 +405,7 @@ export function createApp({ previousOrderSelection = getConfig().previousOrderSe
     };
     store.drawingSets.push(drawingSet);
     ctx.audit("Create", "DrawingSet", drawingSet.id, drawingSet.name, undefined, drawingSet);
+    if (linkedItems) syncActiveCasesForModels(ctx, [parsed.modelId], "Packaging set import");
     return created(drawingSet);
   }));
   app.delete("/api/drawing-sets/:id", write((ctx, request) => {

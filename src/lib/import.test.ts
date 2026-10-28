@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { detectImportKind, parseItemImportRows, parseModelImportRows, findDuplicateItemCodes, nextPackagingSetRevision, packagingSetNameFromFileName } from './import';
+import { detectImportKind, parseItemImportRows, parseModelImportRows, findDuplicateItemCodes, modelFromFileName, nextPackagingSetRevision, packagingSetNameFromFileName } from './import';
 import type { PackagingItem, DrawingSet } from '../types';
 const models = [{ id: 'm1', name: 'BTA' }, { id: 'm2', name: 'BTC 620' }];
 test('imports TSV headers, CRLF and multi-model items', () => {
@@ -100,4 +100,11 @@ test('names a packaging set after its file without the extension', () => {
   assert.equal(packagingSetNameFromFileName('SEG-BTC-BG-G12R-P-7 A0.pdf'), 'SEG-BTC-BG-G12R-P-7 A0');
   assert.equal(packagingSetNameFromFileName('SEG-620.BTC.rev2.pdf'), 'SEG-620.BTC.rev2');
   assert.equal(packagingSetNameFromFileName('SEG-620-BTC'), 'SEG-620-BTC');
+});
+test('picks the model a package PDF is named after', () => {
+  const named = [{ name: 'BTA 610' }, { name: 'BTC 620' }, { name: 'BTA 620' }];
+  assert.equal(modelFromFileName('SEG-BTA-BG-M10-P-8 A0(30MM-36PCS).pdf', named.slice(0, 2))?.name, 'BTA 610');
+  assert.equal(modelFromFileName('SEG-620-BTC_BG_210R.pdf', named)?.name, 'BTC 620');
+  assert.equal(modelFromFileName('SEG-620 pallet.pdf', named), undefined);
+  assert.equal(modelFromFileName('Packaging.pdf', named), undefined);
 });
