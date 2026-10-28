@@ -16,6 +16,8 @@
   background: var(--page);
   --seg-blue: #1C5CB0;
   --rule: #E6E8EB;
+  /* Table rows are dense and alike, so their dividers are darker than other rules. */
+  --table-rule: #8C97A6;
   --heading-font: Kanit, "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 14px;
@@ -1472,12 +1474,6 @@ background: #F2F3F5; border: 1px dashed #B8B8B8; color: #666666;
   margin-top: 3px;
 }
 
-/* Case progress rows are tall and look alike, so their dividers have to read. */
-.caseProgressTable th,
-.caseProgressTable td {
-  border-bottom-color: #8C97A6;
-}
-
 @media (max-width: 900px) {
   .caseProgressFilters,
   .comparisonFilters {
@@ -1955,7 +1951,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .recordCount { color: var(--muted); font-size: 12px; align-self: center; }
 table { font-size: 12px; }
 th { background: #F7F8FA; color: #666; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 700; }
-th, td { padding: 13px 16px; border-bottom-color: var(--rule); }
+th, td { padding: 13px 16px; border-bottom-color: var(--table-rule); }
 tbody tr:hover { background: #FAFBFC; }
 td { font-variant-numeric: tabular-nums; }
 .statusPill, .lifecyclePill { font-family: var(--heading-font); font-size: 10px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }

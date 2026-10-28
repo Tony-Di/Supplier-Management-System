@@ -531,7 +531,7 @@ export function CaseQuoteWorkbench({
           </label>
         </div>
       </div>
-      <div className="tableViewport"><table className="comparisonTable compactComparison caseProgressTable">
+      <div className="tableViewport"><table className="comparisonTable compactComparison">
         <thead>
           <tr>
             {selectedItemId === "All" && <th>Item</th>}
