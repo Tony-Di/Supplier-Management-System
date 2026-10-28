@@ -551,10 +551,9 @@ export function CaseQuoteWorkbench({
               </td>
             </tr>
           )}
-          {rows.map((row, index) => {
-            const startsItem = selectedItemId === "All" && index > 0 && rows[index - 1].itemId !== row.itemId;
+          {rows.map((row) => {
             return (
-              <tr className={startsItem ? "itemGroupStart" : undefined} key={`supplier-progress-${row.itemId}-${row.supplierId}`}>
+              <tr key={`supplier-progress-${row.itemId}-${row.supplierId}`}>
                 {selectedItemId === "All" && (
                   <td>
                     <strong>{row.item ? row.item.itemCode : itemCode(appData, row.itemId)}</strong>

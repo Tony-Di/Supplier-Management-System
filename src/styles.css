@@ -1475,11 +1475,7 @@ background: #F2F3F5; border: 1px dashed #B8B8B8; color: #666666;
 /* Case progress rows are tall and look alike, so their dividers have to read. */
 .caseProgressTable th,
 .caseProgressTable td {
-  border-bottom-color: #C3CAD4;
-}
-
-.caseProgressTable tr.itemGroupStart td {
-  border-top: 2px solid #8C97A6;
+  border-bottom-color: #8C97A6;
 }
 
 @media (max-width: 900px) {
