@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { Menu, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { navItems } from "../navigation";
 import type { Section } from "../uiTypes";
@@ -39,18 +39,21 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
             </button>
           </div>
           <div className="brandCaption">
-            <strong>Global Sourcing</strong>
-            <span>Packaging Supply Chain</span>
+            <div className="brandCaptionText">
+              <strong>Global Sourcing</strong>
+              <span>Packaging Supply Chain</span>
+            </div>
           </div>
         </div>
 
         <nav id="main-navigation" className="navList" aria-label="Main navigation">
-          {navItems.filter(({ section: item }) => item !== "Admin" || user?.role === "admin").map(({ section: item, icon: Icon }) => (
+          {navItems.filter(({ section: item }) => item !== "Admin" || user?.role === "admin").map(({ section: item, icon: Icon }, index) => (
             <button
               className={section === item ? "navButton active" : "navButton"}
               aria-current={section === item ? "page" : undefined}
               key={item}
               onClick={() => onSectionChange(item)}
+              style={{ "--nav-index": index } as CSSProperties}
               type="button"
               title={item}
             >

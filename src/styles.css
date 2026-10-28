@@ -2306,3 +2306,115 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 
 .sidebarCollapsed .sidebarIdentity { display: none; }
 @media (max-width: 760px) { .sidebarIdentity { display: none; } }
+
+/* Sidebar collapse motion (desktop). Collapsing fades the words out first and
+   then narrows the rail; expanding widens first and then brings the menu words
+   back one after another. A transition takes the timing of the state it moves
+   into, so each state sets its own. Nothing changes display or flex direction,
+   so the menu never jumps and the menu words never re-wrap mid-move. */
+@media (min-width: 761px) {
+  .appShell {
+    --sidebar-width: 248px;
+    --sidebar-ease: cubic-bezier(0.2, 0, 0, 1);
+    --sidebar-move: 220ms;
+    --sidebar-move-delay: 0ms;
+    --sidebar-fade: 180ms;
+    --sidebar-fade-delay: 140ms;
+    --sidebar-stagger: 25ms;
+    --sidebar-move-timing: var(--sidebar-move) var(--sidebar-ease) var(--sidebar-move-delay);
+    transition: grid-template-columns var(--sidebar-move-timing);
+  }
+  .appShell.sidebarCollapsed {
+    --sidebar-move-delay: 90ms;
+    --sidebar-fade: 90ms;
+    --sidebar-fade-delay: 0ms;
+    --sidebar-stagger: 0ms;
+  }
+
+  .sidebar { overflow-x: hidden; }
+
+  .brandBlock,
+  .sidebarCollapsed .brandBlock {
+    align-items: stretch;
+    transition: padding var(--sidebar-move-timing), gap var(--sidebar-move-timing);
+  }
+  .sidebarCollapsed .brandBlock { gap: 0; padding: 0 12px 22px; }
+
+  .brandHeader,
+  .sidebarCollapsed .brandHeader {
+    display: block;
+    height: 36px;
+    position: relative;
+    transition: height var(--sidebar-move-timing);
+  }
+  .sidebarCollapsed .brandHeader { height: 61px; }
+
+  .brandHeader .brandLogo,
+  .sidebarCollapsed .brandHeader .brandLogo {
+    left: 0;
+    max-width: calc(100% - 44px);
+    position: absolute;
+    top: 18px;
+    transform: translateY(-50%);
+    transition: width var(--sidebar-move-timing), max-width var(--sidebar-move-timing), top var(--sidebar-move-timing), transform var(--sidebar-move-timing);
+    width: 158px;
+  }
+  .sidebarCollapsed .brandHeader .brandLogo { max-width: 100%; top: 0; transform: translateY(0); width: 52px; }
+
+  .sidebarToggle,
+  .sidebarCollapsed .sidebarToggle {
+    left: calc(100% - 36px);
+    position: absolute;
+    top: 0;
+    transition: left var(--sidebar-move-timing), top var(--sidebar-move-timing), background 0.15s ease, color 0.15s ease;
+  }
+  .sidebarCollapsed .sidebarToggle { left: calc(50% - 18px); top: 25px; }
+
+  .brandCaption,
+  .sidebarCollapsed .brandCaption {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition: grid-template-rows var(--sidebar-move-timing), opacity var(--sidebar-fade) ease var(--sidebar-fade-delay);
+  }
+  .sidebarCollapsed .brandCaption { grid-template-rows: 0fr; opacity: 0; }
+  .brandCaptionText { min-height: 0; overflow: hidden; white-space: nowrap; }
+
+  .navButton,
+  .sidebarCollapsed .navButton {
+    justify-content: flex-start;
+    transition: padding var(--sidebar-move-timing), background 0.15s ease, color 0.15s ease;
+  }
+  .sidebarCollapsed .navButton { padding: 12px 0 12px 26px; }
+
+  .navButton span,
+  .sidebarCollapsed .navButton span {
+    display: block;
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+      opacity var(--sidebar-fade) ease calc(var(--sidebar-fade-delay) + var(--nav-index, 0) * var(--sidebar-stagger)),
+      transform var(--sidebar-fade) var(--sidebar-ease) calc(var(--sidebar-fade-delay) + var(--nav-index, 0) * var(--sidebar-stagger));
+    white-space: nowrap;
+  }
+  .sidebarCollapsed .navButton span { opacity: 0; transform: translateX(-6px); }
+
+  .sidebarIdentity,
+  .sidebarCollapsed .sidebarIdentity {
+    display: flex;
+    flex-shrink: 0;
+    opacity: 1;
+    transition: opacity var(--sidebar-fade) ease var(--sidebar-fade-delay), visibility 0s;
+    visibility: visible;
+    width: var(--sidebar-width);
+  }
+  .sidebarCollapsed .sidebarIdentity {
+    opacity: 0;
+    transition: opacity var(--sidebar-fade) ease, visibility 0s linear var(--sidebar-fade);
+    visibility: hidden;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .appShell { --sidebar-width: 220px; }
+}
