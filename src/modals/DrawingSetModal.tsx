@@ -159,6 +159,15 @@ export function DrawingSetModal({
             setSelectedIds={setLinkItemIds}
           />
         )}
+        {/* Said rather than hidden, so the option is not mistaken for missing. */}
+        {modelId && linkableItems.length === 0 && (
+          <div className="multiSelectField">
+            <span>Also link items to {modelName(appData, modelId)}</span>
+            <span className="muted linkItemsEmpty">
+              Every active item is already linked to {modelName(appData, modelId)}. To cover a new item, add it under Models &amp; Items first.
+            </span>
+          </div>
+        )}
         {activeDrawingSet && (
           <div className="notice modalNotice">
             Current active package for {modelName(appData, modelId)} is {activeDrawingSet.name} {activeDrawingSet.revision}. The new import will be saved as version {nextRevision} and replace it for user-facing workflow while keeping the old version in audit history.
