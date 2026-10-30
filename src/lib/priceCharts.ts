@@ -43,7 +43,7 @@ export function buildQuotePriceChartRows(appData: Pick<AppData, "suppliers" | "i
   return Array.from(rows.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
-export function buildDashboardPriceTrendRows(appData: Pick<AppData, "suppliers">, visibleQuotes: Quote[]) {
+export function buildDashboardPriceTrendRows(appData: Pick<AppData, "suppliers">, visibleQuotes: Quote[], today?: string) {
   const rows = new Map<string, Record<string, string | number>>();
 
   for (const quote of visibleQuotes) {
@@ -51,6 +51,11 @@ export function buildDashboardPriceTrendRows(appData: Pick<AppData, "suppliers">
     const row = rows.get(date) ?? { date, time: chartTime(date) };
     row[supplierName(appData, quote.supplierId)] = quote.unitPrice;
     rows.set(date, row);
+  }
+  // The chart runs to today, so a price still in effect reaches the present
+  // and a single price draws a line rather than a dot.
+  if (today && rows.size > 0 && Array.from(rows.keys()).every((date) => date < today)) {
+    rows.set(today, { date: today, time: chartTime(today) });
   }
 
   const sortedRows = Array.from(rows.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));

@@ -21,11 +21,6 @@ export function formatChartDate(time: number) {
   return Number.isFinite(time) ? new Date(time).toISOString().slice(0, 10) : "";
 }
 
-// "2026-04" rather than "Apr 26", which reads as April 26th.
-export function formatMonthTick(time: number) {
-  return formatChartDate(time).slice(0, 7);
-}
-
 export function todayDateString() {
   return new Date().toISOString().slice(0, 10);
 }

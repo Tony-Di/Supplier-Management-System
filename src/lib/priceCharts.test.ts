@@ -55,6 +55,18 @@ test("a supplier's Selected price carries across later dates until its Effective
   ]);
 });
 
+test("the trend runs to today, so a single price in effect draws a line", () => {
+  const rows = buildDashboardPriceTrendRows(appData, [quote("a", "2026-10-01", 14.75, "Selected")], "2026-10-30");
+  assert.deepEqual(rows, [
+    { date: "2026-10-01", time: chartTime("2026-10-01"), "Legacy Paper": 14.75 },
+    { date: "2026-10-30", time: chartTime("2026-10-30"), "Legacy Paper": 14.75 },
+  ]);
+});
+
+test("a price that starts after today adds no today point", () => {
+  assert.equal(buildDashboardPriceTrendRows(appData, [quote("a", "2026-11-01", 14.75, "Selected")], "2026-10-30").length, 1);
+});
+
 test("an ended price is not carried past its Effective To", () => {
   const twoSuppliers = { suppliers: [{ id: "s1", name: "Legacy Paper" }, { id: "s2", name: "Pacific Pallet" }] as Supplier[] };
   const rows = buildDashboardPriceTrendRows(twoSuppliers, [

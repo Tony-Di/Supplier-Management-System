@@ -10,7 +10,7 @@ import { Metric } from "../components/Metric";
 import { Panel } from "../components/Panel";
 import { EmptyState } from "../components/EmptyState";
 import { ResponsiveContainer, LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from "recharts";
-import { formatChartDate, formatMonthTick, formatMoney } from "../lib/format";
+import { formatChartDate, formatMoney, todayDateString } from "../lib/format";
 import { dashboardPriceDomain, chartColor } from "../lib/charts";
 import { AlertRow } from "../components/AlertRow";
 
@@ -32,7 +32,7 @@ export function Dashboard() {
   const activeSupplierLeadTimeDays = averageLeadTimeForActiveSourceSuppliers(appData, activeSourceAssignments);
   const selectedQuotes = appData.quotes.filter((quote) => quote.recordState !== "Void" && isSelectedQuote(quote));
   const selectedItemQuotes = selectedItem ? selectedQuotes.filter((quote) => quote.itemId === selectedItem.id) : [];
-  const priceTrendRows = buildDashboardPriceTrendRows(appData, selectedItemQuotes);
+  const priceTrendRows = buildDashboardPriceTrendRows(appData, selectedItemQuotes, todayDateString());
   const selectedSeries = Array.from(new Set(selectedItemQuotes.map((quote) => supplierName(appData, quote.supplierId))));
   const latestChanges = [...appData.priceChanges]
     .filter((change) => change.recordState !== "Void")
@@ -99,7 +99,7 @@ export function Dashboard() {
               {priceTrendRows.length === 0 ? (
                 <EmptyState text="No selected quote price records for this item yet." />
               ) : priceTrendRows.length === 1 ? (
-                // One date draws a lone dot, so the prices are listed instead.
+                // Only a price that has not taken effect yet leaves a single date.
                 <div className="dashboardPriceList">
                   {selectedItemQuotes.map((quote) => (
                     <AlertRow
@@ -108,13 +108,13 @@ export function Dashboard() {
                       text={`Effective ${quote.effectiveFrom ?? quote.quoteDate}`}
                     />
                   ))}
-                  <span className="dashboardSectionNote">A price line appears once this item has Selected prices on two or more dates.</span>
+                  <span className="dashboardSectionNote">The price line starts once this price takes effect.</span>
                 </div>
               ) : (
                 <ResponsiveContainer height={260} width="100%">
                   <RechartsLineChart data={priceTrendRows} margin={{ top: 10, right: 24, bottom: 4, left: 6 }}>
                     <CartesianGrid stroke="#e7ecee" />
-                    <XAxis dataKey="time" domain={["dataMin", "dataMax"]} interval="preserveStartEnd" padding={{ left: 12, right: 12 }} scale="time" tickFormatter={formatMonthTick} ticks={priceTrendRows.map((row) => row.time)} type="number" />
+                    <XAxis dataKey="time" domain={["dataMin", "dataMax"]} interval="preserveStartEnd" padding={{ left: 12, right: 12 }} scale="time" tickFormatter={formatChartDate} ticks={priceTrendRows.map((row) => row.time)} type="number" />
                     <YAxis domain={dashboardPriceDomain(selectedItemQuotes)} tickFormatter={(value) => `$${value}`} width={54} />
                     <Tooltip formatter={(value, name) => [formatMoney(Number(value)), String(name)]} labelFormatter={(label) => `Date: ${formatChartDate(Number(label))}`} />
                     <Legend />
