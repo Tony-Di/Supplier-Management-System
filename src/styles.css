@@ -1663,6 +1663,10 @@ background: #F2F3F5; border: 1px dashed #B8B8B8; color: #666666;
   gap: 7px;
 }
 
+.linkItemsEmpty {
+  font-weight: 400;
+}
+
 .formGrid input,
 .formGrid select,
 .formGrid textarea,
