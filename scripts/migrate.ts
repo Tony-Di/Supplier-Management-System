@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { PoolClient } from "pg";
 
 export const migrationsDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
@@ -18,7 +18,7 @@ export async function runMigrations(client: PoolClient, directory = migrationsDi
   return pending;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { pool } = await import("../server/db.js");
   const client = await pool.connect();
   try {
