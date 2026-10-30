@@ -9,7 +9,7 @@ import { useScorecard } from "../useScorecard";
 import { Metric } from "../components/Metric";
 import { Panel } from "../components/Panel";
 import { EmptyState } from "../components/EmptyState";
-import { ResponsiveContainer, LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from "recharts";
+import { ResponsiveContainer, LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from "recharts";
 import { formatChartDate, formatMonthTick, formatMoney } from "../lib/format";
 import { dashboardPriceDomain, chartColor } from "../lib/charts";
 import { AlertRow } from "../components/AlertRow";
@@ -93,17 +93,31 @@ export function Dashboard() {
 
         <div className="dashboardSplitBody">
           <section className="dashboardSplitSection">
-            <h3>Selected quote price trend</h3>
+            <h3>Selected price history</h3>
+            <p className="dashboardSectionNote">Only quotes marked Selected, by effective date. Each line is one supplier.</p>
             <div className="chartBox dashboardChart">
               {priceTrendRows.length === 0 ? (
                 <EmptyState text="No selected quote price records for this item yet." />
+              ) : priceTrendRows.length === 1 ? (
+                // One date draws a lone dot, so the prices are listed instead.
+                <div className="dashboardPriceList">
+                  {selectedItemQuotes.map((quote) => (
+                    <AlertRow
+                      key={quote.id}
+                      title={`${supplierName(appData, quote.supplierId)} · ${formatMoney(quote.unitPrice)} / ${quote.uom}`}
+                      text={`Effective ${quote.effectiveFrom ?? quote.quoteDate}`}
+                    />
+                  ))}
+                  <span className="dashboardSectionNote">A price line appears once this item has Selected prices on two or more dates.</span>
+                </div>
               ) : (
                 <ResponsiveContainer height={260} width="100%">
-                  <RechartsLineChart data={priceTrendRows} margin={{ top: 10, right: 28, bottom: 4, left: 28 }}>
+                  <RechartsLineChart data={priceTrendRows} margin={{ top: 10, right: 24, bottom: 4, left: 6 }}>
                     <CartesianGrid stroke="#e7ecee" />
                     <XAxis dataKey="time" domain={["dataMin", "dataMax"]} interval="preserveStartEnd" padding={{ left: 12, right: 12 }} scale="time" tickFormatter={formatMonthTick} ticks={priceTrendRows.map((row) => row.time)} type="number" />
-                    <YAxis domain={dashboardPriceDomain(selectedItemQuotes)} hide />
+                    <YAxis domain={dashboardPriceDomain(selectedItemQuotes)} tickFormatter={(value) => `$${value}`} width={54} />
                     <Tooltip formatter={(value, name) => [formatMoney(Number(value)), String(name)]} labelFormatter={(label) => `Date: ${formatChartDate(Number(label))}`} />
+                    <Legend />
                     {selectedSeries.map((series, index) => (
                       <Line connectNulls dataKey={series} dot={{ r: 3 }} key={series} stroke={chartColor(index)} strokeWidth={3} type="stepAfter" />
                     ))}

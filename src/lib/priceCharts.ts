@@ -53,5 +53,19 @@ export function buildDashboardPriceTrendRows(appData: Pick<AppData, "suppliers">
     rows.set(date, row);
   }
 
-  return Array.from(rows.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const sortedRows = Array.from(rows.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  // A Selected price holds until its Effective To, so each supplier's line
+  // carries its latest price across later dates instead of ending in a lone point.
+  for (const row of sortedRows) {
+    const date = String(row.date);
+    for (const supplierId of new Set(visibleQuotes.map((quote) => quote.supplierId))) {
+      const name = supplierName(appData, supplierId);
+      if (row[name] !== undefined) continue;
+      const latest = visibleQuotes
+        .filter((quote) => quote.supplierId === supplierId && quoteDate(quote) <= date)
+        .sort((a, b) => quoteDate(b).localeCompare(quoteDate(a)))[0];
+      if (latest && (!latest.effectiveTo || latest.effectiveTo >= date)) row[name] = latest.unitPrice;
+    }
+  }
+  return sortedRows;
 }
