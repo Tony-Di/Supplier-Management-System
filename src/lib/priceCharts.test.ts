@@ -40,3 +40,26 @@ test("trend rows carry a time value so the axis spaces dates by the days between
   const rows = buildDashboardPriceTrendRows(appData, [quote("a", "2025-11-01", 15.2, "Selected"), quote("b", "2026-04-01", 14.6, "Selected")]);
   assert.deepEqual(rows.map((row) => row.time), [Date.UTC(2025, 10, 1), Date.UTC(2026, 3, 1)]);
 });
+
+test("a supplier's Selected price carries across later dates until its Effective To", () => {
+  const twoSuppliers = { suppliers: [{ id: "s1", name: "Legacy Paper" }, { id: "s2", name: "Pacific Pallet" }] as Supplier[] };
+  const rows = buildDashboardPriceTrendRows(twoSuppliers, [
+    { ...quote("a", "2026-10-01", 13.25, "Selected"), effectiveTo: "2026-12-19" },
+    { ...quote("b", "2026-11-15", 14, "Selected"), supplierId: "s2" },
+    quote("c", "2026-12-20", 12.9, "Selected"),
+  ]);
+  assert.deepEqual(rows.map(({ date, "Legacy Paper": legacy, "Pacific Pallet": pacific }) => [date, legacy, pacific]), [
+    ["2026-10-01", 13.25, undefined],
+    ["2026-11-15", 13.25, 14],
+    ["2026-12-20", 12.9, 14],
+  ]);
+});
+
+test("an ended price is not carried past its Effective To", () => {
+  const twoSuppliers = { suppliers: [{ id: "s1", name: "Legacy Paper" }, { id: "s2", name: "Pacific Pallet" }] as Supplier[] };
+  const rows = buildDashboardPriceTrendRows(twoSuppliers, [
+    { ...quote("a", "2026-10-01", 13.25, "Selected"), effectiveTo: "2026-10-31" },
+    { ...quote("b", "2026-11-15", 14, "Selected"), supplierId: "s2" },
+  ]);
+  assert.equal(rows[1]["Legacy Paper"], undefined);
+});
