@@ -1,16 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { formatMoney, csvCell, formatAuditValue, formatFileSize, formatSupplierSince, localDateString, formatMonthTick, formatChartDate } from './format';
-test('labels chart months with the full year so "Apr 26" cannot read as April 26th', () => {
-  assert.equal(formatMonthTick(Date.UTC(2026, 3, 1)), '2026-04');
-  assert.equal(formatMonthTick(Date.UTC(2025, 10, 30)), '2025-11');
-});
+import { formatMoney, csvCell, formatAuditValue, formatFileSize, formatSupplierSince, localDateString, formatChartDate } from './format';
 test('labels a chart point with its calendar date', () => {
   assert.equal(formatChartDate(Date.UTC(2026, 3, 1)), '2026-04-01');
 });
 test('leaves a chart label blank when the chart passes no time', () => {
   assert.equal(formatChartDate(Number(undefined)), '');
-  assert.equal(formatMonthTick(Number.NaN), '');
+  assert.equal(formatChartDate(Number.NaN), '');
 });
 test('preserves fractional packaging prices and CSV quoting', () => {
   assert.equal(formatMoney(1234.567), '$1,234.567');
