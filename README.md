@@ -8,7 +8,7 @@ See `Supplier Management Demo Workflow and IT Implementation Guide.docx` for the
 
 - Frontend: React 19, TypeScript, Vite, Recharts, lucide-react (`src/`)
 - Backend: Node.js, Express, Zod, run with `tsx` (`server/`)
-- Sign-in: Microsoft Entra ID (OpenID Connect via `openid-client`) with server-side sessions
+- Sign-in: Microsoft Entra ID (OpenID Connect via `openid-client`), or SEG email address and password with emailed links (`nodemailer`), with server-side sessions
 - Storage: PostgreSQL for everything — business records, uploaded files, users, sessions and the audit trail
 
 ## Getting Started
@@ -41,6 +41,8 @@ Set `API_PORT` to run the API on a different port. The Vite proxy target in `vit
 ### Signing in
 
 `.env.example` sets `AUTH_MODE=dev`, which signs in a fixed local account (`dev@segsolar.com`) without contacting Microsoft, so the app runs offline. The server refuses to start when `AUTH_MODE=dev` is combined with `NODE_ENV=production`.
+
+To sign in with an email address and password, as the IT ticket system does, set `AUTH_MODE=password` and `SIGN_UP_EMAIL_DOMAINS` (`.env.example` lists both SEG domains). People create an account from the sign-in page: the app emails a link to their address, and opening it sets their password. **Forgot password?** works the same way, and so does **Change password** under your name in the sidebar once you are signed in. With `SMTP_HOST` empty, the emails, links included, are printed in the `npm run dev:api` terminal instead of being sent. Set the `SMTP_` values to send them through Office 365. See [docs/deployment.md](docs/deployment.md#auth_modepassword-named-accounts-no-app-registration).
 
 To sign in with Entra ID instead, remove `AUTH_MODE` (or set it to `entra`) and fill in `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` and `ENTRA_CLIENT_SECRET`. The app registration needs one redirect URI, `<APP_ORIGIN>/api/auth/callback`, and the delegated `openid`, `profile` and `email` scopes. Only accounts from the configured tenant are accepted.
 
@@ -112,6 +114,10 @@ server/
   app.ts        Express app and business routes
   routes/       Sign-in and admin routes
   auth/         Entra client and token claim validation
+  passwords.ts  Password hashing (scrypt) and link tokens
+  passwordAccounts.ts  Password sign-in accounts and emailed links
+  passwordMail.ts      Sign-up and reset emails
+  mailer.ts     SMTP sending, or the log when SMTP_HOST is unset
   session.ts    Sessions, auth guards and CSRF
   config.ts     Environment validation
   db.ts         Postgres pool
