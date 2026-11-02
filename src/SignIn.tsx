@@ -6,6 +6,7 @@ import {
   checkPasswordLink,
   fetchSignInOptions,
   passwordSignIn,
+  requestPasswordChange,
   requestPasswordLink,
   requestSignUpLink,
   setPasswordFromLink,
@@ -26,7 +27,8 @@ function MicrosoftMark() {
   );
 }
 
-export function SignIn({ deactivated }: { deactivated: boolean }) {
+/** `signedIn`: the user opened an emailed password link while signed in, to change their password. */
+export function SignIn({ deactivated, signedIn = false }: { deactivated: boolean; signedIn?: boolean }) {
   const [options, setOptions] = useState<SignInOptions | null>(null);
   const [unreachable, setUnreachable] = useState(false);
 
@@ -64,7 +66,7 @@ export function SignIn({ deactivated }: { deactivated: boolean }) {
         ) : !options ? (
           <div className="signInForm" aria-busy="true" />
         ) : options.mode === "password" ? (
-          <PasswordSignIn domains={options.signUpDomains} />
+          <PasswordSignIn domains={options.signUpDomains} signedIn={signedIn} />
         ) : (
           <MicrosoftSignIn deactivated={deactivated} />
         )}
@@ -117,7 +119,7 @@ function messageOf(error: unknown): string {
 }
 
 /** Email and password sign-in (AUTH_MODE=password), with sign-up and password reset by emailed link. */
-function PasswordSignIn({ domains }: { domains: string[] }) {
+function PasswordSignIn({ domains, signedIn }: { domains: string[]; signedIn: boolean }) {
   const [email, setEmail] = useState("");
   const [view, setView] = useState<View>(() => {
     const token = passwordLinkToken(window.location.hash);
@@ -139,8 +141,12 @@ function PasswordSignIn({ domains }: { domains: string[] }) {
     setView(next);
   }
 
-  const back = () => show({ name: "signIn" });
+  // Signed in, the way back is the app itself, and a new link goes to the user's own address.
+  const back = signedIn ? () => window.location.replace("/") : () => show({ name: "signIn" });
   const sent = (address: string) => show({ name: "sent", email: address });
+  const newLink = signedIn
+    ? async () => sent((await requestPasswordChange()).email)
+    : () => show({ name: "forgot" });
 
   switch (view.name) {
     case "signIn":
@@ -150,9 +156,9 @@ function PasswordSignIn({ domains }: { domains: string[] }) {
     case "forgot":
       return <ForgotForm domains={domains} email={email} onEmail={setEmail} onBack={back} onSent={sent} />;
     case "sent":
-      return <LinkSent email={view.email} onBack={back} />;
+      return <LinkSent email={view.email} onBack={back} backLabel={signedIn ? "Back to Global Sourcing" : undefined} />;
     case "setPassword":
-      return <SetPasswordForm token={view.token} onBack={back} onForgot={() => show({ name: "forgot" })} />;
+      return <SetPasswordForm token={view.token} onBack={back} backLabel={signedIn ? "Back to Global Sourcing" : undefined} onNewLink={newLink} />;
   }
 }
 
@@ -250,11 +256,11 @@ function PasswordInput({ id, value, onChange, autoComplete }: { id: string; valu
   );
 }
 
-function BackLink({ onBack }: { onBack: () => void }) {
+function BackLink({ onBack, label = "Back to sign in" }: { onBack: () => void; label?: string }) {
   return (
     <button className="signInLink signInBack" type="button" onClick={onBack}>
       <ArrowLeft size={14} aria-hidden="true" />
-      <span>Back to sign in</span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -357,7 +363,7 @@ function ForgotForm({ domains, email, onEmail, onBack, onSent }: LinkRequestProp
   );
 }
 
-function LinkSent({ email, onBack }: { email: string; onBack: () => void }) {
+function LinkSent({ email, onBack, backLabel }: { email: string; onBack: () => void; backLabel?: string }) {
   return (
     <div className="signInForm">
       <MailCheck className="signInSentIcon" size={34} aria-hidden="true" />
@@ -366,12 +372,12 @@ function LinkSent({ email, onBack }: { email: string; onBack: () => void }) {
         If <strong>{email}</strong> can use this system, an email with a link is on its way. The link works once and expires in 60 minutes.
       </p>
       <p className="signInNote">Nothing after a few minutes? Look in Outlook's Junk Email folder, then ask for a new link.</p>
-      <p className="signInSwitch"><BackLink onBack={onBack} /></p>
+      <p className="signInSwitch"><BackLink onBack={onBack} label={backLabel} /></p>
     </div>
   );
 }
 
-function SetPasswordForm({ token, onBack, onForgot }: { token: string; onBack: () => void; onForgot: () => void }) {
+function SetPasswordForm({ token, onBack, backLabel, onNewLink }: { token: string; onBack: () => void; backLabel?: string; onNewLink: () => void | Promise<void> }) {
   const [link, setLink] = useState<PasswordLinkInfo | null>(null);
   const [linkError, setLinkError] = useState("");
   const [password, setPassword] = useState("");
@@ -404,13 +410,26 @@ function SetPasswordForm({ token, onBack, onForgot }: { token: string; onBack: (
     }
   }
 
+  async function askForNewLink() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onNewLink();
+    } catch (requestError) {
+      setError(messageOf(requestError));
+      setBusy(false);
+    }
+  }
+
   if (linkError) {
     return (
       <div className="signInForm">
-        <BackLink onBack={onBack} />
+        <BackLink onBack={onBack} label={backLabel} />
         <h2 className="signInHeading">Link not valid</h2>
         <Alert title={linkError} />
-        <button className="signInSubmit signInSpaced" type="button" onClick={onForgot}>Email me a new link</button>
+        <button className="signInSubmit signInSpaced" type="button" disabled={busy} onClick={() => void askForNewLink()}>{busy ? "Sending…" : "Email me a new link"}</button>
+        <FormError message={error} />
       </div>
     );
   }
@@ -419,6 +438,7 @@ function SetPasswordForm({ token, onBack, onForgot }: { token: string; onBack: (
 
   return (
     <div className="signInForm">
+      <BackLink onBack={onBack} label={backLabel} />
       <h2 className="signInHeading">{link.newAccount ? "Set your password" : "Choose a new password"}</h2>
       <p className="signInSub">
         {link.newAccount ? `Welcome${link.name ? `, ${link.name}` : ""}. ` : ""}This password is for Global Sourcing only — it does not change your Outlook password.

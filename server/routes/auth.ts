@@ -69,6 +69,9 @@ authRouter.get("/me", requireAuth, (request, response) => {
     email: user.email,
     role: user.role,
     csrfToken: csrfToken(request),
-    features: { previousOrderSelection: Boolean(request.app.locals.previousOrderSelection) },
+    features: {
+      previousOrderSelection: Boolean(request.app.locals.previousOrderSelection),
+      passwordSignIn: config.authMode === "password",
+    },
   });
 });

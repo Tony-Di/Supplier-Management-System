@@ -13,7 +13,7 @@ const SessionContext = createContext<SessionState | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [features, setFeatures] = useState<SessionFeatures>({ previousOrderSelection: false });
+  const [features, setFeatures] = useState<SessionFeatures>({ previousOrderSelection: false, passwordSignIn: false });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,7 +21,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .then((session) => {
         setCsrfToken(session.csrfToken);
         setUser({ id: session.id, name: session.name, email: session.email, role: session.role });
-        setFeatures({ previousOrderSelection: Boolean(session.features?.previousOrderSelection) });
+        setFeatures({
+          previousOrderSelection: Boolean(session.features?.previousOrderSelection),
+          passwordSignIn: Boolean(session.features?.passwordSignIn),
+        });
       })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));

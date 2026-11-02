@@ -88,6 +88,9 @@ Email and password sign-in (`AUTH_MODE=password`; otherwise `404`). JSON bodies 
 - `POST /api/auth/password/forgot`: `{ email }`. Always `202`; emails a link only to an existing, active account
 - `POST /api/auth/password/link`: `{ token }`. `{ email, name, newAccount }`, or `400` once the link has expired or been used
 - `POST /api/auth/password/set`: `{ token, password }`. Sets the password (8 to 128 characters), creates the account if needed, and signs in. A link works once and expires after 60 minutes
+- `POST /api/auth/password/change-link`: signed in, with the CSRF token. Emails the user's own address a link to choose a new password; `202` with `{ email }`. Three a minute per account
+
+`GET /api/auth/me` reports `features.passwordSignIn`, so the app shows **Change password** only in this mode.
 
 The sign-up and forgot routes allow 5 requests a minute per IP, and the link routes 20.
 

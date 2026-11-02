@@ -2339,6 +2339,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 
 .signInFieldError svg { flex: 0 0 auto; margin-top: 2px; }
 
+.signInSpaced + .signInFieldError { margin-top: 12px; }
+
 .signInAttempts { display: flex; gap: 4px; margin-top: 9px; }
 
 .signInAttempts span { flex: 1; height: 4px; border-radius: 2px; background: var(--rule); }
@@ -2440,6 +2442,32 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 }
 
 .sidebarSignOut:hover { background: #1F1F1F; border-color: var(--seg-red); color: #FFFFFF; }
+
+.sidebarLink {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #9A9A9A;
+  font-size: 11px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sidebarLink:hover { color: #FFFFFF; }
+
+/* Change password dialog */
+.modalPanel.narrowModal { width: min(460px, 100%); }
+.modalText { margin: 18px; color: var(--ink); font-size: 14px; }
+.modalText p { margin: 0 0 10px; }
+.modalText p:last-child { margin-bottom: 0; }
+.modalTextMuted { color: var(--muted); font-size: 13px; }
+.modalSent { display: flex; gap: 12px; align-items: flex-start; }
+.modalSent > svg { flex: 0 0 auto; margin-top: 1px; color: #23623b; }
+.modalTextError:empty { display: none; }
+.modalTextError { margin: 0 18px 18px; }
 
 .sidebarCollapsed .sidebarIdentity { display: none; }
 @media (max-width: 760px) { .sidebarIdentity { display: none; } }

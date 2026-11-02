@@ -66,6 +66,7 @@ Each person signs in with their SEG email address and a password of their own, a
 
 - **Creating an account.** On the sign-in page, **Create an account** asks for a name and a work email. Only addresses in `SIGN_UP_EMAIL_DOMAINS` are accepted. The app emails a link to that mailbox, and opening it sets the password and creates the account, so only someone who can read that Outlook mailbox can create it.
 - **Forgot password.** **Forgot password?** emails the same kind of link to an existing account. Setting a new password signs out the account's other sessions.
+- **Changing a password.** Signed in, **Change password** under the person's name in the sidebar emails a link to their own address. The current password keeps working until the link is used.
 - **Links** work once and expire after 60 minutes. Only the newest link for an address works.
 - **Wrong passwords.** Five wrong passwords for one address lock it for the rest of the minute, and twenty from one computer lock that computer out.
 - **Deactivating** an account in **Admin → Users** blocks its sign-in and its reset links. The password is separate from the person's Outlook password, so leaving the company does not block it on its own; deactivate them here too.

@@ -158,6 +158,8 @@ export function fetchAuditEntries(filter: AuditFilter = {}) {
 export interface SessionFeatures {
   /** A buyer may select a quote without a sample by confirming earlier orders. */
   previousOrderSelection: boolean;
+  /** AUTH_MODE=password: people sign in with a password they can change by emailed link. */
+  passwordSignIn: boolean;
 }
 
 export function fetchSession() {
@@ -225,6 +227,11 @@ export function checkPasswordLink(token: string) {
 
 export function setPasswordFromLink(token: string, password: string) {
   return passwordRequest<{ ok: true }>("/set", { token, password });
+}
+
+/** Signed in: emails a link to the user's own address to choose a new password. */
+export function requestPasswordChange() {
+  return request<{ email: string }>("/api/auth/password/change-link", { method: "POST" });
 }
 
 export function fetchBootstrap() {

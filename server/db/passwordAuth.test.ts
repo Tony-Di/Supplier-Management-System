@@ -306,3 +306,58 @@ test("one IP trying many addresses is stopped after twenty failures", async () =
     assert.equal((await post(app, "/sign-in", { email: "spray-21@segsolar.com", password: "Summer2026!" }, { ip: newIp() })).status, 401);
   });
 });
+
+function requestChangeLink(app: Express, cookie: string | undefined, csrfToken?: string) {
+  return call(app, "/api/auth/password/change-link", {
+    method: "POST",
+    cookie,
+    headers: { "Content-Type": "application/json", ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) },
+  });
+}
+
+test("a signed-in user can email themselves a link to change their password", async () => {
+  await withTestApp(async ({ createApp }) => {
+    const app = createApp();
+    const browser = await createAccount(app, "change@segsolar.com", "Changer", "old-password");
+    const session = await expectJson(me(app, browser), 200);
+    assert.equal(session.features.passwordSignIn, true);
+    const ip = newIp();
+    const laptop = sessionCookie(await post(app, "/sign-in", { email: "change@segsolar.com", password: "old-password" }, { ip }));
+
+    assert.equal((await requestChangeLink(app, undefined)).status, 401);
+    assert.equal((await requestChangeLink(app, browser)).status, 403, "the CSRF token is required");
+    assert.equal(outbox.length, 0);
+
+    assert.deepEqual(await expectJson(requestChangeLink(app, browser, session.csrfToken), 202), { email: "change@segsolar.com" });
+    const mail = takeMail("change@segsolar.com");
+    assert.match(mail.subject, /Reset your password/);
+    assert.match(mail.text, /Hello Changer,/);
+
+    // The old password works until the link is used.
+    assert.equal((await post(app, "/sign-in", { email: "change@segsolar.com", password: "old-password" }, { ip })).status, 200);
+
+    const token = tokenFrom(mail);
+    assert.equal((await expectJson(post(app, "/link", { token }, { ip }), 200)).newAccount, false);
+    const set = await post(app, "/set", { token, password: "new-password" }, { ip });
+    assert.equal(set.status, 200);
+    assert.equal((await me(app, sessionCookie(set))).status, 200);
+    assert.equal((await me(app, browser)).status, 401);
+    assert.equal((await me(app, laptop)).status, 401);
+
+    await expectJson(post(app, "/sign-in", { email: "change@segsolar.com", password: "old-password" }, { ip }), 401);
+    assert.equal((await post(app, "/sign-in", { email: "change@segsolar.com", password: "new-password" }, { ip })).status, 200);
+  });
+});
+
+test("an account can ask for three change links a minute", async () => {
+  await withTestApp(async ({ createApp }) => {
+    const app = createApp();
+    const cookie = await createAccount(app, "often@segsolar.com", "Often", "often-password");
+    const { csrfToken } = await expectJson(me(app, cookie), 200);
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      await expectJson(requestChangeLink(app, cookie, csrfToken), 202);
+    }
+    assert.equal((await requestChangeLink(app, cookie, csrfToken)).status, 429);
+    assert.equal(outbox.length, 3);
+  });
+});

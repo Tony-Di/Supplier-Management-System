@@ -15,7 +15,7 @@ import {
 } from "../passwordAccounts";
 import { passwordLinkUrl, resetMail, signUpMail } from "../passwordMail";
 import { hashPassword, PASSWORD_MAX_LENGTH, passwordProblem, verifyPassword } from "../passwords";
-import { signIn } from "../session";
+import { requireAuth, signIn, verifyCsrf } from "../session";
 
 const config = getConfig();
 
@@ -146,4 +146,21 @@ passwordRouter.post("/set", tokenLimiter, handle(async (request, response) => {
   if (result.status === "deactivated") throw new PasswordAuthError(403, DEACTIVATED);
   await signIn(request, result.user);
   response.json({ ok: true });
+}));
+
+// Signed in: email a link to the account's own address, to choose a new
+// password from it. The current password keeps working until the link is used.
+const changeLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 3,
+  message: tooMany,
+  keyGenerator: (request) => `change|${request.user!.email.toLowerCase()}`,
+});
+
+passwordRouter.post("/change-link", requireAuth, verifyCsrf, changeLimiter, handle(async (request, response) => {
+  const user = request.user!;
+  const account = await findAccountByEmail(pool, user.email);
+  const url = passwordLinkUrl(config.origin, await createPasswordLink(pool, user.email, null));
+  deliver(account?.passwordHash ? resetMail(user.email, user.name, url) : signUpMail(user.email, user.name, url));
+  response.status(202).json({ email: user.email });
 }));
