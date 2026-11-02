@@ -83,3 +83,29 @@ test("the selection rules migration keeps effective requotes and renames retired
     assert.deepEqual(audited.rows.map((row) => row.entity_id), ["q-cwo", "q-rejected", "q-requote", "q-review"]);
   }, { through: "005_supplier_other_files.sql" });
 });
+
+test("the password sign-in migration keeps existing accounts, records and their history", async () => {
+  await withTestDatabase(async (client) => {
+    await client.query("INSERT INTO users (entra_oid, email, name, role, session_epoch) VALUES ('dev-oid', 'dev@segsolar.com', 'Dev User', 'admin', 3)");
+    await client.query(`INSERT INTO suppliers (id, name, status, type, country, region, capable_items, primary_contact, email, phone, payment_terms, has_w9, has_payment_info, notes)
+      VALUES ('sup-1', 'Midwest Paper', 'Active', 'Manufacturer', 'United States', '', '{Pallet}', '', '', '', '', false, false, '')`);
+    await client.query("INSERT INTO models (id, name, product_family, status, notes) VALUES ('model-1', 'BTA', 'Solar Module', 'Active', '')");
+    await client.query(`INSERT INTO drawing_sets (id, model_id, name, revision, status, effective_date, maintained_by)
+      VALUES ('dwgset-1', 'model-1', 'BTA packaging', '1.0', 'Active', '2026-01-01', 'Process Engineering')`);
+    await client.query(`INSERT INTO projects (id, name, model_ids, drawing_set_id, type, case_reason, status, supplier_ids, item_ids, owner, open_date)
+      VALUES ('proj-1', 'BTA second source', '{model-1}', 'dwgset-1', 'New Supplier Development', 'New Supplier', 'Planning', '{sup-1}', '{}', 'Purchasing', '2026-08-04')`);
+    await client.query(`INSERT INTO audit_logs (timestamp, actor_user_id, actor_label, action, entity_type, entity_id, entity_label)
+      VALUES (now(), 1, 'Dev User', 'Create', 'Case', 'proj-1', 'BTA second source')`);
+    const before = await client.query("SELECT id, entra_oid, email, name, role, active, session_epoch FROM users");
+
+    await runMigrations(client);
+
+    const after = await client.query("SELECT id, entra_oid, email, name, role, active, session_epoch, password_hash FROM users");
+    assert.deepEqual(after.rows, [{ ...before.rows[0], password_hash: null }]);
+    assert.deepEqual((await client.query("SELECT id, name FROM suppliers")).rows, [{ id: "sup-1", name: "Midwest Paper" }]);
+    assert.deepEqual((await client.query("SELECT id, name FROM projects")).rows, [{ id: "proj-1", name: "BTA second source" }]);
+    assert.deepEqual((await client.query("SELECT actor_user_id, actor_label, entity_id FROM audit_logs")).rows, [
+      { actor_user_id: 1, actor_label: "Dev User", entity_id: "proj-1" },
+    ]);
+  }, { through: "006_quote_selection_rules.sql" });
+});
