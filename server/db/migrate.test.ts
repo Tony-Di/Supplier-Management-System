@@ -11,7 +11,7 @@ test("creates the users table", async () => {
     );
     const columns = rows.map((row) => row.column_name).sort();
     assert.deepEqual(columns, [
-      "active", "created_at", "email", "entra_oid", "id", "last_login_at", "name", "role", "session_epoch",
+      "active", "created_at", "email", "entra_oid", "id", "last_login_at", "name", "password_hash", "role", "session_epoch",
     ]);
   });
 });

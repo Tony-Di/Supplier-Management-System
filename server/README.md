@@ -9,7 +9,7 @@ Stack:
 - Express
 - Zod for request validation
 - PostgreSQL (`pg`) for all data
-- `openid-client` for Microsoft Entra ID sign-in
+- `openid-client` for Microsoft Entra ID sign-in, and `nodemailer` for the emails of email and password sign-in
 
 All data is stored in Postgres; the schema is in `migrations/` and applied with `npm run migrate` (and on every start of the Docker image). Each business record type has its own table, and uploaded files are stored in `files`.
 
@@ -17,11 +17,15 @@ A write request is one transaction: it loads the business data, applies the chan
 
 ## Authentication
 
+`AUTH_MODE` picks how people sign in: `entra` (Microsoft), `password` (SEG email address and a password set from an emailed link) or `dev` (one shared local account).
+
 Every `/api` route except `/api/health` and the sign-in routes requires a session, and so does `/uploads`. Requests without one get `401` JSON rather than a redirect. Admin routes return `403` to other users.
 
 `POST`, `PATCH` and `DELETE` requests must send the session's CSRF token in an `X-CSRF-Token` header. The token is returned by `GET /api/auth/me`.
 
-Deactivating a user or changing their role takes effect on their next request: each change increments the user's `session_epoch`, and sessions carrying an older value are rejected.
+Deactivating a user or changing their role takes effect on their next request: each change increments the user's `session_epoch`, and sessions carrying an older value are rejected. Setting a new password from an emailed link does the same.
+
+Passwords are stored as salted scrypt hashes in `users.password_hash`, which is never sent to the browser. Emailed links carry a random token in the URL fragment (`/#set-password=<token>`); only its SHA-256 hash is stored, in `password_links`.
 
 ## Main Chain
 
@@ -71,10 +75,21 @@ Other:
 
 Sign-in:
 
-- `GET /api/auth/login`: redirects to Entra ID, or signs in the local account when `AUTH_MODE=dev`
+- `GET /api/auth/options`: `{ mode, signUpDomains }`, so the sign-in page knows which form to show
+- `GET /api/auth/login`: redirects to Entra ID, or signs in the local account when `AUTH_MODE=dev`; `404` when `AUTH_MODE=password`
 - `GET /api/auth/callback`: Entra redirect target; rate limited to 20 requests a minute per IP
 - `GET /api/auth/me`: the signed-in user, CSRF token and `features.previousOrderSelection`, or `401`
 - `POST /api/auth/logout`
+
+Email and password sign-in (`AUTH_MODE=password`; otherwise `404`). JSON bodies only; no CSRF token, since there is no session yet:
+
+- `POST /api/auth/password/sign-in`: `{ email, password }`. `401` for a wrong address or password (the same message for both), `403` for a deactivated account. Five failures for one address, or twenty from one IP, within a minute return `429` with `Retry-After`
+- `POST /api/auth/password/sign-up`: `{ name, email }`. The address must end in one of `SIGN_UP_EMAIL_DOMAINS`. Always `202`; emails a link that creates the account, or a reset link if the address already has one
+- `POST /api/auth/password/forgot`: `{ email }`. Always `202`; emails a link only to an existing, active account
+- `POST /api/auth/password/link`: `{ token }`. `{ email, name, newAccount }`, or `400` once the link has expired or been used
+- `POST /api/auth/password/set`: `{ token, password }`. Sets the password (8 to 128 characters), creates the account if needed, and signs in. A link works once and expires after 60 minutes
+
+The sign-up and forgot routes allow 5 requests a minute per IP, and the link routes 20.
 
 Admin only:
 

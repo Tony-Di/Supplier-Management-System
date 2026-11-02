@@ -168,6 +168,65 @@ export function signOut() {
   return request<{ ok: true }>("/api/auth/logout", { method: "POST" });
 }
 
+export type SignInMode = "entra" | "dev" | "password";
+
+export interface SignInOptions {
+  mode: SignInMode;
+  /** AUTH_MODE=password: the email domains that may create an account. */
+  signUpDomains: string[];
+}
+
+export function fetchSignInOptions() {
+  return request<SignInOptions>("/api/auth/options");
+}
+
+/** A refused sign-in request, keeping the status and how long a lockout lasts. */
+export class SignInError extends Error {
+  constructor(message: string, readonly status: number, readonly retryAfterSeconds = 0) {
+    super(message);
+  }
+}
+
+async function passwordRequest<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`/api/auth/password${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new SignInError(payload.message ?? "Request failed", response.status, Number(response.headers.get("retry-after")) || 0);
+  }
+  return payload as T;
+}
+
+export interface PasswordLinkInfo {
+  email: string;
+  name: string | null;
+  newAccount: boolean;
+}
+
+export function passwordSignIn(email: string, password: string) {
+  return passwordRequest<{ ok: true }>("/sign-in", { email, password });
+}
+
+export function requestSignUpLink(name: string, email: string) {
+  return passwordRequest<{ message: string }>("/sign-up", { name, email });
+}
+
+export function requestPasswordLink(email: string) {
+  return passwordRequest<{ message: string }>("/forgot", { email });
+}
+
+export function checkPasswordLink(token: string) {
+  return passwordRequest<PasswordLinkInfo>("/link", { token });
+}
+
+export function setPasswordFromLink(token: string, password: string) {
+  return passwordRequest<{ ok: true }>("/set", { token, password });
+}
+
 export function fetchBootstrap() {
   return request<AppData>("/api/bootstrap");
 }
