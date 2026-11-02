@@ -48,6 +48,12 @@ export function SourcingProjects({
   const [collapsedCaseIds, setCollapsedCaseIds] = useState<string[]>([]);
   const selectedProject = appData.projects.find((project) => project.id === selectedProjectId) ?? appData.projects[0];
   const selectedProjectCollapsed = selectedProject ? collapsedCaseIds.includes(selectedProject.id) : false;
+
+  // When another case is shown without the search, such as one just created,
+  // clear a search that still names the previous case.
+  useEffect(() => {
+    setCaseSearch((current) => (current && current !== selectedProject?.name ? "" : current));
+  }, [selectedProjectId]);
   const filteredProjects = appData.projects
     .filter((project) => project.recordState !== "Void")
     .filter((project) => {

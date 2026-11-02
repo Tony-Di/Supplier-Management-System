@@ -321,9 +321,11 @@ function Workbench() {
           <ProjectModal
             data={recordOptions}
             onClose={() => setModal(null)}
-            onCreated={async () => {
+            onCreated={async (project) => {
               setModal(null);
               await refreshData();
+              // The page shows one case at a time; show the new one.
+              setSelectedProjectId(project.id);
             }}
           />
         )}
