@@ -37,6 +37,12 @@ export function ModelsAndItems({
   const [masterView, setMasterView] = useState<"Items" | "Models">("Items");
   const approvedItems = appData.items.filter((item) => item.recordState !== "Void");
   const duplicateItemCodes = findDuplicateItemCodes(appData.items.filter((item) => item.recordState !== "Void"));
+  const [typeFilter, setTypeFilter] = useState("All");
+  const [usedForFilter, setUsedForFilter] = useState("All");
+  const itemTypes = [...new Set(approvedItems.map((item) => item.type).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const visibleItems = approvedItems
+    .filter((item) => typeFilter === "All" || item.type === typeFilter)
+    .filter((item) => usedForFilter === "All" || item.usedForModels.includes(usedForFilter));
   return (
     <section className="pageStack">
       <Panel title="Product master list">
@@ -49,6 +55,24 @@ export function ModelsAndItems({
                 <option value="Models">Models ({approvedModels.length})</option>
               </select>
             </label>
+            {masterView === "Items" && (
+              <>
+                <label className="modelFilterControl">
+                  Type
+                  <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                    <option value="All">All types</option>
+                    {itemTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                </label>
+                <label className="modelFilterControl">
+                  Used for
+                  <select value={usedForFilter} onChange={(event) => setUsedForFilter(event.target.value)}>
+                    <option value="All">All models</option>
+                    {approvedModels.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+                  </select>
+                </label>
+              </>
+            )}
           </div>
           <div className="itemMasterActions">
             <button className="ghostButton" onClick={onImport} type="button">
@@ -79,7 +103,12 @@ export function ModelsAndItems({
                 </tr>
               </thead>
               <tbody>
-                {approvedItems.map((item) => (
+                {visibleItems.length === 0 && (
+                  <tr>
+                    <td className="muted" colSpan={6}>No packaging items match the selected filters.</td>
+                  </tr>
+                )}
+                {visibleItems.map((item) => (
                   <tr key={item.id}>
                     <td>
                       <div className="stackedCell">

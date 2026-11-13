@@ -590,7 +590,7 @@ font-size: 12px; line-height: 1.4; overflow-wrap: anywhere;
   align-items: end;
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(2, minmax(190px, 260px));
+  grid-template-columns: repeat(3, minmax(150px, 240px));
   min-width: 0;
 }
 
