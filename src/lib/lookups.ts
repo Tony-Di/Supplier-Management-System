@@ -2,21 +2,41 @@ import { type AppData } from "../api";
 import { formatMoney } from "./format";
 import { type Supplier, type DrawingSet, type SampleInspection, type PackagingItem, type Quote, type UploadedFileRecord } from "../types";
 
+const indexes = new WeakMap<readonly object[], Map<string, unknown>>();
+
+/**
+ * The record with this ID in a collection. Tables look up a supplier, item or
+ * model for every cell, so each collection is indexed once instead of being
+ * searched each time. Collections are replaced, never changed in place, when
+ * data reloads, which is what lets the index be kept per array.
+ */
+export function recordById<T extends { id: string }>(records: readonly T[], id: string | undefined): T | undefined {
+  if (!id) return undefined;
+  let index = indexes.get(records) as Map<string, T> | undefined;
+  if (!index) {
+    index = new Map();
+    // The first record wins, as Array.find would have it.
+    for (const record of records) if (!index.has(record.id)) index.set(record.id, record);
+    indexes.set(records, index);
+  }
+  return index.get(id);
+}
+
 export function priceChangeForQuote(appData: Pick<AppData, "priceChanges">, quoteId: string) {
   return appData.priceChanges.find((change) => change.recordState !== "Void" && change.sourceQuoteId === quoteId);
 }
 
 export function quoteExportReference(appData: Pick<AppData, "items" | "quotes" | "suppliers">, quoteId: string) {
-  const quote = appData.quotes.find((candidate) => candidate.id === quoteId);
+  const quote = recordById(appData.quotes, quoteId);
   return quote ? `${quote.effectiveFrom ?? quote.quoteDate} / ${supplierName(appData, quote.supplierId)} / ${itemCode(appData, quote.itemId)} / ${formatMoney(quote.unitPrice)}` : quoteId;
 }
 
 export function supplierName(appData: Pick<AppData, "suppliers">, id: string) {
-  return appData.suppliers.find((supplier) => supplier.id === id)?.name ?? "Unknown supplier";
+  return recordById(appData.suppliers, id)?.name ?? "Unknown supplier";
 }
 
 export function projectName(appData: Pick<AppData, "projects">, id: string) {
-  return appData.projects.find((project) => project.id === id)?.name ?? "Unknown case";
+  return recordById(appData.projects, id)?.name ?? "Unknown case";
 }
 
 export function supplierLocation(supplier: Supplier) {
@@ -24,11 +44,11 @@ export function supplierLocation(supplier: Supplier) {
 }
 
 export function modelName(appData: Pick<AppData, "models">, id: string) {
-  return appData.models.find((model) => model.id === id)?.name ?? "Unknown model";
+  return recordById(appData.models, id)?.name ?? "Unknown model";
 }
 
 export function drawingSetName(appData: Pick<AppData, "drawingSets">, id: string) {
-  return appData.drawingSets.find((set) => set.id === id)?.name ?? "Unknown packaging set";
+  return recordById(appData.drawingSets, id)?.name ?? "Unknown packaging set";
 }
 
 export function activeDrawingSetsForModel(sets: DrawingSet[], modelId: string, keepId?: string) {
@@ -39,8 +59,7 @@ export function activeDrawingSetsForModel(sets: DrawingSet[], modelId: string, k
 }
 
 export function drawingItemForInspection(appData: Pick<AppData, "drawingSets">, inspection: SampleInspection) {
-  return appData.drawingSets
-    .find((set) => set.id === inspection.drawingSetId)
+  return recordById(appData.drawingSets, inspection.drawingSetId)
     ?.drawingItems.find((drawingItem) => drawingItem.id === inspection.drawingItemId);
 }
 
@@ -53,7 +72,7 @@ export function drawingFileLabel(appData: Pick<AppData, "files">, drawingItem?: 
 }
 
 export function itemById(appData: Pick<AppData, "items">, id: string): PackagingItem | undefined {
-  return appData.items.find((item) => item.id === id);
+  return recordById(appData.items, id);
 }
 
 export function itemCode(appData: Pick<AppData, "items">, id: string) {
@@ -63,7 +82,7 @@ export function itemCode(appData: Pick<AppData, "items">, id: string) {
 
 export function quoteLabel(appData: Pick<AppData, "quotes">, id?: string) {
   if (!id) return "-";
-  const quote = appData.quotes.find((candidate) => candidate.id === id);
+  const quote = recordById(appData.quotes, id);
   return quote ? `${quote.quoteDate} ${formatMoney(quote.unitPrice)}` : "Missing quote";
 }
 
@@ -74,7 +93,7 @@ export function quoteExtraCostLabel(quote: Quote) {
 
 export function purchasePriceLabel(appData: Pick<AppData, "purchasePrices">, id?: string) {
   if (!id) return "-";
-  const purchase = appData.purchasePrices.find((candidate) => candidate.id === id);
+  const purchase = recordById(appData.purchasePrices, id);
   return purchase ? `${purchase.poNumber} ${purchase.orderDate} ${formatMoney(purchase.unitPrice)}` : "Missing PO price";
 }
 
@@ -86,7 +105,7 @@ export function fileLabel(appData: Pick<AppData, "files">, id?: string) {
 
 export function fileRecord(appData: Pick<AppData, "files">, id?: string) {
   if (!id) return undefined;
-  return appData.files.find((candidate) => candidate.id === id);
+  return recordById(appData.files, id);
 }
 
 export function fileUrl(file: UploadedFileRecord) {

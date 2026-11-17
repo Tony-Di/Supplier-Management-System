@@ -18,6 +18,7 @@ import { isIncomingDefectPendingReceive, isIncomingDefectComplete, incomingDefec
 import { exportIncomingDefectHistory } from "../lib/exports";
 import { incomingDefectActionLabel } from "../lib/defectTimeline";
 import { IncomingDefectFiles } from "../components/IncomingDefectFiles";
+import { Pager, usePaging } from "../components/Pager";
 
 export function SampleInspections({
   onAdd,
@@ -49,6 +50,7 @@ export function SampleInspections({
     .filter((inspection) => itemFilter === "All" || inspection.itemId === itemFilter)
     .filter((inspection) => resultFilter === "All" || inspection.result === resultFilter)
     .sort((a, b) => (b.inspectionDate ?? b.sampleReceivedDate).localeCompare(a.inspectionDate ?? a.sampleReceivedDate));
+  const inspectionPaging = usePaging(visibleInspections);
 
   return (
     <section className="pageStack">
@@ -156,7 +158,7 @@ export function SampleInspections({
                 <td colSpan={8}><EmptyState text="No inspection records match the filters." /></td>
               </tr>
             )}
-            {visibleInspections.map((inspection) => {
+            {inspectionPaging.rows.map((inspection) => {
               return (
                 <tr key={`inspection-record-${inspection.id}`}>
                   <td>{inspection.relatedQuoteId ? "From Quote" : "Standalone"}</td>
@@ -186,6 +188,7 @@ export function SampleInspections({
             })}
           </tbody>
         </table></div>
+        <Pager paging={inspectionPaging} />
       </Panel>
     </section>
   );
@@ -224,6 +227,7 @@ export function IncomingDefects({
     .filter((defect) => statusFilter === "All" || (statusFilter === "Pending" ? isIncomingDefectPendingReceive(defect) : isIncomingDefectComplete(defect)))
     .sort((a, b) => b.defectDate.localeCompare(a.defectDate));
   const pendingReceiveDefects = allActiveDefects.filter((defect) => isIncomingDefectPendingReceive(defect));
+  const defectPaging = usePaging(filteredDefects);
 
   return (
     <section className="pageStack">
@@ -344,7 +348,7 @@ export function IncomingDefects({
                 <td colSpan={10}><EmptyState text="No incoming defect records match the filters." /></td>
               </tr>
             )}
-            {filteredDefects.map((defect) => (
+            {defectPaging.rows.map((defect) => (
               <tr key={`defect-record-${defect.id}`}>
                 <td>{defect.poNumber ?? "-"}</td>
                 <td>{defect.defectDate}</td>
@@ -364,6 +368,7 @@ export function IncomingDefects({
             ))}
           </tbody>
         </table></div>
+        <Pager paging={defectPaging} />
       </Panel>
     </section>
   );
