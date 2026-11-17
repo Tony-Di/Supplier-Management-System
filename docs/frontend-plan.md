@@ -8,7 +8,7 @@ impossible — a restyle hidden inside a 6,000-line move is unreviewable.
 
 - `src/App.tsx` is **6,434 lines**: every screen, every modal, every helper.
 - `src/styles.css` is **2,290 lines** of global classes, no CSS modules.
-- There is **no router**. Navigation is `useState<Section>` in `App()`.
+- Navigation has no router library. `useNavigation` keeps the section, tab and selected case in step with the browser address (added after this plan was written; see `src/lib/route.ts`).
 - Data lives in **module-level mutable bindings** — `let suppliers`, `let models`,
   … at `src/App.tsx:161-174`, reassigned mid-render at lines 279-292 from the
   `data` state. Roughly 55 call sites read them directly instead of taking props.
