@@ -12,6 +12,7 @@ import { priceAnalyticsDomain, chartColor } from "../lib/charts";
 import { formatChartDate, formatMoney } from "../lib/format";
 import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHandler } from "../uiTypes";
 import { StatusPill } from "../components/StatusPill";
+import { Pager, usePaging } from "../components/Pager";
 import { LifecyclePill } from "../components/LifecyclePill";
 import { RecordMenu } from "../components/RecordMenu";
 
@@ -151,6 +152,7 @@ export function PriceChanges({
 }) {
   const { data: appData } = useAppData();
   const activePriceChanges = appData.priceChanges.filter((change) => change.recordState !== "Void");
+  const changePaging = usePaging(activePriceChanges);
   return (
     <section className="pageStack">
       <Panel title="Price change events">
@@ -177,7 +179,7 @@ export function PriceChanges({
                 <td colSpan={12}><EmptyState text="Price change events will appear when a selected quote changes the effective price history." /></td>
               </tr>
             )}
-            {activePriceChanges.map((change) => {
+            {changePaging.rows.map((change) => {
               const percent = ((change.newPrice - change.oldPrice) / change.oldPrice) * 100;
               return (
                 <tr key={change.id}>
@@ -210,6 +212,7 @@ export function PriceChanges({
             })}
           </tbody>
         </table></div>
+        <Pager paging={changePaging} />
       </Panel>
     </section>
   );

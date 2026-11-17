@@ -2,7 +2,7 @@ import { isUsableRecord } from "../lib/recordOptions";
 import { type SourceAssignment, type Quote } from "../types";
 import { type DeleteHandler, type EditTarget, type HistoryHandler, type VoidHandler } from "../uiTypes";
 import { useAppData } from "../AppDataContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { modelName, supplierName, itemCode, drawingSetName, itemById } from "../lib/lookups";
 import { TableToolbar } from "../components/TableToolbar";
 import { Panel } from "../components/Panel";
@@ -22,6 +22,7 @@ import { QuoteValueStack } from "../components/QuoteValueStack";
 import { useScorecard } from "../useScorecard";
 import { QuoteMini } from "../components/QuoteMini";
 import { SourceRoleSelect } from "../components/SourceRoleSelect";
+import { Pager, usePaging } from "../components/Pager";
 
 export function SourcingProjects({
   onSourceRoleChange,
@@ -227,14 +228,17 @@ export function Quotes({
   const [supplierFilter, setSupplierFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<"All" | Quote["status"]>("All");
 
-  const filteredQuotes = appData.quotes
+  // Checking each quote against the case links is the costly part, so it is redone only when the data or a filter changes.
+  const filteredQuotes = useMemo(() => appData.quotes
     .filter((quote) => quote.recordState !== "Void")
     .filter((quote) => modeFilter === "All" || (modeFilter === "Case-linked" ? quoteHasCaseLink(appData, quote) : !quoteHasCaseLink(appData, quote)))
     .filter((quote) => projectFilter === "All" || quoteAppliesToProject(appData, quote, projectFilter) || (projectFilter === "Standalone" && !quote.projectId))
     .filter((quote) => modelFilter === "All" || quote.modelId === modelFilter)
     .filter((quote) => itemFilter === "All" || quote.itemId === itemFilter)
     .filter((quote) => supplierFilter === "All" || quote.supplierId === supplierFilter)
-    .filter((quote) => statusFilter === "All" || quote.status === statusFilter);
+    .filter((quote) => statusFilter === "All" || quote.status === statusFilter),
+  [appData, modeFilter, projectFilter, modelFilter, itemFilter, supplierFilter, statusFilter]);
+  const quotePaging = usePaging(filteredQuotes);
 
   const itemOptions = appData.items.filter((item) => modelFilter === "All" || item.usedForModels.includes(modelFilter));
 
@@ -323,7 +327,7 @@ export function Quotes({
                   <td colSpan={12}><EmptyState text="No quotes match the selected filters." /></td>
                 </tr>
               )}
-              {filteredQuotes.map((quote) => (
+              {quotePaging.rows.map((quote) => (
                 <tr key={quote.id}>
                   <td>{supplierName(appData, quote.supplierId)}</td>
                   <td>{itemCode(appData, quote.itemId)}</td>
@@ -353,6 +357,7 @@ export function Quotes({
             </tbody>
           </table>
         </div>
+        <Pager paging={quotePaging} />
       </Panel>
     </section>
   );

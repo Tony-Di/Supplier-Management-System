@@ -79,6 +79,18 @@ docker compose -f compose.intranet.yml --env-file deploy.env up -d --build
 
 Data is kept in the `pgdata` volume, and pending migrations run when the app starts.
 
+### Database checks (migration 007)
+
+Migration 007 adds database checks for values the app already validates (statuses, record states, non-negative amounts, one usable item per Item Code) and records when each row was created and last changed. It needs no settings and no preparation.
+
+It cannot stop an update: a check that existing rows do not satisfy is skipped, the rows are left as they are, and the app starts normally. Each skipped check is named in the app log, so after the first update with this release look once for lines starting `[migrate] WARNING`:
+
+```bash
+docker compose -f compose.intranet.yml --env-file deploy.env logs app | grep "[migrate]"
+```
+
+No output means every check was added.
+
 ### Before deploying the quote selection rules (migration 006)
 
 Migration 006 makes every effective `Requote` and `Change Work Order` quote Selected, so prices do not change. Before updating, list the ones it will change and check them with purchasing:

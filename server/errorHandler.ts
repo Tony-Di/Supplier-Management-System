@@ -8,6 +8,8 @@ const DATABASE_REFUSALS: Record<string, string> = {
   "22008": "A date is not valid.",
   "22003": "A number is too large.",
   "22021": "Text cannot contain a NUL character.",
+  "23514": "A value is not one this field accepts.",
+  "23505": "This would duplicate a record that already exists.",
 };
 
 /**

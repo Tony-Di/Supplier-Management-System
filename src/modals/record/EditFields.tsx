@@ -3,7 +3,8 @@ import { useMemo } from "react";
 import { type EditTarget } from "../../uiTypes";
 import { useAppData } from "../../AppDataContext";
 import { useState, useEffect } from "react";
-import { type PackagingItemType } from "../../types";
+import { type PackagingItem, type PackagingItemType, type SourcingProject, type Supplier } from "../../types";
+import { type AppData } from "../../api";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
 import { maxOtherSupplierFiles, packagingItemOptions, uploadAccept } from "../../constants";
 import { QuoteStatusField } from "../../components/QuoteStatusField";
@@ -14,51 +15,11 @@ import { modelName, activeDrawingSetsForModel, itemById } from "../../lib/lookup
 import { InspectionEditFields } from "./InspectionEditFields";
 import { IncomingDefectEditFields } from "./IncomingDefectEditFields";
 
+// Each record type with state of its own is a component, so its hooks run on every render of that form and no other.
 export function EditFields({ target }: { target: EditTarget }) {
   const { data } = useAppData();
   const appData = useMemo(() => availableRecordOptions(data), [data]);
-  if (target.endpoint === "suppliers") {
-    const record = target.record;
-    const [capableItems, setCapableItems] = useState<PackagingItemType[]>(record.capableItems);
-    return (
-      <>
-        <label>Name<input name="name" defaultValue={record.name} required /></label>
-        <label>Supplier Type<select name="type" defaultValue={record.type}>{["Manufacturer", "Distributor", "Service", "Other"].map((value) => <option key={value}>{value}</option>)}</select></label>
-        <label>ERP Vendor ID<input name="erpVendorId" defaultValue={record.erpVendorId ?? ""} /></label>
-        <label>Country<input name="country" defaultValue={record.country} /></label>
-        <label>Region<input name="region" defaultValue={record.region} /></label>
-        <label>Contact<input name="primaryContact" defaultValue={record.primaryContact} /></label>
-        <label>Email<input name="email" defaultValue={record.email} /></label>
-        <label>Phone<input name="phone" defaultValue={record.phone} /></label>
-        <label>Payment Terms<input name="paymentTerms" defaultValue={record.paymentTerms} placeholder="Net 30, Net 45..." /></label>
-        <label>Since<input name="supplierSince" type="date" defaultValue={record.supplierSince ?? ""} max={localDateString()} /></label>
-        <label>W-9<select name="hasW9" defaultValue={record.hasW9 ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
-        <SupplierFileInput fileId={record.w9FileId} label="W-9 file" name="w9File" />
-        <label>Payment Info<select name="hasPaymentInfo" defaultValue={record.hasPaymentInfo ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
-        <SupplierFileInput fileId={record.paymentInfoFileId} label="bank / payment info file" name="paymentInfoFile" />
-        <div className="formSection fullSpan supplierOtherFiles">
-          <span>Other documents (up to {maxOtherSupplierFiles})</span>
-          {record.otherFileIds.map((fileId) => (
-            <label className="checkboxOption" key={fileId}>
-              <input name="removeOtherFileId" type="checkbox" value={fileId} />
-              Remove <FileReference fileId={fileId} />
-            </label>
-          ))}
-          <input multiple name="otherFiles" type="file" accept={uploadAccept} />
-        </div>
-        <input name="capableItemsJson" type="hidden" value={JSON.stringify(capableItems)} />
-        <div className="formSection fullSpan">
-          <MultiSelectDropdown
-            items={packagingItemOptions.map((item) => ({ id: item, label: item }))}
-            label="Capable packaging items"
-            selectedIds={capableItems}
-            setSelectedIds={setCapableItems}
-          />
-        </div>
-        <label className="fullWidthLabel">Notes<textarea name="notes" defaultValue={record.notes} rows={3} /></label>
-      </>
-    );
-  }
+  if (target.endpoint === "suppliers") return <SupplierEditFields record={target.record} />;
 
   if (target.endpoint === "models") {
     const record = target.record;
@@ -72,28 +33,7 @@ export function EditFields({ target }: { target: EditTarget }) {
     );
   }
 
-  if (target.endpoint === "items") {
-    const record = target.record;
-    const [usedForModels, setUsedForModels] = useState<string[]>(record.usedForModels);
-    return (
-      <>
-        <label>Item Code<input name="itemCode" defaultValue={record.itemCode} required /></label>
-        <label>Item Name<input name="itemName" defaultValue={record.itemName} required /></label>
-        <label>Type<select name="type" defaultValue={record.type}>{packagingItemOptions.map((value) => <option key={value}>{value}</option>)}</select></label>
-        <label>UOM<select name="uom" defaultValue={record.uom}>{["pcs", "set", "bundle", "lb", "kg"].map((value) => <option key={value}>{value}</option>)}</select></label>
-        <label>Status<select name="status" defaultValue={record.status}>{["Active", "Inactive"].map((value) => <option key={value}>{value}</option>)}</select></label>
-        <input name="usedForModelsJson" type="hidden" value={JSON.stringify(usedForModels)} />
-        <div className="formSection fullSpan">
-          <MultiSelectDropdown
-            items={appData.models.filter((model) => model.recordState !== "Void").map((model) => ({ id: model.id, label: model.name }))}
-            label="Used for models"
-            selectedIds={usedForModels}
-            setSelectedIds={setUsedForModels}
-          />
-        </div>
-      </>
-    );
-  }
+  if (target.endpoint === "items") return <ItemEditFields appData={appData} record={target.record} />;
 
   if (target.endpoint === "drawing-sets") {
     const record = target.record;
@@ -117,85 +57,7 @@ export function EditFields({ target }: { target: EditTarget }) {
     );
   }
 
-  if (target.endpoint === "projects") {
-    const record = target.record;
-    const [modelId, setModelId] = useState(record.modelIds[0] ?? appData.models[0]?.id ?? "");
-    const drawingSetOptions = activeDrawingSetsForModel(appData.drawingSets, modelId, record.drawingSetId);
-    const [drawingSetId, setDrawingSetId] = useState(
-      drawingSetOptions.some((drawingSet) => drawingSet.id === record.drawingSetId)
-        ? record.drawingSetId
-        : drawingSetOptions[0]?.id ?? "",
-    );
-    const selectedDrawingSet = appData.drawingSets.find((drawingSet) => drawingSet.id === drawingSetId);
-    const drawingSetItemOptions = selectedDrawingSet?.drawingItems.map((drawingItem) => {
-      const item = itemById(appData, drawingItem.itemId);
-      return {
-        id: drawingItem.itemId,
-        label: `${item?.itemCode ?? "Unknown item"} - ${item?.itemName ?? ""} / ${drawingItem.revision}`,
-      };
-    }) ?? [];
-    const [supplierIds, setSupplierIds] = useState<string[]>(record.supplierIds);
-    const [itemIds, setItemIds] = useState<string[]>(record.itemIds);
-
-    useEffect(() => {
-      const nextDrawingSet = activeDrawingSetsForModel(appData.drawingSets, modelId, record.drawingSetId)[0];
-      setDrawingSetId((current) => drawingSetOptions.some((drawingSet) => drawingSet.id === current) ? current : nextDrawingSet?.id ?? "");
-    }, [modelId]);
-
-    useEffect(() => {
-      const drawingItemIds = drawingSetItemOptions.map((item) => item.id);
-      setItemIds((current) => {
-        const kept = current.filter((itemId) => drawingItemIds.includes(itemId));
-        return kept.length > 0 ? kept : drawingItemIds;
-      });
-    }, [drawingSetId]);
-
-    return (
-      <>
-        <label>Name<input name="name" defaultValue={record.name} required /></label>
-        <label>
-          Model
-          <select value={modelId} onChange={(event) => setModelId(event.target.value)} required>
-            {appData.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
-          </select>
-        </label>
-        <label>
-          Packaging Set
-          <select value={drawingSetId} onChange={(event) => setDrawingSetId(event.target.value)} required>
-            {drawingSetOptions.map((drawingSet) => <option key={drawingSet.id} value={drawingSet.id}>{drawingSet.name} {drawingSet.revision}</option>)}
-          </select>
-        </label>
-        <label>
-          Reason
-          <select name="caseReason" defaultValue={record.caseReason}>
-            {["New Supplier Intro", "Change Work Order", "Requote", "Re-source", "Backup Supplier", "Price Check"].map((reason) => (
-              <option key={reason}>{reason}</option>
-            ))}
-          </select>
-        </label>
-        <input name="supplierIdsJson" type="hidden" value={JSON.stringify(supplierIds)} />
-        <input name="itemIdsJson" type="hidden" value={JSON.stringify(itemIds)} />
-        <input name="modelId" type="hidden" value={modelId} />
-        <input name="drawingSetId" type="hidden" value={drawingSetId} />
-        <div className="formSection fullSpan">
-          <MultiSelectDropdown
-            items={appData.suppliers.filter((supplier) => supplier.recordState !== "Void").map((supplier) => ({ id: supplier.id, label: supplier.name }))}
-            label="Suppliers linked"
-            selectedIds={supplierIds}
-            setSelectedIds={setSupplierIds}
-          />
-        </div>
-        <div className="formSection fullSpan">
-          <MultiSelectDropdown
-            items={drawingSetItemOptions}
-            label="Drawing items in this case"
-            selectedIds={itemIds}
-            setSelectedIds={setItemIds}
-          />
-        </div>
-      </>
-    );
-  }
+  if (target.endpoint === "projects") return <ProjectEditFields appData={appData} record={target.record} />;
 
   if (target.endpoint === "quotes") {
     const record = target.record;
@@ -245,6 +107,149 @@ export function EditFields({ target }: { target: EditTarget }) {
       <label>New Price<input min="0" name="newPrice" defaultValue={record.newPrice} step="0.001" type="number" required /></label>
       <label>Status<select name="status" defaultValue={record.status}>{["Pending", "Approved", "Rejected"].map((value) => <option key={value}>{value}</option>)}</select></label>
       <label>Reason<select name="reason" defaultValue={record.reason}>{["Material", "Freight", "Labor", "Negotiated", "Model Change", "Drawing Change", "Requote", "Change Work Order", "Other"].map((value) => <option key={value}>{value}</option>)}</select></label>
+    </>
+  );
+}
+
+function SupplierEditFields({ record }: { record: Supplier }) {
+  const [capableItems, setCapableItems] = useState<PackagingItemType[]>(record.capableItems);
+  return (
+    <>
+      <label>Name<input name="name" defaultValue={record.name} required /></label>
+      <label>Supplier Type<select name="type" defaultValue={record.type}>{["Manufacturer", "Distributor", "Service", "Other"].map((value) => <option key={value}>{value}</option>)}</select></label>
+      <label>ERP Vendor ID<input name="erpVendorId" defaultValue={record.erpVendorId ?? ""} /></label>
+      <label>Country<input name="country" defaultValue={record.country} /></label>
+      <label>Region<input name="region" defaultValue={record.region} /></label>
+      <label>Contact<input name="primaryContact" defaultValue={record.primaryContact} /></label>
+      <label>Email<input name="email" defaultValue={record.email} /></label>
+      <label>Phone<input name="phone" defaultValue={record.phone} /></label>
+      <label>Payment Terms<input name="paymentTerms" defaultValue={record.paymentTerms} placeholder="Net 30, Net 45..." /></label>
+      <label>Since<input name="supplierSince" type="date" defaultValue={record.supplierSince ?? ""} max={localDateString()} /></label>
+      <label>W-9<select name="hasW9" defaultValue={record.hasW9 ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
+      <SupplierFileInput fileId={record.w9FileId} label="W-9 file" name="w9File" />
+      <label>Payment Info<select name="hasPaymentInfo" defaultValue={record.hasPaymentInfo ? "true" : "false"}>{["true", "false"].map((value) => <option key={value} value={value}>{value === "true" ? "Uploaded" : "Missing"}</option>)}</select></label>
+      <SupplierFileInput fileId={record.paymentInfoFileId} label="bank / payment info file" name="paymentInfoFile" />
+      <div className="formSection fullSpan supplierOtherFiles">
+        <span>Other documents (up to {maxOtherSupplierFiles})</span>
+        {record.otherFileIds.map((fileId) => (
+          <label className="checkboxOption" key={fileId}>
+            <input name="removeOtherFileId" type="checkbox" value={fileId} />
+            Remove <FileReference fileId={fileId} />
+          </label>
+        ))}
+        <input multiple name="otherFiles" type="file" accept={uploadAccept} />
+      </div>
+      <input name="capableItemsJson" type="hidden" value={JSON.stringify(capableItems)} />
+      <div className="formSection fullSpan">
+        <MultiSelectDropdown
+          items={packagingItemOptions.map((item) => ({ id: item, label: item }))}
+          label="Capable packaging items"
+          selectedIds={capableItems}
+          setSelectedIds={setCapableItems}
+        />
+      </div>
+      <label className="fullWidthLabel">Notes<textarea name="notes" defaultValue={record.notes} rows={3} /></label>
+    </>
+  );
+}
+
+function ItemEditFields({ appData, record }: { appData: AppData; record: PackagingItem }) {
+  const [usedForModels, setUsedForModels] = useState<string[]>(record.usedForModels);
+  return (
+    <>
+      <label>Item Code<input name="itemCode" defaultValue={record.itemCode} required /></label>
+      <label>Item Name<input name="itemName" defaultValue={record.itemName} required /></label>
+      <label>Type<select name="type" defaultValue={record.type}>{packagingItemOptions.map((value) => <option key={value}>{value}</option>)}</select></label>
+      <label>UOM<select name="uom" defaultValue={record.uom}>{["pcs", "set", "bundle", "lb", "kg"].map((value) => <option key={value}>{value}</option>)}</select></label>
+      <label>Status<select name="status" defaultValue={record.status}>{["Active", "Inactive"].map((value) => <option key={value}>{value}</option>)}</select></label>
+      <input name="usedForModelsJson" type="hidden" value={JSON.stringify(usedForModels)} />
+      <div className="formSection fullSpan">
+        <MultiSelectDropdown
+          items={appData.models.filter((model) => model.recordState !== "Void").map((model) => ({ id: model.id, label: model.name }))}
+          label="Used for models"
+          selectedIds={usedForModels}
+          setSelectedIds={setUsedForModels}
+        />
+      </div>
+    </>
+  );
+}
+
+function ProjectEditFields({ appData, record }: { appData: AppData; record: SourcingProject }) {
+  const [modelId, setModelId] = useState(record.modelIds[0] ?? appData.models[0]?.id ?? "");
+  const drawingSetOptions = activeDrawingSetsForModel(appData.drawingSets, modelId, record.drawingSetId);
+  const [drawingSetId, setDrawingSetId] = useState(
+    drawingSetOptions.some((drawingSet) => drawingSet.id === record.drawingSetId)
+      ? record.drawingSetId
+      : drawingSetOptions[0]?.id ?? "",
+  );
+  const selectedDrawingSet = appData.drawingSets.find((drawingSet) => drawingSet.id === drawingSetId);
+  const drawingSetItemOptions = selectedDrawingSet?.drawingItems.map((drawingItem) => {
+    const item = itemById(appData, drawingItem.itemId);
+    return {
+      id: drawingItem.itemId,
+      label: `${item?.itemCode ?? "Unknown item"} - ${item?.itemName ?? ""} / ${drawingItem.revision}`,
+    };
+  }) ?? [];
+  const [supplierIds, setSupplierIds] = useState<string[]>(record.supplierIds);
+  const [itemIds, setItemIds] = useState<string[]>(record.itemIds);
+
+  useEffect(() => {
+    const nextDrawingSet = activeDrawingSetsForModel(appData.drawingSets, modelId, record.drawingSetId)[0];
+    setDrawingSetId((current) => drawingSetOptions.some((drawingSet) => drawingSet.id === current) ? current : nextDrawingSet?.id ?? "");
+  }, [modelId]);
+
+  useEffect(() => {
+    const drawingItemIds = drawingSetItemOptions.map((item) => item.id);
+    setItemIds((current) => {
+      const kept = current.filter((itemId) => drawingItemIds.includes(itemId));
+      return kept.length > 0 ? kept : drawingItemIds;
+    });
+  }, [drawingSetId]);
+
+  return (
+    <>
+      <label>Name<input name="name" defaultValue={record.name} required /></label>
+      <label>
+        Model
+        <select value={modelId} onChange={(event) => setModelId(event.target.value)} required>
+          {appData.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+        </select>
+      </label>
+      <label>
+        Packaging Set
+        <select value={drawingSetId} onChange={(event) => setDrawingSetId(event.target.value)} required>
+          {drawingSetOptions.map((drawingSet) => <option key={drawingSet.id} value={drawingSet.id}>{drawingSet.name} {drawingSet.revision}</option>)}
+        </select>
+      </label>
+      <label>
+        Reason
+        <select name="caseReason" defaultValue={record.caseReason}>
+          {["New Supplier Intro", "Change Work Order", "Requote", "Re-source", "Backup Supplier", "Price Check"].map((reason) => (
+            <option key={reason}>{reason}</option>
+          ))}
+        </select>
+      </label>
+      <input name="supplierIdsJson" type="hidden" value={JSON.stringify(supplierIds)} />
+      <input name="itemIdsJson" type="hidden" value={JSON.stringify(itemIds)} />
+      <input name="modelId" type="hidden" value={modelId} />
+      <input name="drawingSetId" type="hidden" value={drawingSetId} />
+      <div className="formSection fullSpan">
+        <MultiSelectDropdown
+          items={appData.suppliers.filter((supplier) => supplier.recordState !== "Void").map((supplier) => ({ id: supplier.id, label: supplier.name }))}
+          label="Suppliers linked"
+          selectedIds={supplierIds}
+          setSelectedIds={setSupplierIds}
+        />
+      </div>
+      <div className="formSection fullSpan">
+        <MultiSelectDropdown
+          items={drawingSetItemOptions}
+          label="Drawing items in this case"
+          selectedIds={itemIds}
+          setSelectedIds={setItemIds}
+        />
+      </div>
     </>
   );
 }

@@ -18,6 +18,8 @@ declare module "express-session" {
 }
 
 declare global {
+  // Express publishes Request through this namespace; merging into it is the only way to add a field.
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: User;

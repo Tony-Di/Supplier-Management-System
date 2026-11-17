@@ -9,8 +9,8 @@ import { supplierLocation } from "../lib/lookups";
 import { formatSupplierSince } from "../lib/format";
 import { TagRow } from "../components/TagRow";
 import { DocumentCheck } from "../components/DocumentCheck";
-import { useEffect, useState } from "react";
-import { fetchScorecard, type ScorecardRow } from "../api";
+import { useState } from "react";
+import { useScorecard } from "../useScorecard";
 import { packagingItemOptions } from "../constants";
 import { EmptyState } from "../components/EmptyState";
 
@@ -31,12 +31,7 @@ export function Suppliers({
   const [search, setSearch] = useState("");
   const [capability, setCapability] = useState("All");
   const [documents, setDocuments] = useState("All");
-  const [scores, setScores] = useState<ScorecardRow[]>([]);
-  useEffect(() => {
-    let current = true;
-    fetchScorecard().then((response) => { if (current) setScores(response.rows); }).catch(() => { if (current) setScores([]); });
-    return () => { current = false; };
-  }, [appData]);
+  const { rows: scores } = useScorecard();
   const approvedSuppliers = appData.suppliers.filter((supplier) => supplier.recordState !== "Void");
   const visibleSuppliers = approvedSuppliers.filter((supplier) => {
     const matchesSearch = `${supplier.name} ${supplier.erpVendorId ?? ""}`.toLowerCase().includes(search.trim().toLowerCase());
@@ -80,7 +75,7 @@ export function Suppliers({
               </div>
             </div>
             <div className="fieldGrid">
-              <Field label="Supplier score" value={scores.find((row) => row.supplier.id === supplier.id)?.score.toString() ?? "Unavailable"} />
+              <Field label="Supplier score" value={scores?.find((row) => row.supplier.id === supplier.id)?.score.toString() ?? "Unavailable"} />
               <Field label="Location" value={supplierLocation(supplier)} />
               <Field label="Contact" value={supplier.primaryContact} />
               <Field label="Email" value={supplier.email} />
