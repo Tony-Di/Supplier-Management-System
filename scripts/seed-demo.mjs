@@ -173,13 +173,13 @@ async function main() {
   // ---- BTA, revision 1.0 era (late 2025): incumbents qualified by sample
   let btaSet = await activeSet(bta.id);
   const d2025 = { quote: "2025-10-06", sample: "2025-10-20", inspected: "2025-10-23", effective: "2025-11-01" };
-  const mwPcp = await qualified(btaSet, midwest, "PCP-BTA-01", 0.42, d2025, { moq: "5,000 pcs", leadTime: "10 days" });
-  const mwLpp = await qualified(btaSet, midwest, "LPP-BTA-01", 0.86, d2025, { moq: "3,000 pcs", leadTime: "10 days" });
-  const mwSpp = await qualified(btaSet, midwest, "SPP-BTA-01", 0.58, d2025, { moq: "3,000 pcs", leadTime: "10 days" });
-  const mwUc = await qualified(btaSet, midwest, "UC-BTA-01", 2.4, d2025, { moq: "1,000 pcs", leadTime: "14 days" });
-  const lsPlt = await qualified(btaSet, lonestar, "PLT-BTA-01", 15.2, d2025, { moq: "200 pcs", leadTime: "3 weeks", extraCostType: "Freight", extraCostAmount: 180 });
-  const pcStr = await qualified(btaSet, pacific, "STR-001", 38.5, d2025, { moq: "20 rolls", leadTime: "7 days", uom: "roll" });
-  const pcSf = await qualified(btaSet, pacific, "SF-001", 21.0, d2025, { moq: "30 rolls", leadTime: "7 days", uom: "roll" });
+  await qualified(btaSet, midwest, "PCP-BTA-01", 0.42, d2025, { moq: "5,000 pcs", leadTime: "10 days" });
+  await qualified(btaSet, midwest, "LPP-BTA-01", 0.86, d2025, { moq: "3,000 pcs", leadTime: "10 days" });
+  await qualified(btaSet, midwest, "SPP-BTA-01", 0.58, d2025, { moq: "3,000 pcs", leadTime: "10 days" });
+  await qualified(btaSet, midwest, "UC-BTA-01", 2.4, d2025, { moq: "1,000 pcs", leadTime: "14 days" });
+  await qualified(btaSet, lonestar, "PLT-BTA-01", 15.2, d2025, { moq: "200 pcs", leadTime: "3 weeks", extraCostType: "Freight", extraCostAmount: 180 });
+  await qualified(btaSet, pacific, "STR-001", 38.5, d2025, { moq: "20 rolls", leadTime: "7 days", uom: "roll" });
+  await qualified(btaSet, pacific, "SF-001", 21.0, d2025, { moq: "30 rolls", leadTime: "7 days", uom: "roll" });
 
   // Requotes on effective prices: each one closes the old price and creates a price change.
   await quote(btaSet, midwest, "PCP-BTA-01", { quoteReason: "Requote", quoteDate: "2026-02-10", effectiveFrom: "2026-03-01", unitPrice: 0.45, moq: "5,000 pcs", leadTime: "10 days", status: "Selected", notes: "Kraft paper cost increase." });
@@ -206,11 +206,11 @@ async function main() {
   });
   const inCase = { projectId: caseA.id };
   const d2026 = { quote: "2026-05-12", sample: "2026-05-26", inspected: "2026-05-28", effective: "2026-06-01" };
-  const glPcp = await qualified(btaSet, greatlakes, "PCP-BTA-01", 0.44, d2026, { ...inCase, moq: "2,000 pcs", leadTime: "8 business days" });
-  const glLpp = await qualified(btaSet, greatlakes, "LPP-BTA-01", 0.83, d2026, { ...inCase, moq: "2,000 pcs", leadTime: "8 business days" });
+  await qualified(btaSet, greatlakes, "PCP-BTA-01", 0.44, d2026, { ...inCase, moq: "2,000 pcs", leadTime: "8 business days" });
+  await qualified(btaSet, greatlakes, "LPP-BTA-01", 0.83, d2026, { ...inCase, moq: "2,000 pcs", leadTime: "8 business days" });
   await quote(btaSet, greatlakes, "SPP-BTA-01", { ...inCase, quoteDate: "2026-05-12", effectiveFrom: "2026-06-01", unitPrice: 0.55, moq: "2,000 pcs", leadTime: "8 business days", status: "Sample Requested", notes: "Sample promised for late October." });
   await quote(btaSet, greatlakes, "UC-BTA-01", { ...inCase, quoteDate: "2026-05-12", effectiveFrom: "2026-06-01", unitPrice: 2.35, moq: "1,000 pcs", leadTime: "12 days", extraCostType: "Tooling", extraCostAmount: 650, status: "Received" });
-  const soPlt = await qualified(btaSet, southern, "PLT-BTA-01", 14.2, { ...d2026, inspected: "2026-05-29", notes: "Moisture content 17%, within limit." }, { ...inCase, moq: "300 pcs", leadTime: "4 weeks" });
+  await qualified(btaSet, southern, "PLT-BTA-01", 14.2, { ...d2026, inspected: "2026-05-29", notes: "Moisture content 17%, within limit." }, { ...inCase, moq: "300 pcs", leadTime: "4 weeks" });
   const soUc = await quote(btaSet, southern, "UC-BTA-01", { ...inCase, quoteDate: "2026-05-14", effectiveFrom: "2026-06-01", unitPrice: 2.2, moq: "1,500 pcs", leadTime: "3 weeks", status: "Sample Requested" });
   await inspect(btaSet, soUc, { sampleRound: 1, sampleReceivedDate: "2026-06-02", inspectionDate: "2026-06-05", result: "Fail", disposition: "Re-sample Required", problemPhotos: 2, notes: "Edge crush test 18% below spec; flap score line cracked." });
   await inspect(btaSet, soUc, { sampleRound: 2, sampleReceivedDate: "2026-06-22", inspectionDate: "2026-06-26", signedDate: "2026-06-26", result: "Fail", disposition: "No Further Action", problemPhotos: 3, notes: "Second round still below edge crush spec. Closed." });

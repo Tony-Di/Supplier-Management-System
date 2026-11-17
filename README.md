@@ -64,6 +64,7 @@ Further admins can then be promoted from **Admin → Users**.
 | `npm run dev:api` | Start the Express API |
 | `npm run migrate` | Apply pending SQL migrations from `migrations/` |
 | `npm run admin -- <email>` | Promote an existing user to admin |
+| `npm run lint` | Lint the frontend, server and scripts with ESLint |
 | `npm run typecheck:api` | Type-check the server code |
 | `npm run build` | Type-check and build the frontend into `dist/` |
 | `npm run preview` | Serve the built frontend |
@@ -95,7 +96,8 @@ Everything is stored in Postgres, uploaded file contents included; `npm run migr
 
 ```text
 src/
-  App.tsx               Section state and modal routing
+  App.tsx               Modal routing and the page for the current view
+  useNavigation.ts      The current view, kept in step with the browser address
   AppDataContext.tsx    Data ownership and refresh state
   SessionContext.tsx    Signed-in user and CSRF token
   SignIn.tsx            Sign-in screen
@@ -126,6 +128,10 @@ server/
 migrations/     Plain SQL migrations applied by npm run migrate
 scripts/        Migration, admin promotion and write-time measurement scripts
 ```
+
+Each section and tab has its own address, such as `/sourcing/quotes?case=proj-1002`, so a reload keeps the page, Back and Forward work, and a link can be shared. The addresses are listed in `src/lib/route.ts`.
+
+Every pull request runs lint, both type checks, the tests and the build in GitHub Actions (`.github/workflows/ci.yml`).
 
 See [docs/deployment.md](docs/deployment.md) to run it on an intranet server with Docker.
 

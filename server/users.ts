@@ -61,7 +61,7 @@ async function activeAdminCount(db: Executor, excludingId: number): Promise<numb
   return rows[0].count as number;
 }
 
-export async function setUserRole(db: Executor, id: number, role: "admin" | "user", actingUserId: number): Promise<User> {
+export async function setUserRole(db: Executor, id: number, role: "admin" | "user", _actingUserId: number): Promise<User> {
   if (role === "user" && (await activeAdminCount(db, id)) === 0) {
     throw new UserRuleError("At least one active admin must remain.");
   }
