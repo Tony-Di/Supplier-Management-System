@@ -21,6 +21,11 @@ export async function runMigrations(client: PoolClient, directory = migrationsDi
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { pool } = await import("../server/db.js");
   const client = await pool.connect();
+  // A migration that skips a step says so with a WARNING; without this it would go unseen.
+  // 01000 is the code of a warning a migration raises itself; routine notices such as "already exists, skipping" stay quiet.
+  client.on("notice", (notice) => {
+    if (notice.code === "01000") console.warn(`[migrate] WARNING: ${notice.message}`);
+  });
   try {
     const applied = await runMigrations(client);
     console.log(applied.length === 0 ? "No pending migrations." : `Applied: ${applied.join(", ")}`);

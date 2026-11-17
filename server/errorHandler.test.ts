@@ -75,6 +75,20 @@ test("a NUL character in text from Postgres is a 400", () => {
   });
 });
 
+test("a value a database check refuses is a 400", () => {
+  assert.deepEqual(respond(databaseError("23514", 'new row for relation "quotes" violates check constraint "quotes_status_check"')), {
+    status: 400,
+    body: { message: "A value is not one this field accepts." },
+  });
+});
+
+test("a duplicate a unique index refuses is a 400", () => {
+  assert.deepEqual(respond(databaseError("23505", 'duplicate key value violates unique constraint "items_item_code_unique"')), {
+    status: 400,
+    body: { message: "This would duplicate a record that already exists." },
+  });
+});
+
 test("any other error stays a 500 without detail", () => {
   const original = console.error;
   console.error = () => {};
