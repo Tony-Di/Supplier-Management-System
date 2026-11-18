@@ -1,5 +1,6 @@
 import { ErrorNotice } from "../components/ErrorNotice";
 import { type AppData, createProject } from "../api";
+import { type SourcingProject } from "../types";
 import { useState, useEffect, FormEvent } from "react";
 import { activeDrawingSetsForModel } from "../lib/lookups";
 import { caseTypeForReason } from "../lib/sourcing";
@@ -12,7 +13,8 @@ export function ProjectModal({
 }: {
   data: AppData;
   onClose: () => void;
-  onCreated: () => Promise<void>;
+  /** Receives the saved case, so the page can show it. */
+  onCreated: (project: SourcingProject) => Promise<void>;
 }) {
   const firstModelId = data.models[0]?.id ?? "";
   const [saving, setSaving] = useState(false);
@@ -52,7 +54,7 @@ export function ProjectModal({
     setFormError("");
 
     try {
-      await createProject({
+      const project = await createProject({
         recordState: "Active",
         name: String(form.get("name") ?? ""),
         modelIds: [modelId],
@@ -65,7 +67,7 @@ export function ProjectModal({
         owner: "Purchasing",
         openDate: String(form.get("openDate") ?? ""),
       });
-      await onCreated();
+      await onCreated(project);
     } catch (requestError) {
       setFormError(requestError instanceof Error ? requestError.message : "Unable to create case.");
     } finally {

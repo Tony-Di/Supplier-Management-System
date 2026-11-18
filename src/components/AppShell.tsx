@@ -4,6 +4,7 @@ import { navItems } from "../navigation";
 import type { Section } from "../uiTypes";
 import segLogo from "../assets/seg-logo-white.svg";
 import { useSession } from "../SessionContext";
+import { ChangePasswordModal } from "../modals/ChangePasswordModal";
 
 const sectionLabels: Record<Section, string> = {
   Dashboard: "Overview",
@@ -18,7 +19,8 @@ const sectionLabels: Record<Section, string> = {
 
 export function AppShell({ section, onSectionChange, children }: { section: Section; onSectionChange: (section: Section) => void; children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { user, signOut } = useSession();
+  const { user, features, signOut } = useSession();
+  const [changingPassword, setChangingPassword] = useState(false);
   return (
     <div className={sidebarCollapsed ? "appShell sidebarCollapsed" : "appShell"}>
       <aside className="sidebar">
@@ -67,6 +69,9 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
             <div className="sidebarUser">
               <span className="sidebarUserName">{user.name}</span>
               <span className="sidebarUserEmail">{user.email}</span>
+              {features.passwordSignIn && (
+                <button className="sidebarLink" onClick={() => setChangingPassword(true)} type="button">Change password</button>
+              )}
             </div>
             <button className="sidebarSignOut" onClick={() => void signOut()} type="button">
               Sign out
@@ -86,6 +91,7 @@ export function AppShell({ section, onSectionChange, children }: { section: Sect
 
         {children}
       </main>
+      {changingPassword && user && <ChangePasswordModal email={user.email} onClose={() => setChangingPassword(false)} />}
     </div>
   );
 }

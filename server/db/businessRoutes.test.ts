@@ -158,7 +158,7 @@ test("previous orders are refused once that entry point is switched off", async 
     assert.equal(response.status, 400);
     assert.match((await response.json()).message, /Request a sample first/);
     const me = await (await call(app, "/api/auth/me", { cookie: session.cookie })).json();
-    assert.deepEqual(me.features, { previousOrderSelection: false });
+    assert.deepEqual(me.features, { previousOrderSelection: false, passwordSignIn: false });
   });
 });
 

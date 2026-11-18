@@ -60,6 +60,32 @@ docker compose -f compose.intranet.yml --env-file deploy.env exec app npm run ad
 
 `dev` mode is refused when `NODE_ENV=production`.
 
+### `AUTH_MODE=password` (named accounts, no app registration)
+
+Each person signs in with their SEG email address and a password of their own, and the audit trail records who made each change. This is how the IT ticket system signs people in. It needs no Entra app registration and works over plain `http` on the intranet, which `entra` does not.
+
+- **Creating an account.** On the sign-in page, **Create an account** asks for a name and a work email. Only addresses in `SIGN_UP_EMAIL_DOMAINS` are accepted. The app emails a link to that mailbox, and opening it sets the password and creates the account, so only someone who can read that Outlook mailbox can create it.
+- **Forgot password.** **Forgot password?** emails the same kind of link to an existing account. Setting a new password signs out the account's other sessions.
+- **Changing a password.** Signed in, **Change password** under the person's name in the sidebar emails a link to their own address. The current password keeps working until the link is used.
+- **Links** work once and expire after 60 minutes. Only the newest link for an address works.
+- **Wrong passwords.** Five wrong passwords for one address lock it for the rest of the minute, and twenty from one computer lock that computer out.
+- **Deactivating** an account in **Admin → Users** blocks its sign-in and its reset links. The password is separate from the person's Outlook password, so leaving the company does not block it on its own; deactivate them here too.
+
+Settings in `deploy.env`:
+
+1. `AUTH_MODE=password`.
+2. `SIGN_UP_EMAIL_DOMAINS`: the domains people's addresses end in, comma-separated, such as `segsolar.com,segsolar-ind.com`.
+3. The mailbox that sends the links. For Office 365, the same settings as the IT ticket system's mail:
+   - `SMTP_HOST=smtp.office365.com`, `SMTP_PORT=587`
+   - `SMTP_USER` and `SMTP_PASSWORD`: the sending mailbox and its password. If the account uses MFA, create an app password at account.microsoft.com/security and use that.
+   - `MAIL_FROM` (optional): the sender shown, such as `SEG Global Sourcing <sourcing@segsolar.com>`. It defaults to `SMTP_USER`.
+   - The mailbox needs **Authenticated SMTP** turned on: Microsoft 365 admin center → Users → Active users → the mailbox → Mail → Manage email apps. Microsoft is switching Authenticated SMTP with a password off by default for existing tenants from December 2026, so an Office 365 admin may need to turn it back on for this mailbox.
+4. `NODE_ENV=development` while the app is reached over `http`, because production sends the session cookie only over HTTPS. Behind an HTTPS reverse proxy, set `NODE_ENV=production`; production then refuses to start without `SMTP_HOST`.
+
+Then run `up -d` again. Without `SMTP_HOST` the app still starts outside production and writes each email, link included, to its log (`docker compose ... logs app`), which is enough to try the sign-in out before the mailbox is ready.
+
+The first person to create an account gets the `user` role. Promote them with the `npm run admin` command above, using their email address. Accounts that already exist in the database, such as Dev User, keep their role and history. Their owner can give them a password with **Forgot password?**, provided the address is in `SIGN_UP_EMAIL_DOMAINS` and can receive mail.
+
 ### `AUTH_MODE=entra` (named accounts)
 
 Each person signs in with their SEG account, and the audit trail records who made each change. This mode needs:

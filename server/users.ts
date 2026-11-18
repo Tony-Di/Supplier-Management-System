@@ -2,7 +2,8 @@ import type { PoolClient } from "pg";
 
 export interface User {
   id: number;
-  entraOid: string;
+  /** Null for accounts created with email and password sign-in. */
+  entraOid: string | null;
   email: string;
   name: string;
   role: "admin" | "user";
@@ -17,12 +18,14 @@ export class UserRuleError extends Error {
 
 type Executor = Pick<PoolClient, "query">;
 
-const COLUMNS = `id, entra_oid, email, name, role, active, session_epoch, last_login_at`;
+// Never includes password_hash, so a User can be sent to the browser as is.
+export const USER_COLUMNS = `id, entra_oid, email, name, role, active, session_epoch, last_login_at`;
+const COLUMNS = USER_COLUMNS;
 
-function toUser(row: Record<string, unknown>): User {
+export function toUser(row: Record<string, unknown>): User {
   return {
     id: row.id as number,
-    entraOid: row.entra_oid as string,
+    entraOid: (row.entra_oid as string | null) ?? null,
     email: row.email as string,
     name: row.name as string,
     role: row.role as "admin" | "user",

@@ -9,6 +9,7 @@ import { type ProductsTab, type SourcingTab, type PricingTab, type QCTab, type R
 import { rememberRequestedAddress, useNavigation } from "./useNavigation";
 import { useSession } from "./SessionContext";
 import { SignIn } from "./SignIn";
+import { passwordLinkToken } from "./lib/passwordSignIn";
 import { AppDataProvider, useAppData } from "./AppDataContext";
 import { type DeleteEndpoint, deleteRecord, voidRecord, updateRecord, upsertSourceAssignment } from "./api";
 import { markRecordVoid } from "./lib/recordLifecycle";
@@ -40,15 +41,27 @@ import { VoidRecordModal } from "./modals/record/VoidRecordModal";
 import { HistoryModal } from "./modals/record/HistoryModal";
 import { RecordDetailModal } from "./modals/record/RecordDetailModal";
 
+/** Whether an emailed password link has been opened in this tab. Leaving its page reloads the app. */
+function usePasswordLinkOpened() {
+  const [opened, setOpened] = useState(() => passwordLinkToken(window.location.hash) !== null);
+  useEffect(() => {
+    const update = () => { if (passwordLinkToken(window.location.hash)) setOpened(true); };
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
+  return opened;
+}
+
 export function App() {
-  const { user, loading: sessionLoading } = useSession();
+  const { user, features, loading: sessionLoading } = useSession();
+  const linkOpened = usePasswordLinkOpened();
   const deactivated = new URLSearchParams(window.location.search).get("error") === "deactivated";
   // A link followed while signed out opens once sign-in has brought the visitor back.
   useEffect(() => {
     if (!sessionLoading && !user) rememberRequestedAddress();
   }, [sessionLoading, user]);
   if (sessionLoading) return <div className="signInLoading">Loading…</div>;
-  if (!user) return <SignIn deactivated={deactivated} />;
+  if (!user || (linkOpened && features.passwordSignIn)) return <SignIn deactivated={deactivated} signedIn={Boolean(user)} />;
   return (
     <AppDataProvider>
       <Workbench />
@@ -314,9 +327,11 @@ function Workbench() {
           <ProjectModal
             data={recordOptions}
             onClose={() => setModal(null)}
-            onCreated={async () => {
+            onCreated={async (project) => {
               setModal(null);
               await refreshData();
+              // The page shows one case at a time; show the new one.
+              setSelectedProjectId(project.id);
             }}
           />
         )}
