@@ -1,0 +1,52 @@
+# Runs on every pull request and on main: lint, both type checks, the offline
+# tests, the frontend build, and the Postgres tests against a throwaway database.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: sourcing
+          POSTGRES_PASSWORD: sourcing
+          POSTGRES_DB: sourcing_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sourcing -d sourcing_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      # Values for this job's throwaway database only; nothing here is a real secret.
+      DATABASE_URL: postgres://sourcing:sourcing@127.0.0.1:5432/sourcing_test
+      DATABASE_URL_TEST: postgres://sourcing:sourcing@127.0.0.1:5432/sourcing_test
+      SESSION_SECRET: ci-only-session-secret-0123456789abcdef
+      AUTH_MODE: dev
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck:api
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:db

@@ -12,8 +12,9 @@ interface AppDataState {
 
 const AppDataContext = createContext<AppDataState | undefined>(undefined);
 
-export function AppDataProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<AppData>(fallbackData);
+/** `initialData` is what the app shows until the first load answers; tests pass a data set to render pages against. */
+export function AppDataProvider({ children, initialData = fallbackData }: { children: ReactNode; initialData?: AppData }) {
+  const [data, setData] = useState<AppData>(initialData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const refresh = useCallback(async () => {

@@ -5,14 +5,14 @@ import { ErrorNotice } from "./components/ErrorNotice";
 import { type QuoteStatusChange } from "./components/QuoteStatusSelect";
 import { VoidedRecords } from "./components/VoidedRecords";
 import { useState, useEffect, useMemo } from "react";
-import { type Section, type ProductsTab, type SourcingTab, type PricingTab, type QCTab, type ReportsTab, type AdminTab, type EditTarget, type VoidTarget, type ViewTarget } from "./uiTypes";
+import { type ProductsTab, type SourcingTab, type PricingTab, type QCTab, type ReportsTab, type AdminTab, type EditTarget, type VoidTarget, type ViewTarget } from "./uiTypes";
+import { rememberRequestedAddress, useNavigation } from "./useNavigation";
 import { useSession } from "./SessionContext";
 import { SignIn } from "./SignIn";
 import { AppDataProvider, useAppData } from "./AppDataContext";
-import { fallbackData } from "./appDefaults";
 import { type DeleteEndpoint, deleteRecord, voidRecord, updateRecord, upsertSourceAssignment } from "./api";
 import { markRecordVoid } from "./lib/recordLifecycle";
-import { type Quote, type SourceAssignment } from "./types";
+import { type SourceAssignment } from "./types";
 import { AppShell } from "./components/AppShell";
 import { SubTabs } from "./components/SubTabs";
 import { Dashboard } from "./pages/Dashboard";
@@ -43,6 +43,10 @@ import { RecordDetailModal } from "./modals/record/RecordDetailModal";
 export function App() {
   const { user, loading: sessionLoading } = useSession();
   const deactivated = new URLSearchParams(window.location.search).get("error") === "deactivated";
+  // A link followed while signed out opens once sign-in has brought the visitor back.
+  useEffect(() => {
+    if (!sessionLoading && !user) rememberRequestedAddress();
+  }, [sessionLoading, user]);
   if (sessionLoading) return <div className="signInLoading">Loading…</div>;
   if (!user) return <SignIn deactivated={deactivated} />;
   return (
@@ -55,13 +59,8 @@ export function App() {
 function Workbench() {
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
-  const [section, setSection] = useState<Section>("Dashboard");
-  const [productsTab, setProductsTab] = useState<ProductsTab>("Models & Items");
-  const [sourcingTab, setSourcingTab] = useState<SourcingTab>("Development Cases");
-  const [pricingTab, setPricingTab] = useState<PricingTab>("Price Analytics");
-  const [qcTab, setQcTab] = useState<QCTab>("Sample Inspections");
-  const [reportsTab, setReportsTab] = useState<ReportsTab>("Scorecard");
-  const [adminTab, setAdminTab] = useState<AdminTab>("Users");
+  const { view, navigate } = useNavigation();
+  const { section, productsTab, sourcingTab, pricingTab, qcTab, reportsTab, adminTab, caseId: selectedProjectId } = view;
   const { data, setData, refresh: refreshData, loading, error } = useAppData();
   const recordOptions = useMemo(() => availableRecordOptions(data), [data]);
   const [actionError, setActionError] = useState("");
@@ -69,14 +68,22 @@ function Workbench() {
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [voidTarget, setVoidTarget] = useState<VoidTarget | null>(null);
   const [viewTarget, setViewTarget] = useState<ViewTarget | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState(fallbackData.projects[0]?.id ?? "");
   const [inspectionCaseContextId, setInspectionCaseContextId] = useState<string | undefined>();
   const [inspectionQuoteId, setInspectionQuoteId] = useState<string | undefined>();
   const [historyTarget, setHistoryTarget] = useState<{ entityType: string; entityId: string; label: string } | null>(null);
 
+  // Not something the user asked for, so neither change adds a history entry.
   useEffect(() => {
-    setSelectedProjectId((current) => current || data.projects[0]?.id || "");
-  }, [data.projects]);
+    if (!selectedProjectId && data.projects[0]) navigate({ caseId: data.projects[0].id }, { replace: true });
+  }, [data.projects, selectedProjectId, navigate]);
+
+  useEffect(() => {
+    if (section === "Admin" && !isAdmin) navigate({ section: "Dashboard" }, { replace: true });
+  }, [section, isAdmin, navigate]);
+
+  useEffect(() => {
+    document.title = section === "Dashboard" ? "Global Sourcing Workbench" : `${section} · Global Sourcing Workbench`;
+  }, [section]);
 
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId) ?? data.projects[0];
 
@@ -150,8 +157,7 @@ function Workbench() {
     const quote = data.quotes.find((record) => record.id === quoteId);
     const { inspection } = sourceRoleEligibility(data, quote, projectId);
     if (inspection) { setViewTarget({ type: "inspection", record: inspection }); return; }
-    setSection("QC Inspections");
-    setQcTab("Sample Inspections");
+    navigate({ section: "QC Inspections", qcTab: "Sample Inspections" });
     setInspectionQuoteId(quoteId);
     setInspectionCaseContextId(projectId);
     setModal("inspection");
@@ -159,33 +165,33 @@ function Workbench() {
 
   return (
     <WorkflowActionsProvider openQc={openQc}>
-    <AppShell section={section} onSectionChange={setSection}>
+    <AppShell section={section} onSectionChange={(next) => navigate({ section: next })}>
         <ErrorNotice message={actionError} onDismiss={() => setActionError("")} />
         {section === "Products & Drawings" && (
           <SubTabs
             tabs={["Models & Items", "Packaging Sets"]}
             activeTab={productsTab}
-            onChange={(tab) => setProductsTab(tab as ProductsTab)}
+            onChange={(tab) => navigate({ productsTab: tab as ProductsTab })}
           />
         )}
         {section === "Sourcing Workbench" && (
           <SubTabs
             tabs={["Development Cases", "Quotes", "Comparison"]}
             activeTab={sourcingTab}
-            onChange={(tab) => setSourcingTab(tab as SourcingTab)}
+            onChange={(tab) => navigate({ sourcingTab: tab as SourcingTab })}
           />
         )}
         {section === "Pricing" && (
-          <SubTabs tabs={["Price Analytics", "Price Changes"]} activeTab={pricingTab} onChange={(tab) => setPricingTab(tab as PricingTab)} />
+          <SubTabs tabs={["Price Analytics", "Price Changes"]} activeTab={pricingTab} onChange={(tab) => navigate({ pricingTab: tab as PricingTab })} />
         )}
         {section === "QC Inspections" && (
-          <SubTabs tabs={["Sample Inspections", "Incoming Defects"]} activeTab={qcTab} onChange={(tab) => setQcTab(tab as QCTab)} />
+          <SubTabs tabs={["Sample Inspections", "Incoming Defects"]} activeTab={qcTab} onChange={(tab) => navigate({ qcTab: tab as QCTab })} />
         )}
         {section === "Reports" && (
-          <SubTabs tabs={["Scorecard", "Score Settings"]} activeTab={reportsTab} onChange={(tab) => setReportsTab(tab as ReportsTab)} />
+          <SubTabs tabs={["Scorecard", "Score Settings"]} activeTab={reportsTab} onChange={(tab) => navigate({ reportsTab: tab as ReportsTab })} />
         )}
         {section === "Admin" && isAdmin && (
-          <SubTabs tabs={["Users", "Audit log"]} activeTab={adminTab} onChange={(tab) => setAdminTab(tab as AdminTab)} />
+          <SubTabs tabs={["Users", "Audit log"]} activeTab={adminTab} onChange={(tab) => navigate({ adminTab: tab as AdminTab })} />
         )}
 
         {loading && <div className="notice">Loading backend data...</div>}
@@ -218,7 +224,7 @@ function Workbench() {
             onHistory={openHistory}
             onVoid={handleVoid}
             selectedProjectId={selectedProjectId}
-            setSelectedProjectId={setSelectedProjectId}
+            setSelectedProjectId={(id) => navigate({ caseId: id })}
           />
         )}
         {section === "Sourcing Workbench" && sourcingTab === "Quotes" && (

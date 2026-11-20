@@ -2438,3 +2438,14 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--se
 @media (min-width: 761px) and (max-width: 1100px) {
   .appShell { --sidebar-width: 220px; }
 }
+
+/* Page controls under a table that is longer than one page. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 0 0;
+  font-size: 13px;
+}
+.pager button:disabled { opacity: 0.45; cursor: default; }
