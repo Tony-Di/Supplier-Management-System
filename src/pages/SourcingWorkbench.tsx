@@ -27,6 +27,7 @@ import { Pager, usePaging } from "../components/Pager";
 export function SourcingProjects({
   onSourceRoleChange,
   onAdd,
+  onAddQuote,
   onDelete,
   onEdit,
   onHistory,
@@ -36,6 +37,7 @@ export function SourcingProjects({
 }: {
   onSourceRoleChange: (input: Omit<SourceAssignment, "id" | "recordState">) => Promise<void>;
   onAdd: () => void;
+  onAddQuote: () => void;
   onDelete: DeleteHandler;
   onEdit: (target: EditTarget) => void;
   onHistory: HistoryHandler;
@@ -92,6 +94,9 @@ export function SourcingProjects({
         <Panel
           actions={(
             <>
+              {selectedProject.recordState !== "Void" && (
+                <button className="ghostButton" onClick={onAddQuote} type="button">Add quote</button>
+              )}
               {selectedProjectCollapsed && (
                 <button
                   aria-label={`Expand ${selectedProject.name}`}

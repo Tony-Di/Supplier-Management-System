@@ -12,7 +12,7 @@ export function ProjectModal({
 }: {
   data: AppData;
   onClose: () => void;
-  onCreated: () => Promise<void>;
+  onCreated: (project: AppData["projects"][number]) => Promise<void>;
 }) {
   const firstModelId = data.models[0]?.id ?? "";
   const [saving, setSaving] = useState(false);
@@ -52,7 +52,7 @@ export function ProjectModal({
     setFormError("");
 
     try {
-      await createProject({
+      const created = await createProject({
         recordState: "Active",
         name: String(form.get("name") ?? ""),
         modelIds: [modelId],
@@ -65,7 +65,7 @@ export function ProjectModal({
         owner: "Purchasing",
         openDate: String(form.get("openDate") ?? ""),
       });
-      await onCreated();
+      await onCreated(created);
     } catch (requestError) {
       setFormError(requestError instanceof Error ? requestError.message : "Unable to create case.");
     } finally {

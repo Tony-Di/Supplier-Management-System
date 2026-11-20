@@ -219,6 +219,7 @@ function Workbench() {
           <SourcingProjects
             onSourceRoleChange={handleSourceRoleChange}
             onAdd={() => setModal("project")}
+            onAddQuote={() => setModal("quote")}
             onDelete={handleDelete}
             onEdit={setEditTarget}
             onHistory={openHistory}
@@ -314,9 +315,11 @@ function Workbench() {
           <ProjectModal
             data={recordOptions}
             onClose={() => setModal(null)}
-            onCreated={async () => {
+            onCreated={async (project) => {
               setModal(null);
               await refreshData();
+              // The page shows one case at a time, so open the one just saved.
+              navigate({ section: "Sourcing Workbench", sourcingTab: "Development Cases", caseId: project.id });
             }}
           />
         )}

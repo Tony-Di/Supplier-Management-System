@@ -49,7 +49,7 @@ function pages(data: AppData): Array<[name: string, page: ReactElement]> {
     ["Suppliers", <Suppliers onAdd={noop} {...recordActions} />],
     ["Models & Items", <ModelsAndItems onAddItem={noop} onAddModel={noop} onImport={noop} {...recordActions} />],
     ["Packaging Sets", <DrawingSets onAdd={noop} {...recordActions} />],
-    ["Development Cases", <SourcingProjects onAdd={noop} onSourceRoleChange={noop} selectedProjectId={caseId} setSelectedProjectId={noop} {...recordActions} />],
+    ["Development Cases", <SourcingProjects onAdd={noop} onAddQuote={noop} onSourceRoleChange={noop} selectedProjectId={caseId} setSelectedProjectId={noop} {...recordActions} />],
     ["Quotes", <Quotes onAdd={noop} onQuoteStatusChange={noop} selectedProjectId={caseId} {...recordActions} />],
     ["Sample Inspections", <SampleInspections onAdd={noop} onRecordQuote={noop} onView={noop} {...recordActions} />],
     ["Incoming Defects", <IncomingDefects onAdd={noop} onView={noop} {...recordActions} />],
