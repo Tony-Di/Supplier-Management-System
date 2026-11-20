@@ -250,7 +250,7 @@ export function Quotes({
   return (
     <section className="pageStack">
       <TableToolbar
-        action="Add quote"
+        action="Add standalone quote"
         extraActions={<button className="ghostButton" onClick={() => exportQuotes(appData, filteredQuotes)} type="button">Export quotes</button>}
         help="Quote Status is edited here. Source Role is decided in Case Progress once the quote is Selected."
         onAction={onAdd}

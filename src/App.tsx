@@ -64,7 +64,7 @@ function Workbench() {
   const { data, setData, refresh: refreshData, loading, error } = useAppData();
   const recordOptions = useMemo(() => availableRecordOptions(data), [data]);
   const [actionError, setActionError] = useState("");
-  const [modal, setModal] = useState<"supplier" | "model" | "item" | "productImport" | "drawingSet" | "project" | "quote" | "inspection" | "incomingDefect" | "priceChange" | "scoreSettings" | null>(null);
+  const [modal, setModal] = useState<"supplier" | "model" | "item" | "productImport" | "drawingSet" | "project" | "quote" | "caseQuote" | "inspection" | "incomingDefect" | "priceChange" | "scoreSettings" | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [voidTarget, setVoidTarget] = useState<VoidTarget | null>(null);
   const [viewTarget, setViewTarget] = useState<ViewTarget | null>(null);
@@ -219,7 +219,7 @@ function Workbench() {
           <SourcingProjects
             onSourceRoleChange={handleSourceRoleChange}
             onAdd={() => setModal("project")}
-            onAddQuote={() => setModal("quote")}
+            onAddQuote={() => setModal("caseQuote")}
             onDelete={handleDelete}
             onEdit={setEditTarget}
             onHistory={openHistory}
@@ -333,10 +333,10 @@ function Workbench() {
             }}
           />
         )}
-        {modal === "quote" && (
+        {(modal === "quote" || modal === "caseQuote") && (
           <QuoteModal
             data={recordOptions}
-            projectId={selectedProject?.id}
+            projectId={modal === "caseQuote" ? selectedProject?.id : undefined}
             onClose={() => setModal(null)}
             onCreated={async () => {
               setModal(null);

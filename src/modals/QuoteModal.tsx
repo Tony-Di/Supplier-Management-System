@@ -24,7 +24,9 @@ export function QuoteModal({
   const project = data.projects.find((candidate) => candidate.id === projectId);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [quoteType, setQuoteType] = useState<Quote["quoteType"]>(project ? "Case-linked" : "Standalone");
+  // Opened from a case, the quote belongs to that case; opened from the Quotes tab, it stands alone.
+  const quoteType: Quote["quoteType"] = project ? "Case-linked" : "Standalone";
+  const modelOptions = project ? data.models.filter((model) => project.modelIds.includes(model.id)) : data.models;
   const [modelId, setModelId] = useState(project?.modelIds[0] ?? data.models[0]?.id ?? "");
   const quoteDrawingSetOptions = activeDrawingSetsForModel(data.drawingSets, modelId, project?.drawingSetId);
   const [drawingSetId, setDrawingSetId] = useState(project?.drawingSetId ?? quoteDrawingSetOptions[0]?.id ?? "");
@@ -101,20 +103,23 @@ export function QuoteModal({
       <form className="modalPanel" onSubmit={submit}>
         <div className="modalHeader">
           <div>
-            <h2>Add quote</h2>
-            <p>Quotes can be standalone for single-item supplier intro, or linked to a development case.</p>
+            <h2>{project ? "Add case quote" : "Add standalone quote"}</h2>
+            <p>
+              {project
+                ? `This quote is recorded in the case ${project.name}.`
+                : "A standalone quote is not tied to a case. To quote for a case, open the case and add the quote there."}
+            </p>
           </div>
           <button className="ghostButton" onClick={onClose} type="button">Close</button>
         </div>
         <ErrorNotice message={formError} onDismiss={() => setFormError("")} />
         <div className="formGrid">
-          <label>
-            Quote Mode
-            <select value={quoteType} onChange={(event) => setQuoteType(event.target.value as Quote["quoteType"])}>
-              <option>Standalone</option>
-              <option disabled={!project}>Case-linked</option>
-            </select>
-          </label>
+          {project && (
+            <label>
+              Case
+              <input disabled readOnly value={project.name} />
+            </label>
+          )}
           <label>
             Quote Reason
             <select name="quoteReason" defaultValue="New Quote">
@@ -124,7 +129,7 @@ export function QuoteModal({
           <label>
             Model
             <select value={modelId} onChange={(event) => setModelId(event.target.value)} required>
-              {data.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+              {modelOptions.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
             </select>
           </label>
           <label>
